@@ -95,10 +95,9 @@ public class Socket {
      */
     @Suppress("ThrowsCount", "MagicNumber")
     public suspend fun receive(): String {
-        val event = eventQueue.receive()
-        return when (event) {
-/*            is MessageEvent -> {
-                event.data as String
+        return when (val event = eventQueue.receive()) {
+            is MessageEvent -> {
+                event.data.toString()
             }
 
             is CloseEvent -> {
@@ -110,7 +109,7 @@ public class Socket {
                 logError(event)
                 close()
                 throw SocketClosedException(event.message)
-            }*/
+            }
 
             else -> {
                 val reason = getReason(4001)
