@@ -178,20 +178,54 @@ public class RpcProcessor(
             appendLine("import dev.kilua.rpc.HttpMethod")
             appendLine("import dev.kilua.rpc.RpcServiceManager")
             appendLine("import dev.kilua.rpc.registerRpcServiceExceptions")
+            val types = getTypes(ksClassDeclaration.getDeclaredFunctions())
+            types.sorted().forEach {
+                appendLine("import $it")
+            }
+            if (types.contains("kotlinx.coroutines.channels.SendChannel")
+                && !types.contains("kotlinx.coroutines.channels.ReceiveChannel")
+            ) {
+                appendLine("import kotlinx.coroutines.channels.ReceiveChannel")
+            }
             appendLine()
             appendLine("expect class $className : $interfaceName {")
+            val wsMethodsForClass = mutableListOf<String>()
+            val sseMethodsForClass = mutableListOf<String>()
             ksClassDeclaration.getDeclaredFunctions().forEach {
                 val name = it.simpleName.asString()
                 val params = it.parameters
-                appendLine("    override suspend fun $name(${getParameterList(params)}): ${it.returnType.toString()}")
+                val wsMethod =
+                    if (params.size == 2)
+                        params.first().type.toString().startsWith("ReceiveChannel")
+                    else false
+                val sseMethod =
+                    if (params.size == 1)
+                        params.first().type.toString().startsWith("SendChannel")
+                    else false
+                if (!wsMethod && !sseMethod) {
+                    if (!wsMethodsForClass.contains(name) && !sseMethodsForClass.contains(name)) {
+                        appendLine("    override suspend fun $name(${getParameterList(params)}): ${getTypeString(it.returnType?.resolve())}")
+                    }
+                } else if (wsMethod) {
+                    appendLine("    override suspend fun $name(${getParameterList(params)}): Unit")
+                    val type1 = getTypeString(params[0].type.resolve()).replace("ReceiveChannel", "SendChannel")
+                    val type2 = getTypeString(params[1].type.resolve()).replace("SendChannel", "ReceiveChannel")
+                    appendLine("    override suspend fun $name(handler: suspend ($type1, $type2) -> Unit): Unit")
+                } else {
+                    appendLine("    override suspend fun $name(${getParameterList(params)}): Unit")
+                    val type = getTypeString(params[0].type.resolve()).replace("SendChannel", "ReceiveChannel")
+                    appendLine("    override suspend fun $name(handler: suspend ($type) -> Unit): Unit")
+                }
+                if (wsMethod) wsMethodsForClass.add(name)
+                if (sseMethod) sseMethodsForClass.add(name)
             }
             appendLine("}")
             appendLine()
             appendLine("object $managerName : RpcServiceManager<$className>($className::class) {")
             appendLine("    init {")
             appendLine("        registerRpcServiceExceptions()")
-            val wsMethods = mutableListOf<String>()
-            val sseMethods = mutableListOf<String>()
+            val wsMethodsForMgr = mutableListOf<String>()
+            val sseMethodsForMgr = mutableListOf<String>()
             ksClassDeclaration.getDeclaredFunctions().forEach {
                 val params = it.parameters
                 val wsMethod =
@@ -234,11 +268,11 @@ public class RpcProcessor(
                         appendLine("        bind($interfaceName::${it.simpleName.asString()}, $route)")
                     }
 
-                    else -> if (!wsMethods.contains(it.simpleName.asString()) && !sseMethods.contains(it.simpleName.asString()))
+                    else -> if (!wsMethodsForMgr.contains(it.simpleName.asString()) && !sseMethodsForMgr.contains(it.simpleName.asString()))
                         appendLine("        bind($interfaceName::${it.simpleName.asString()}, $method, $route)")
                 }
-                if (wsMethod) wsMethods.add(it.simpleName.asString())
-                if (sseMethod) sseMethods.add(it.simpleName.asString())
+                if (wsMethod) wsMethodsForMgr.add(it.simpleName.asString())
+                if (sseMethod) sseMethodsForMgr.add(it.simpleName.asString())
             }
             appendLine("    }")
             appendLine("}")
@@ -272,9 +306,6 @@ public class RpcProcessor(
             }
             appendLine()
             appendLine("actual class $className(serializersModules: List<SerializersModule>? = null, requestFilter: (suspend RequestInit.() -> Unit)? = null) : $interfaceName, RpcAgent<$className>($managerName, serializersModules, requestFilter) {")
-            val methodsCounts = ksClassDeclaration.getDeclaredFunctions().map {
-                it.simpleName.asString()
-            }.groupBy { it }.map { it.key to it.value.size }.toMap()
             val wsMethods = mutableListOf<String>()
             val sseMethods = mutableListOf<String>()
             ksClassDeclaration.getDeclaredFunctions().forEach {
@@ -316,13 +347,11 @@ public class RpcProcessor(
                     appendLine("    actual override suspend fun $name(${getParameterList(params)}) {}")
                     val type1 = getTypeString(params[0].type.resolve()).replace("ReceiveChannel", "SendChannel")
                     val type2 = getTypeString(params[1].type.resolve()).replace("SendChannel", "ReceiveChannel")
-                    val override = if ((methodsCounts[name] ?: 0) > 1) "override " else ""
-                    appendLine("    ${override}suspend fun $name(handler: suspend ($type1, $type2) -> Unit) = webSocket($interfaceName::$name, handler)")
+                    appendLine("    actual override suspend fun $name(handler: suspend ($type1, $type2) -> Unit) = webSocket($interfaceName::$name, handler)")
                 } else {
                     appendLine("    actual override suspend fun $name(${getParameterList(params)}) {}")
                     val type = getTypeString(params[0].type.resolve()).replace("SendChannel", "ReceiveChannel")
-                    val override = if ((methodsCounts[name] ?: 0) > 1) "actual override " else ""
-                    appendLine("    ${override}suspend fun $name(handler: suspend ($type) -> Unit) = sseConnection($interfaceName::$name, handler)")
+                    appendLine("    actual override suspend fun $name(handler: suspend ($type) -> Unit) = sseConnection($interfaceName::$name, handler)")
                 }
                 if (wsMethod) wsMethods.add(name)
                 if (sseMethod) sseMethods.add(name)
@@ -426,20 +455,28 @@ public class RpcProcessor(
         }.toString()
     }
 
-    private fun getTypeString(type: KSType): String {
-        val baseType = if (type.arguments.isEmpty()) {
-            type.declaration.simpleName.asString()
+    private fun getTypeString(type: KSType?): String {
+        return if (type == null) {
+            "Unit"
         } else {
-            type.declaration.simpleName.asString() + type.arguments.joinToString(",", "<", ">") {
-                it.type?.let { getTypeString(it.resolve()) } ?: it.toString()
+            val baseType = if (type.arguments.isEmpty()) {
+                type.declaration.simpleName.asString()
+            } else {
+                type.declaration.simpleName.asString() + type.arguments.joinToString(",", "<", ">") {
+                    it.type?.let { getTypeString(it.resolve()) } ?: it.toString()
+                }
             }
+            if (type.isMarkedNullable) "$baseType?" else baseType
         }
-        return if (type.isMarkedNullable) "$baseType?" else baseType
     }
 
     private fun getParameterList(params: List<KSValueParameter>): String {
-        return params.filter { it.name != null }.joinToString(", ") {
-            "${it.name!!.asString()}: ${getTypeString(it.type.resolve())}"
+        return if (params.isEmpty()) {
+            ""
+        } else {
+            params.filter { it.name != null }.joinToString(", ") {
+                "${it.name!!.asString()}: ${getTypeString(it.type.resolve())}"
+            }
         }
     }
 
