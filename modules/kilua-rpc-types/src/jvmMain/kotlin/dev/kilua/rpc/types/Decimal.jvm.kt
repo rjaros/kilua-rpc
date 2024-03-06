@@ -19,32 +19,25 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 package dev.kilua.rpc.types
-
-import dev.kilua.rpc.types.serializers.DecimalSerializer
-import kotlinx.serialization.Serializable
-
-/**
- * A serializable decimal number type.
- */
-public typealias Decimal = @Serializable(with = DecimalSerializer::class) InternalDecimal
 
 /**
  * A helper extension function to convert Double to Decimal number type.
  */
-public expect fun Double.toDecimal(): Decimal
+public actual fun Double.toDecimal(): Decimal = this.toBigDecimal()
 
 /**
  * A helper extension function to convert Int to Decimal number type.
  */
-public expect fun Int.toDecimal(): Decimal
+public actual fun Int.toDecimal(): Decimal = this.toBigDecimal()
 
 /**
  * A helper extension function to convert Decimal number type to Double.
  */
-public expect fun Decimal.toDouble(): Double
+public actual fun Decimal.toDouble(): Double = this.toDouble()
 
 /**
  * A helper extension function to convert Decimal number type to Int.
  */
-public expect fun Decimal.toInt(): Int
+public actual fun Decimal.toInt(): Int = this.toInt()
