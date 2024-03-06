@@ -1,9 +1,9 @@
 [versions]
 kilua-rpc = "0.0.1"
-kotlin = "2.0.0-Beta4"
+kotlin = "1.9.22"
 dokka = "1.9.20"
 nmcp = "0.0.4"
-ksp = "2.0.0-Beta4-1.0.17"
+ksp = "1.9.22-1.0.17"
 gradle-plugin-publish = "1.2.1"
 kotlinx-coroutines = "1.8.0"
 kotlinx-serialization = "1.6.3"
