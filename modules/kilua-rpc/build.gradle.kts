@@ -28,6 +28,13 @@ kotlin {
                 api(libs.kotlinx.coroutines)
             }
         }
+        val commonTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+                implementation(kotlin("test-common"))
+                implementation(kotlin("test-annotations-common"))
+            }
+        }
         val jsMain by getting {
             dependencies {
             }
@@ -38,9 +45,15 @@ kotlin {
         }
         val jvmMain by getting {
             dependencies {
+                implementation(libs.hamcrest)
+                implementation(libs.testng)
             }
         }
     }
+}
+
+tasks.withType<Test> {
+    useTestNG()
 }
 
 tasks.register<Jar>("javadocJar") {
@@ -53,4 +66,13 @@ setupPublishing()
 
 nmcp {
     publishAllPublications {}
+}
+
+rootProject.the<org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootExtension>().apply {
+    nodeVersion = "22.0.0-v8-canary202401102ecfc94f85"
+    nodeDownloadBaseUrl = "https://nodejs.org/download/v8-canary"
+}
+
+rootProject.tasks.withType<org.jetbrains.kotlin.gradle.targets.js.npm.tasks.KotlinNpmInstallTask>().configureEach {
+    args.add("--ignore-engines")
 }
