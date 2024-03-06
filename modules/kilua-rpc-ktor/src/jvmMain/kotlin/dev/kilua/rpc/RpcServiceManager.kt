@@ -89,7 +89,7 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
                         result = deSerializer.serializeNullableToString(result, serializer)
                     )
                 )
-            } catch (e: IllegalParameterCountException) {
+            } catch (_: IllegalParameterCountException) {
                 call.respond(
                     JsonRpcResponse(
                         id = jsonRpcRequest.id,

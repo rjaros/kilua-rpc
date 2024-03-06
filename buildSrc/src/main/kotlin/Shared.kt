@@ -84,10 +84,10 @@ fun KotlinJvmProjectExtension.kotlinJvmTargets(target: String = "17") {
     }
 }
 
-val kiluaRpcProjectName = "Kilua RPC"
-val kiluaRpcProjectDescription = "Experimental fullstack RPC library for Kotlin/Wasm and Kotlin/JS"
-val kiluaRpcUrl = "https://github.com/rjaros/kilua-rpc"
-val kiluaRpcVcsUrl = "scm:git:git://github.com/rjaros/kilua-rpc.git"
+const val kiluaRpcProjectName = "Kilua RPC"
+const val kiluaRpcProjectDescription = "Experimental fullstack RPC library for Kotlin/Wasm and Kotlin/JS"
+const val kiluaRpcUrl = "https://github.com/rjaros/kilua-rpc"
+const val kiluaRpcVcsUrl = "scm:git:git://github.com/rjaros/kilua-rpc.git"
 
 fun MavenPom.defaultPom() {
     name.set(kiluaRpcProjectName)
