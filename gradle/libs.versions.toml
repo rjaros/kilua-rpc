@@ -12,6 +12,8 @@ detekt = "1.23.5"
 tomlj = "1.1.1"
 ktor = "2.3.9"
 koin = "3.5.4-RC1"
+spring-boot = "3.2.3"
+shadow = "8.1.1"
 testng = "7.9.0"
 hamcrest = "2.2"
 
@@ -31,6 +33,8 @@ ksp-gradle-plugin = { module = "com.google.devtools.ksp:com.google.devtools.ksp.
 tomlj = { module = "org.tomlj:tomlj", version.ref = "tomlj" }
 testng = { module = "org.testng:testng", version.ref = "testng" }
 hamcrest = { module = "org.hamcrest:hamcrest", version.ref = "hamcrest" }
+spring-boot-gradle-plugin = { module = "org.springframework.boot:spring-boot-gradle-plugin", version.ref = "spring-boot" }
+shadow-gradle-plugin = { module = "com.github.johnrengelman.shadow:com.github.johnrengelman.shadow.gradle.plugin", version.ref = "shadow" }
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

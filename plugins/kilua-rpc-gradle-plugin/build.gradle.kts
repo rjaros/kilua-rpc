@@ -10,6 +10,10 @@ plugins {
     alias(libs.plugins.gradle.plugin.publish)
 }
 
+repositories {
+    gradlePluginPortal()
+}
+
 detekt {
     toolVersion = libs.versions.detekt.get()
     config.setFrom("../../detekt-config.yml")
@@ -50,6 +54,8 @@ dependencies {
     implementation(kotlin("gradle-plugin"))
     implementation(libs.ksp.gradle.plugin)
     implementation(libs.tomlj)
+    compileOnly(libs.spring.boot.gradle.plugin)
+    compileOnly(libs.shadow.gradle.plugin)
 }
 
 tasks.register<Jar>("javadocJar") {
