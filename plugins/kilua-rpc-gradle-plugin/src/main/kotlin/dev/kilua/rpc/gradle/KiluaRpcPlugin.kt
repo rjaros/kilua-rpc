@@ -36,7 +36,6 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
         val jvmMainExists = layout.projectDirectory.dir("src/jvmMain").asFile.exists()
         val jsMainExists = layout.projectDirectory.dir("src/jsMain").asFile.exists()
         val wasmJsMainExists = layout.projectDirectory.dir("src/wasmJsMain").asFile.exists()
-        val webMainExists = layout.projectDirectory.dir("src/webMain").asFile.exists()
         if ((jsMainExists || wasmJsMainExists) && jvmMainExists) {
             if (!plugins.hasPlugin("java")) {
                 plugins.apply("java")
@@ -90,11 +89,6 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
                 }
                 if (wasmJsMainExists) {
                     kotlinMppExtension.sourceSets.getByName("wasmJsMain").kotlin.srcDir("build/generated/ksp/wasmJs/wasmJsMain/kotlin")
-                }
-                if (webMainExists && jsMainExists) {
-                    kotlinMppExtension.sourceSets.getByName("webMain").kotlin.srcDir("build/generated/ksp/js/jsMain/kotlin")
-                } else if (webMainExists) {
-                    kotlinMppExtension.sourceSets.getByName("webMain").kotlin.srcDir("build/generated/ksp/wasmJs/wasmJsMain/kotlin")
                 }
 
                 // Workaround duplicated source roots in IntelliJ IDEA
