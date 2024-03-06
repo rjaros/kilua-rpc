@@ -1,11 +1,10 @@
 [versions]
 kilua-rpc = "0.0.1"
 kotlin = "2.0.0-Beta4"
-dokka = "2.0.0-dev-318"
+dokka = "1.9.20"
 nmcp = "0.0.4"
 ksp = "2.0.0-Beta4-1.0.17"
 gradle-plugin-publish = "1.2.1"
-kotlinx-atomicfu = "0.23.2"
 kotlinx-coroutines = "1.8.0"
 kotlinx-serialization = "1.6.3"
 kotlinx-datetime = "0.6.0-RC.2"
@@ -15,7 +14,6 @@ ktor = "2.3.8"
 koin = "3.5.3"
 
 [libraries]
-kotlinx-atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version.ref = "kotlinx-atomicfu" }
 kotlinx-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
