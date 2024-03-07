@@ -28,6 +28,8 @@ nmcp {
         project(":modules:kilua-rpc-jooby")
         project(":modules:kilua-rpc-ktor-guice")
         project(":modules:kilua-rpc-ktor-koin")
+        project(":modules:kilua-rpc-micronaut")
+        project(":modules:kilua-rpc-spring-boot")
         project(":modules:kilua-rpc-vertx")
         project(":plugins:kilua-rpc-gradle-plugin")
         project(":plugins:kilua-rpc-ksp-processor")

@@ -18,6 +18,7 @@ vertx = "4.5.4"
 guice = "7.0.0"
 jackson-module-kotlin = "2.16.1"
 spring-boot = "3.2.3"
+micronaut = "4.3.4"
 logback = "1.5.3"
 shadow = "8.1.1"
 testng = "7.9.0"
@@ -26,6 +27,8 @@ hamcrest = "2.2"
 [libraries]
 kotlinx-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutines-jdk8 = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-jdk8", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-reactor = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-reactor", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-reactive = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-reactive", version.ref = "kotlinx-coroutines" }
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
@@ -40,6 +43,10 @@ jooby-kotlin = { module = "io.jooby:jooby-kotlin", version.ref = "jooby" }
 jooby-netty = { module = "io.jooby:jooby-netty", version.ref = "jooby" }
 jooby-jackson = { module = "io.jooby:jooby-jackson", version.ref = "jooby" }
 jooby-guice = { module = "io.jooby:jooby-guice", version.ref = "jooby" }
+micronaut-platform = { module = "io.micronaut.platform:micronaut-platform", version.ref = "micronaut" }
+spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter", version.ref = "spring-boot" }
+spring-boot-starter-webflux = { module = "org.springframework.boot:spring-boot-starter-webflux", version.ref = "spring-boot" }
+spring-boot-starter-security = { module = "org.springframework.boot:spring-boot-starter-security", version.ref = "spring-boot" }
 vertx-web = { module = "io.vertx:vertx-web", version.ref = "vertx" }
 vertx-lang-kotlin = { module = "io.vertx:vertx-lang-kotlin", version.ref = "vertx" }
 vertx-lang-kotlin-coroutines = { module = "io.vertx:vertx-lang-kotlin-coroutines", version.ref = "vertx" }
@@ -61,3 +68,4 @@ detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 nmcp = { id = "com.gradleup.nmcp", version.ref = "nmcp" }
 gradle-plugin-publish = { id = "com.gradle.plugin-publish", version.ref = "gradle-plugin-publish" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
