@@ -15,10 +15,9 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "kilua-rpc-project"
 include(":modules:kilua-rpc-annotations")
 include(":modules:kilua-rpc-types")
-include(":modules:kilua-rpc")
+include(":modules:kilua-rpc-core")
 include(":modules:kilua-rpc-javalin")
 include(":modules:kilua-rpc-jooby")
 include(":modules:kilua-rpc-ktor-guice")

@@ -23,7 +23,7 @@ nmcp {
     publishAggregation {
         project(":modules:kilua-rpc-annotations")
         project(":modules:kilua-rpc-types")
-        project(":modules:kilua-rpc")
+        project(":modules:kilua-rpc-core")
         project(":modules:kilua-rpc-javalin")
         project(":modules:kilua-rpc-jooby")
         project(":modules:kilua-rpc-ktor-guice")
