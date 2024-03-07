@@ -12,7 +12,9 @@ detekt = "1.23.5"
 tomlj = "1.1.1"
 ktor = "2.3.9"
 koin = "3.5.4-RC1"
+guice = "7.0.0"
 spring-boot = "3.2.3"
+logback = "1.5.3"
 shadow = "8.1.1"
 testng = "7.9.0"
 hamcrest = "2.2"
@@ -28,9 +30,11 @@ ktor-server-websockets = { module = "io.ktor:ktor-server-websockets", version.re
 ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 koin-ktor = { module = "io.insert-koin:koin-ktor", version.ref = "koin" }
 koin-logger-slf4j = { module = "io.insert-koin:koin-logger-slf4j", version.ref = "koin" }
+guice = { module = "com.google.inject:guice", version.ref = "guice" }
 ksp-symbol-processing-api = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "ksp" }
 ksp-gradle-plugin = { module = "com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin", version.ref = "ksp" }
 tomlj = { module = "org.tomlj:tomlj", version.ref = "tomlj" }
+logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 testng = { module = "org.testng:testng", version.ref = "testng" }
 hamcrest = { module = "org.hamcrest:hamcrest", version.ref = "hamcrest" }
 spring-boot-gradle-plugin = { module = "org.springframework.boot:spring-boot-gradle-plugin", version.ref = "spring-boot" }

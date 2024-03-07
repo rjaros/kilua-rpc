@@ -24,6 +24,7 @@ nmcp {
         project(":modules:kilua-rpc-annotations")
         project(":modules:kilua-rpc-types")
         project(":modules:kilua-rpc")
+        project(":modules:kilua-rpc-ktor-guice")
         project(":modules:kilua-rpc-ktor-koin")
         project(":plugins:kilua-rpc-gradle-plugin")
         project(":plugins:kilua-rpc-ksp-processor")
