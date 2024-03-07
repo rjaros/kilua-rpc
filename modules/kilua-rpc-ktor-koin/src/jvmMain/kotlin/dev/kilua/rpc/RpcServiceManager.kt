@@ -50,7 +50,7 @@ public typealias WebsocketHandler = suspend WebSocketServerSession.() -> Unit
 public typealias SseHandler = RequestHandler
 
 /**
- * Multiplatform service manager for Ktor.
+ * Fullstack service manager for Ktor.
  */
 public actual open class RpcServiceManager<out T : Any> actual constructor(private val serviceClass: KClass<T>) :
     RpcServiceMgr<T>,
