@@ -45,6 +45,7 @@ kotlin {
                 implementation(libs.ktor.serialization.kotlinx.json)
                 api(libs.koin.ktor)
                 api(libs.koin.logger.slf4j)
+                api(libs.logback.classic)
             }
         }
     }

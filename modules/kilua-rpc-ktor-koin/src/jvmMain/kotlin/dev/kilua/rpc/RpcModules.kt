@@ -54,8 +54,6 @@ public fun Application.initRpc(json: Json, vararg modules: Module): Unit =
 public fun Application.initRpc(initStaticResources: Boolean, vararg modules: Module): Unit =
     this.initRpc(initStaticResources, DefaultJson, *modules)
 
-internal val scopeKey = AttributeKey<String>("KoinScopeId")
-
 /**
  * Initialization function for Ktor server.
  * @param initStaticResources initialize default static resources
