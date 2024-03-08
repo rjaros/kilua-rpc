@@ -443,7 +443,7 @@ public abstract class KiluaRpcPlugin() : Plugin<Project> {
 
     public companion object {
 
-        public const val KILUA_RPC_TASK_GROUP: String = "kilua-rpc"
+        public const val KILUA_RPC_TASK_GROUP: String = "Kilua RPC"
         public const val PACKAGE_TASK_GROUP: String = "package"
 
     }
