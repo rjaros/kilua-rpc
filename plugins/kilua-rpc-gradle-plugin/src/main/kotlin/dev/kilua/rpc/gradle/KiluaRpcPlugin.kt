@@ -40,10 +40,12 @@ import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.dsl.KotlinCompile
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
+import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpack
 import org.springframework.boot.gradle.tasks.bundling.BootJar
 import org.springframework.boot.gradle.tasks.run.BootRun
 import org.tomlj.Toml
+import java.util.Locale.US
 
 public enum class RpcServerType {
     Javalin, Jooby, Ktor, Micronaut, SpringBoot, VertX
@@ -81,15 +83,17 @@ public abstract class KiluaRpcPlugin() : Plugin<Project> {
 
     private fun KiluaRpcPluginContext.configureProject() {
         logger.debug("Configuring Kotlin/MPP plugin")
+
         val jvmMainExists = layout.projectDirectory.dir("src/jvmMain").asFile.exists()
         val jsMainExists = layout.projectDirectory.dir("src/jsMain").asFile.exists()
         val wasmJsMainExists = layout.projectDirectory.dir("src/wasmJsMain").asFile.exists()
         val webMainExists = jsMainExists || wasmJsMainExists
+
         if (webMainExists && jvmMainExists && kiluaRpcExtension.enableKsp.get()) {
-            if (!plugins.hasPlugin("java")) {
-                plugins.apply("java")
+            if (!pluginManager.hasPlugin("java")) {
+                pluginManager.apply("java")
             }
-            plugins.apply("com.google.devtools.ksp")
+            pluginManager.apply("com.google.devtools.ksp")
         }
 
         val kotlinMppExtension = extensions.getByType<KotlinMultiplatformExtension>()
@@ -123,16 +127,18 @@ public abstract class KiluaRpcPlugin() : Plugin<Project> {
                 dependencies {
                     add("kspCommonMainMetadata", "dev.kilua:kilua-rpc-ksp-processor:${kiluaRpcVersion}")
                 }
+                kotlinMppExtension.targets
+                    .matching {
+                        it.platformType in setOf(
+                            KotlinPlatformType.jvm,
+                            KotlinPlatformType.js,
+                            KotlinPlatformType.wasm
+                        )
+                    }.configureEach {
+                        project.dependencies.add("ksp${targetName.replaceFirstChar { if (it.isLowerCase()) it.titlecase(US) else it.toString() }}", "dev.kilua:kilua-rpc-ksp-processor:${kiluaRpcVersion}")
+                    }
 
                 afterEvaluate {
-                    dependencies {
-                        if (jsMainExists) {
-                            add("kspJs", "dev.kilua:kilua-rpc-ksp-processor:${kiluaRpcVersion}")
-                        }
-                        if (wasmJsMainExists) {
-                            add("kspWasmJs", "dev.kilua:kilua-rpc-ksp-processor:${kiluaRpcVersion}")
-                        }
-                    }
                     kotlinMppExtension.sourceSets.getByName("commonMain").kotlin.srcDir("build/generated/ksp/metadata/commonMain/kotlin")
                     if (jsMainExists) {
                         kotlinMppExtension.sourceSets.getByName("jsMain").kotlin.srcDir("build/generated/ksp/js/jsMain/kotlin")
@@ -140,6 +146,7 @@ public abstract class KiluaRpcPlugin() : Plugin<Project> {
                     if (wasmJsMainExists) {
                         kotlinMppExtension.sourceSets.getByName("wasmJsMain").kotlin.srcDir("build/generated/ksp/wasmJs/wasmJsMain/kotlin")
                     }
+                    kotlinMppExtension.sourceSets.getByName("jvmMain").kotlin.srcDir("build/generated/ksp/jvm/jvmMain/kotlin")
 
                     // Workaround duplicated source roots in IntelliJ IDEA
                     afterEvaluate {
@@ -161,6 +168,10 @@ public abstract class KiluaRpcPlugin() : Plugin<Project> {
                 }
 
                 tasks.all.kspKotlinWasmJs.configureEach {
+                    dependsOn("kspCommonMainKotlinMetadata")
+                }
+
+                tasks.all.kspKotlinJvm.configureEach {
                     dependsOn("kspCommonMainKotlinMetadata")
                 }
 
@@ -416,6 +427,9 @@ public abstract class KiluaRpcPlugin() : Plugin<Project> {
 
         val kspKotlinWasmJs: TaskCollection<Task>
             get() = collection("kspKotlinWasmJs")
+
+        val kspKotlinJvm: TaskCollection<Task>
+            get() = collection("kspKotlinJvm")
 
         private inline fun <reified T : Task> collection(taskName: String): TaskCollection<T> =
             tasks.withType<T>().matching { it.name == taskName }
