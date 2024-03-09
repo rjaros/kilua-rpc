@@ -1,6 +1,6 @@
 # Kilua-RPC
 
-Experimental fullstack RPC library for Kotlin/Wasm and Kotlin/JS.
+Experimental RPC library for Kotlin/Wasm and Kotlin/JS.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
