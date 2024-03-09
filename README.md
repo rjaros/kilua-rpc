@@ -31,8 +31,8 @@ browser and to `BigDecimal` on the server.
 - Support for `Result<T>` as a return type of remote methods.
 - Automatic exceptions propagation from the server to the client, 
 including support for custom exception types.
-- Support for two-way communication with [WebSockets](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API).
-- Support for [SSE (Server-Sent Events)](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events).
+- Support two-way communication with [WebSockets](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API).
+- Support [SSE (Server-Sent Events)](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events).
 - Automatic endpoints generation configurable with simple annotations.
 - Gradle plugin for easy project setup and packaging.
 
