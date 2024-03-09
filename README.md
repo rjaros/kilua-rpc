@@ -119,9 +119,22 @@ the `examples` directory for simple applications created with all supported serv
 You will notice the frontend applications are identical - the only real difference 
 is the backend app dependencies list and the main initialization code. 
 
-If you need more advanced information, until better documentation is ready, you can currently look into 
-the [KVision fullstack development guide](https://kvision.gitbook.io/kvision-guide/6.-full-stack-development-guide), 
-because the general Kilua RPC rules are the same as KVision. 
+## Gradle tasks
+
+Kilua RPC gradle plugin defines custom tasks to run and package fullstack applications. 
+No matter which server is used these tasks are available:
+
+- `jsRun` - run the frontend JS application in the development mode
+- `wasmJsRun` - run the frontend WASM application in the development mode
+- `jvmRun` - run the backend application in the development mode
+- `jarWithJs` - package the fullstack application with JS frontend as a single JAR file
+- `jarWithWasmJs` - package the fullstack application with WASM frontend as a single JAR file
+
+## Additional documentation
+
+If you need more advanced information, until better documentation is ready, you can currently look into
+the [KVision fullstack development guide](https://kvision.gitbook.io/kvision-guide/6.-full-stack-development-guide),
+because the general Kilua RPC rules are the same as KVision.
 
 ## Leave a star
 
