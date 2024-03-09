@@ -1,4 +1,4 @@
-# Kilua-RPC
+# Kilua RPC
 
 Experimental RPC library for Kotlin/Wasm and Kotlin/JS.
 
