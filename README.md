@@ -24,8 +24,7 @@ applications with shared code for data model and business logic.
 
 ## Features
 
-- Compile the same application code for Kotlin/Wasm and Kotlin/JS targets 
-with support for shared sources set.
+- Compile the same application code for Kotlin/Wasm and Kotlin/JS targets.
 - Support for serializable [kotlinx-datetime](https://github.com/Kotlin/kotlinx-datetime) types.
 - Built-in `Decimal` type automatically mapped to `Double` in the 
 browser and to `BigDecimal` on the server. 
