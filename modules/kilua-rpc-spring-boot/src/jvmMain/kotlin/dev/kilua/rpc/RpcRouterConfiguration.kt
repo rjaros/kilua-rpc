@@ -31,8 +31,12 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Scope
 import org.springframework.core.io.Resource
+import org.springframework.http.MediaType
 import org.springframework.http.MediaType.TEXT_HTML
 import org.springframework.stereotype.Component
+import org.springframework.web.reactive.config.EnableWebFlux
+import org.springframework.web.reactive.config.ResourceHandlerRegistry
+import org.springframework.web.reactive.config.WebFluxConfigurer
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -41,6 +45,8 @@ import org.springframework.web.reactive.function.server.ServerResponse.HeadersBu
 import org.springframework.web.reactive.function.server.buildAndAwait
 import org.springframework.web.reactive.function.server.coRouter
 import org.springframework.web.reactive.function.server.router
+import java.util.*
+
 
 /**
  * Default Spring Boot routes
@@ -68,11 +74,26 @@ public open class RpcRouterConfiguration {
     }
 }
 
+@Configuration
+@EnableWebFlux
+public open class WebFluxConfig : WebFluxConfigurer {
+    override fun addResourceHandlers(registry: ResourceHandlerRegistry) {
+        val registration = registry.addResourceHandler("/**")
+        registration.addResourceLocations("classpath:/public/")
+        val wasmMediaType = MediaType.parseMediaType("application/wasm")
+        registration.setMediaTypes(Collections.singletonMap("wasm", wasmMediaType))
+    }
+
+}
+
 /**
  * Default Spring Boot handler
  */
 @Component
-public open class RpcHandler(private val services: List<RpcServiceManager<*>>, private val applicationContext: ApplicationContext) {
+public open class RpcHandler(
+    private val services: List<RpcServiceManager<*>>,
+    private val applicationContext: ApplicationContext
+) {
 
     @Autowired(required = false)
     public val serializersModules: List<SerializersModule>? = null

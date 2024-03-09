@@ -52,10 +52,16 @@ public fun Vertx.initRpc(
     if (initStaticResources) router.initStaticResources()
 
     router.route("/rpc/*").handler(BodyHandler.create(false))
+    router.route("/rpcsse/*").handler(BodyHandler.create(false))
+
     @Suppress("SpreadOperator")
     val injector = Guice.createInjector(MainModule(this), *modules)
 
     router.route("/rpc/*").handler { rctx ->
+        rctx.put(RPC_INJECTOR_KEY, injector.createChildInjector(RoutingContextModule(rctx)))
+        rctx.next()
+    }
+    router.route("/rpcsse/*").handler { rctx ->
         rctx.put(RPC_INJECTOR_KEY, injector.createChildInjector(RoutingContextModule(rctx)))
         rctx.next()
     }
@@ -88,11 +94,16 @@ public fun Vertx.initRpc(
     if (initStaticResources) router.initStaticResources()
 
     router.route("/rpc/*").handler(BodyHandler.create(false))
+    router.route("/rpcsse/*").handler(BodyHandler.create(false))
 
     @Suppress("SpreadOperator")
     val injector = Guice.createInjector(MainModule(this), *modules)
 
     router.route("/rpc/*").handler { rctx ->
+        rctx.put(RPC_INJECTOR_KEY, injector.createChildInjector(RoutingContextModule(rctx)))
+        rctx.next()
+    }
+    router.route("/rpcsse/*").handler { rctx ->
         rctx.put(RPC_INJECTOR_KEY, injector.createChildInjector(RoutingContextModule(rctx)))
         rctx.next()
     }

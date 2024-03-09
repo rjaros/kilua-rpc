@@ -23,6 +23,7 @@
 package dev.kilua.rpc.gradle
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import io.vertx.gradle.VertxExtension
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
@@ -135,7 +136,15 @@ public abstract class KiluaRpcPlugin() : Plugin<Project> {
                             KotlinPlatformType.wasm
                         )
                     }.configureEach {
-                        project.dependencies.add("ksp${targetName.replaceFirstChar { if (it.isLowerCase()) it.titlecase(US) else it.toString() }}", "dev.kilua:kilua-rpc-ksp-processor:${kiluaRpcVersion}")
+                        project.dependencies.add(
+                            "ksp${
+                                targetName.replaceFirstChar {
+                                    if (it.isLowerCase()) it.titlecase(
+                                        US
+                                    ) else it.toString()
+                                }
+                            }", "dev.kilua:kilua-rpc-ksp-processor:${kiluaRpcVersion}"
+                        )
                     }
 
                 afterEvaluate {
@@ -193,66 +202,40 @@ public abstract class KiluaRpcPlugin() : Plugin<Project> {
                             else -> "/assets"
                         }
                         if (jsMainExists) {
-                            createArchiveTask("js", "js", assetsPath)
+                            createWebArchiveTask("js", "js", assetsPath)
                         }
                         if (wasmJsMainExists) {
-                            createArchiveTask("wasmJs", "wasm-js", assetsPath)
+                            createWebArchiveTask("wasmJs", "wasm-js", assetsPath)
                         }
                         tasks.getByName("jvmProcessResources", Copy::class) {
                             duplicatesStrategy = DuplicatesStrategy.EXCLUDE
                         }
                         when (serverType) {
                             RpcServerType.Javalin, RpcServerType.Jooby, RpcServerType.Ktor -> {
-                                val jarTaskExists = tasks.findByName("jar") != null
-                                val customJarTaskName = if (jarTaskExists) "shadowJar" else "jar"
-                                if (jsMainExists && wasmJsMainExists) {
-                                    createCustomJarTask("jarWithJs", "js")
-                                    createCustomJarTask("jarWithWasmJs", "wasmJs")
-                                } else if (jsMainExists) {
-                                    createCustomJarTask(customJarTaskName, "js")
-                                } else {
-                                    createCustomJarTask(customJarTaskName, "wasmJs")
+                                if (jsMainExists) {
+                                    createShadowJarTask("jarWithJs", "js")
                                 }
-                                if (jarTaskExists && (!jsMainExists || !wasmJsMainExists)) {
-                                    tasks.getByName("jar", Jar::class).apply {
-                                        enabled = false
-                                        dependsOn("shadowJar")
-                                    }
+                                if (wasmJsMainExists) {
+                                    createShadowJarTask("jarWithWasmJs", "wasmJs")
+                                }
+                                val defaultJarTaskName = if (jsMainExists) "jarWithJs" else "jarWithWasmJs"
+                                tasks.findByName("jar")?.apply {
+                                    enabled = false
+                                    dependsOn(defaultJarTaskName)
                                 }
                             }
 
                             RpcServerType.SpringBoot -> {
-                                val webArchive = if (jsMainExists) "jsArchive" else "wasmJsArchive"
-                                val webClasses = if (jsMainExists) "jsMainClasses" else "wasmJsMainClasses"
-                                tasks.getByName("bootJar", BootJar::class) {
-                                    dependsOn(webArchive, webClasses)
-                                    classpath = files(
-                                        kotlinMppExtension.targets["jvm"].compilations["main"].output.allOutputs,
-                                        project.configurations["jvmRuntimeClasspath"],
-                                        (project.tasks[webArchive] as Jar).archiveFile
-                                    )
+                                if (jsMainExists) {
+                                    createBootJarTask("jarWithJs", "js", kotlinMppExtension)
                                 }
-                                if (jsMainExists && wasmJsMainExists) {
-                                    tasks.create("jarWithJs") {
-                                        group = KILUA_RPC_TASK_GROUP
-                                        description = "Assembles a jar archive containing application with js frontend."
-                                        dependsOn("bootJar")
-                                    }
-                                    tasks.create("jarWithWasmJs", BootJar::class) {
-                                        group = KILUA_RPC_TASK_GROUP
-                                        description =
-                                            "Assembles a jar archive containing application with wasmJs frontend."
-                                        dependsOn("wasmJsArchive", "wasmJsMainClasses")
-                                        classpath = files(
-                                            kotlinMppExtension.targets["jvm"].compilations["main"].output.allOutputs,
-                                            project.configurations["jvmRuntimeClasspath"],
-                                            (project.tasks["wasmJsArchive"] as Jar).archiveFile
-                                        )
-                                    }
-                                } else {
-                                    tasks.getByName("jar", Jar::class).apply {
-                                        dependsOn("bootJar")
-                                    }
+                                if (wasmJsMainExists) {
+                                    createBootJarTask("jarWithWasmJs", "wasmJs", kotlinMppExtension)
+                                }
+                                val defaultJarTaskName = if (jsMainExists) "jarWithJs" else "jarWithWasmJs"
+                                tasks.findByName("jar")?.apply {
+                                    enabled = false
+                                    dependsOn(defaultJarTaskName)
                                 }
                                 tasks.getByName("bootRun", BootRun::class) {
                                     dependsOn("jvmMainClasses")
@@ -267,31 +250,16 @@ public abstract class KiluaRpcPlugin() : Plugin<Project> {
                             }
 
                             RpcServerType.Micronaut -> {
-                                val webArchive = if (jsMainExists) "jsArchive" else "wasmJsArchive"
-                                tasks.getByName("shadowJar", ShadowJar::class) {
-                                    dependsOn(webArchive)
-                                    from(project.tasks[webArchive].outputs.files)
-                                    mergeServiceFiles()
+                                if (jsMainExists) {
+                                    createShadowJarTask("jarWithJs", "js")
                                 }
-                                if (jsMainExists && wasmJsMainExists) {
-                                    tasks.create("jarWithJs") {
-                                        dependsOn("shadowJar")
-                                        group = KILUA_RPC_TASK_GROUP
-                                        description = "Assembles a jar archive containing application with js frontend."
-                                    }
-                                    tasks.create("jarWithWasmJs", ShadowJar::class) {
-                                        dependsOn("wasmJsArchive")
-                                        group = KILUA_RPC_TASK_GROUP
-                                        description =
-                                            "Assembles a jar archive containing application with wasmJs frontend."
-                                        from(project.tasks["wasmJsArchive"].outputs.files)
-                                        mergeServiceFiles()
-                                    }
-                                } else {
-                                    tasks.getByName("jar", Jar::class).apply {
-                                        enabled = false
-                                        dependsOn("shadowJar")
-                                    }
+                                if (wasmJsMainExists) {
+                                    createShadowJarTask("jarWithWasmJs", "wasmJs")
+                                }
+                                val defaultJarTaskName = if (jsMainExists) "jarWithJs" else "jarWithWasmJs"
+                                tasks.findByName("jar")?.apply {
+                                    enabled = false
+                                    dependsOn(defaultJarTaskName)
                                 }
                                 if (kiluaRpcExtension.enableKsp.get()) {
                                     tasks.getByName("kaptGenerateStubsKotlinJvm").apply {
@@ -304,28 +272,26 @@ public abstract class KiluaRpcPlugin() : Plugin<Project> {
                             }
 
                             RpcServerType.VertX -> {
-                                val webArchive = if (jsMainExists) "jsArchive" else "wasmJsArchive"
-                                tasks.getByName("shadowJar", ShadowJar::class) {
-                                    dependsOn(webArchive)
-                                    from(project.tasks[webArchive].outputs.files)
-                                }
-                                if (jsMainExists && wasmJsMainExists) {
-                                    tasks.create("jarWithJs") {
-                                        dependsOn("shadowJar")
-                                        group = KILUA_RPC_TASK_GROUP
-                                        description = "Assembles a jar archive containing application with js frontend."
+                                afterEvaluate {
+                                    val vertxExtension = extensions.getByType<VertxExtension>()
+                                    if (jsMainExists) {
+                                        createShadowJarTask(
+                                            "jarWithJs",
+                                            "js",
+                                            mapOf("Main-Verticle" to vertxExtension.mainVerticle)
+                                        )
                                     }
-                                    tasks.create("jarWithWasmJs", ShadowJar::class) {
-                                        dependsOn("wasmJsArchive")
-                                        group = KILUA_RPC_TASK_GROUP
-                                        description =
-                                            "Assembles a jar archive containing application with wasmJs frontend."
-                                        from(project.tasks["wasmJsArchive"].outputs.files)
+                                    if (wasmJsMainExists) {
+                                        createShadowJarTask(
+                                            "jarWithWasmJs",
+                                            "wasmJs",
+                                            mapOf("Main-Verticle" to vertxExtension.mainVerticle)
+                                        )
                                     }
-                                } else {
-                                    tasks.getByName("jar", Jar::class).apply {
+                                    val defaultJarTaskName = if (jsMainExists) "jarWithJs" else "jarWithWasmJs"
+                                    tasks.findByName("jar")?.apply {
                                         enabled = false
-                                        dependsOn("shadowJar")
+                                        dependsOn(defaultJarTaskName)
                                     }
                                 }
                                 tasks.getByName("jvmRun").apply {
@@ -341,7 +307,7 @@ public abstract class KiluaRpcPlugin() : Plugin<Project> {
         }
     }
 
-    private fun KiluaRpcPluginContext.createArchiveTask(prefix: String, appendix: String, assetsPath: String) {
+    private fun KiluaRpcPluginContext.createWebArchiveTask(prefix: String, appendix: String, assetsPath: String) {
         tasks.create("${prefix}Archive", Jar::class).apply {
             dependsOn("${prefix}BrowserDistribution")
             group = KILUA_RPC_TASK_GROUP
@@ -375,8 +341,12 @@ public abstract class KiluaRpcPlugin() : Plugin<Project> {
         }
     }
 
-    private fun KiluaRpcPluginContext.createCustomJarTask(name: String, webPrefix: String) {
-        tasks.create(name, Jar::class).apply {
+    private fun KiluaRpcPluginContext.createShadowJarTask(
+        name: String,
+        webPrefix: String,
+        manifestAttributes: Map<String, String> = emptyMap()
+    ) {
+        tasks.create(name, ShadowJar::class).apply {
             dependsOn("${webPrefix}Archive", "jvmJar")
             group = KILUA_RPC_TASK_GROUP
             description = "Assembles a fat jar archive containing application with $webPrefix frontend."
@@ -391,20 +361,33 @@ public abstract class KiluaRpcPlugin() : Plugin<Project> {
                             "jvmRun",
                             JavaExec::class
                         ).mainClass.get()
-                    )
+                    ) + manifestAttributes
                 )
             }
-            val dependencies = files(
-                configurations.getByName("jvmRuntimeClasspath"),
-                project.tasks["jvmJar"].outputs.files,
-                project.tasks["${webPrefix}Archive"].outputs.files
-            )
-            from(dependencies.asSequence().map { if (it.isDirectory) it else zipTree(it) }
-                .asIterable())
-            exclude("META-INF/*.RSA", "META-INF/*.SF", "META-INF/*.DSA")
-            inputs.files(dependencies)
+            configurations = listOf(project.configurations.getByName("jvmRuntimeClasspath"))
+            from(project.tasks["${webPrefix}Archive"].outputs.files, project.tasks["jvmJar"].outputs.files)
             outputs.file(archiveFile)
             duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+            mergeServiceFiles()
+        }
+    }
+
+    private fun KiluaRpcPluginContext.createBootJarTask(
+        name: String,
+        webPrefix: String,
+        kotlinMppExtension: KotlinMultiplatformExtension
+    ) {
+        tasks.create(name, BootJar::class) {
+            dependsOn("${webPrefix}Archive")
+            group = KILUA_RPC_TASK_GROUP
+            description = "Assembles a fat jar archive containing application with $webPrefix frontend."
+            mainClass.set(tasks.getByName("bootJar", BootJar::class).mainClass)
+            targetJavaVersion.set(tasks.getByName("bootJar", BootJar::class).targetJavaVersion)
+            classpath = files(
+                kotlinMppExtension.targets["jvm"].compilations["main"].output.allOutputs,
+                project.configurations["jvmRuntimeClasspath"],
+                (project.tasks["${webPrefix}Archive"] as Jar).archiveFile
+            )
         }
     }
 

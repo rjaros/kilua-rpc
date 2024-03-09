@@ -1,3 +1,4 @@
 dev.kilua.rpc.RpcRouterConfiguration
 dev.kilua.rpc.RpcHandler
 dev.kilua.rpc.RpcWebSocketConfig
+dev.kilua.rpc.WebFluxConfig

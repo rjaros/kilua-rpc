@@ -54,8 +54,9 @@ dependencies {
     implementation(kotlin("gradle-plugin"))
     implementation(libs.ksp.gradle.plugin)
     implementation(libs.tomlj)
+    implementation(libs.shadow.gradle.plugin)
     compileOnly(libs.spring.boot.gradle.plugin)
-    compileOnly(libs.shadow.gradle.plugin)
+    compileOnly(libs.vertx.gradle.plugin)
 }
 
 tasks.register<Jar>("javadocJar") {

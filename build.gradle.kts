@@ -8,7 +8,7 @@ plugins {
     id("maven-publish")
 }
 
-val versionVal = libs.versions.kilua.rpc.get()
+val versionVal = libs.versions.kilua.rpc.asProvider().get()
 
 allprojects {
     group = "dev.kilua"

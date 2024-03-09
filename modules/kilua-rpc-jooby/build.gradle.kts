@@ -41,7 +41,6 @@ kotlin {
             dependencies {
                 implementation(kotlin("reflect"))
                 api(libs.jooby.kotlin)
-                api(libs.jooby.netty)
                 api(libs.jooby.guice)
                 api(libs.jooby.jackson)
                 api(libs.logback.classic)
