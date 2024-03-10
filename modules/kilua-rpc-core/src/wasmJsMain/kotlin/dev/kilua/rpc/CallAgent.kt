@@ -172,7 +172,7 @@ public open class CallAgent {
         responseBodyType: ResponseBodyType = ResponseBodyType.JSON,
         requestFilter: (suspend RequestInit.() -> Unit)? = null
     ): JsAny? {
-        val requestInit = RequestInit()
+        val requestInit = obj<RequestInit> {}
         requestInit.method = method.name
         requestInit.credentials = RequestCredentials.INCLUDE
         val urlAddr = urlPrefix + url.drop(1)
