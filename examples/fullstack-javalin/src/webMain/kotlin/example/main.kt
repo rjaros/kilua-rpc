@@ -61,8 +61,6 @@ fun main() {
                 }
             }
         )
-        val row = pingService.rowData(null, null, null, null, null)
-        println("Row: $row")
         val kiluaTypes = pingService.kiluaTypes(
             listOf(MyData(1, "name")),
             LocalDate(2023, 1, 1),
