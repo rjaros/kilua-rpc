@@ -47,7 +47,12 @@ public expect object RpcSerialization {
     public var customConfiguration: Json?
 
     /**
-     * Return customized Json configuration.
+     * Return customized Json configuration or default if not customized.
      */
     public fun getJson(serializersModules: List<SerializersModule>? = null): Json
+
+    /**
+     * Return customized Json configuration or null if not customized.
+     */
+    public fun getCustomJson(serializersModules: List<SerializersModule>? = null): Json?
 }

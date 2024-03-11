@@ -58,11 +58,18 @@ public actual object RpcSerialization {
     public actual var customConfiguration: Json? = null
 
     /**
-     * Return customized Json configuration.
+     * Return customized Json configuration or default if not customized.
      */
     public actual fun getJson(serializersModules: List<SerializersModule>?): Json {
+        return getCustomJson(serializersModules) ?: plain
+    }
+
+    /**
+     * Return customized Json configuration or null if not customized.
+     */
+    public actual fun getCustomJson(serializersModules: List<SerializersModule>?): Json? {
         return if (exceptionsSerializersModule == null && customConfiguration == null && serializersModules == null) {
-            plain
+            null
         } else {
             Json(from = (customConfiguration ?: Json.Default)) {
                 ignoreUnknownKeys = true
