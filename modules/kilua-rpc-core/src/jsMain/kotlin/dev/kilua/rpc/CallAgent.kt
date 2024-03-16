@@ -21,20 +21,13 @@
  */
 package dev.kilua.rpc
 
-import kotlinx.browser.window
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.promise
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.encodeToString
-import org.w3c.dom.get
 import org.w3c.dom.url.URLSearchParams
 import org.w3c.fetch.INCLUDE
 import org.w3c.fetch.RequestCredentials
 import org.w3c.fetch.RequestInit
 import kotlin.coroutines.resume
-import kotlin.js.Promise
 
 internal external class JsonRpcResponseJs {
     var id: Int
@@ -68,10 +61,6 @@ public class ContentTypeException(message: String) : Exception(message)
  */
 public open class CallAgent {
 
-    private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
-
-    private val rpcUrlPrefix = window["rpc_url_prefix"]
-    private val urlPrefix: String = if (rpcUrlPrefix != undefined) "$rpcUrlPrefix/" else ""
     private var counter = 1
 
     /**
@@ -89,6 +78,8 @@ public open class CallAgent {
         method: HttpMethod = HttpMethod.POST,
         requestFilter: (suspend RequestInit.() -> Unit)? = null
     ): String {
+        val rpcUrlPrefix = globalThis["rpc_url_prefix"]
+        val urlPrefix: String = if (rpcUrlPrefix != undefined) "$rpcUrlPrefix/" else ""
         val requestInit = RequestInit()
         requestInit.method = method.name
         requestInit.credentials = RequestCredentials.INCLUDE
@@ -109,7 +100,7 @@ public open class CallAgent {
         requestInit.headers["X-Requested-With"] = "XMLHttpRequest"
         requestFilter?.invoke(requestInit)
         return suspendCancellableCoroutine { cont ->
-            window.fetch(fetchUrl, requestInit).then { response ->
+            fetch(fetchUrl, requestInit).then { response ->
                 if (response.ok && response.headers.get("Content-Type") == "application/json") {
                     response.json().then { data: dynamic ->
                         val dataAsResponse = data!!.unsafeCast<JsonRpcResponseJs>()
@@ -171,6 +162,8 @@ public open class CallAgent {
         responseBodyType: ResponseBodyType = ResponseBodyType.JSON,
         requestFilter: (suspend RequestInit.() -> Unit)? = null
     ): dynamic {
+        val rpcUrlPrefix = globalThis["rpc_url_prefix"]
+        val urlPrefix: String = if (rpcUrlPrefix != undefined) "$rpcUrlPrefix/" else ""
         val requestInit = RequestInit()
         requestInit.method = method.name
         requestInit.credentials = RequestCredentials.INCLUDE
@@ -190,7 +183,7 @@ public open class CallAgent {
         requestInit.headers["X-Requested-With"] = "XMLHttpRequest"
         requestFilter?.invoke(requestInit)
         return suspendCancellableCoroutine { cont ->
-            window.fetch(fetchUrl, requestInit).then { response ->
+            fetch(fetchUrl, requestInit).then { response ->
                 if (response.ok) {
                     when (responseBodyType) {
                         ResponseBodyType.JSON -> {

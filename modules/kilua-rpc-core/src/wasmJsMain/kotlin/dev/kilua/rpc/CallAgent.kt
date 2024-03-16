@@ -21,14 +21,9 @@
  */
 package dev.kilua.rpc
 
-import kotlinx.browser.window
 import kotlinx.coroutines.CancellableContinuation
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.encodeToString
-import org.w3c.dom.get
 import org.w3c.dom.url.URLSearchParams
 import org.w3c.fetch.INCLUDE
 import org.w3c.fetch.RequestCredentials
@@ -68,8 +63,6 @@ public class ContentTypeException(message: String) : Exception(message)
  */
 public open class CallAgent {
 
-    private val rpcUrlPrefix = window["rpc_url_prefix"]
-    private val urlPrefix: String = if (rpcUrlPrefix != null) "$rpcUrlPrefix/" else ""
     private var counter = 1
 
     /**
@@ -87,6 +80,8 @@ public open class CallAgent {
         method: HttpMethod = HttpMethod.POST,
         requestFilter: (suspend RequestInit.() -> Unit)? = null
     ): String {
+        val rpcUrlPrefix = globalThis["rpc_url_prefix"]
+        val urlPrefix: String = if (rpcUrlPrefix != null) "$rpcUrlPrefix/" else ""
         val requestInit = obj<RequestInit> {}
         requestInit.method = method.name
         requestInit.credentials = RequestCredentials.INCLUDE
@@ -108,7 +103,7 @@ public open class CallAgent {
         requestInit.headers = headers
         requestFilter?.invoke(requestInit)
         return suspendCancellableCoroutine { cont: CancellableContinuation<String> ->
-            window.fetch(fetchUrl, requestInit).then { response ->
+            fetch(fetchUrl, requestInit).then { response ->
                 if (response.ok && response.headers.get("Content-Type") == "application/json") {
                     response.json().then { data ->
                         val dataAsResponse = data!!.unsafeCast<JsonRpcResponseJs>()
@@ -172,6 +167,8 @@ public open class CallAgent {
         responseBodyType: ResponseBodyType = ResponseBodyType.JSON,
         requestFilter: (suspend RequestInit.() -> Unit)? = null
     ): JsAny? {
+        val rpcUrlPrefix = globalThis["rpc_url_prefix"]
+        val urlPrefix: String = if (rpcUrlPrefix != null) "$rpcUrlPrefix/" else ""
         val requestInit = obj<RequestInit> {}
         requestInit.method = method.name
         requestInit.credentials = RequestCredentials.INCLUDE
@@ -192,7 +189,7 @@ public open class CallAgent {
         requestInit.headers = headers
         requestFilter?.invoke(requestInit)
         return suspendCancellableCoroutine { cont: CancellableContinuation<JsAny?> ->
-            window.fetch(fetchUrl, requestInit).then { response ->
+            fetch(fetchUrl, requestInit).then { response ->
                 if (response.ok) {
                     when (responseBodyType) {
                         ResponseBodyType.JSON -> {

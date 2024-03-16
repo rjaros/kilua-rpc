@@ -22,6 +22,9 @@
 package dev.kilua.rpc
 
 import kotlinx.browser.window
+import org.w3c.fetch.RequestInit
+import org.w3c.fetch.Response
+import kotlin.js.Promise
 
 /**
  * JavaScript empty object.
@@ -33,6 +36,17 @@ internal fun obj(): JsAny = js("({})")
  * JavaScript encodeURIComponent function
  */
 internal external fun encodeURIComponent(uri: String): String
+
+/**
+ * JavaScript fetch function
+ */
+internal external fun fetch(input: String, init: RequestInit): Promise<Response>
+
+/**
+ * JavaScript global object
+ */
+@PublishedApi
+internal external val globalThis: JsAny
 
 /**
  * Helper function for creating JavaScript objects.
@@ -51,6 +65,7 @@ private fun objGet(obj: JsAny, key: String): JsAny? = js("obj[key]")
 /**
  * Operator to set property on JS Object
  */
+@PublishedApi
 internal operator fun JsAny.set(key: String, value: JsAny) {
     objSet(this, key, value)
 }
@@ -58,6 +73,7 @@ internal operator fun JsAny.set(key: String, value: JsAny) {
 /**
  * Operator to get property from JS Object
  */
+@PublishedApi
 internal operator fun JsAny.get(key: String): JsAny? {
     return objGet(this, key)
 }
@@ -78,3 +94,10 @@ public fun getWebSocketUrl(url: String): String {
         "$scheme://${location.hostname}$port/$url"
     }
 }
+
+private fun isDom(): Boolean = js("typeof document !== 'undefined' && typeof document.kilua == 'undefined'")
+
+/**
+ * Whether the DOM is available
+ */
+public val isDom: Boolean by lazy { isDom() }

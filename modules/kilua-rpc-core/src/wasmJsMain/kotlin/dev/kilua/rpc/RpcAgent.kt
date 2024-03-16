@@ -21,7 +21,6 @@
  */
 package dev.kilua.rpc
 
-import kotlinx.browser.window
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Job
@@ -309,7 +308,8 @@ public open class RpcAgent<T : Any>(
         noinline function: suspend T.(ReceiveChannel<PAR1>, SendChannel<PAR2>) -> Unit,
         noinline handler: suspend (SendChannel<PAR1>, ReceiveChannel<PAR2>) -> Unit
     ) {
-        val rpcUrlPrefix = window["rpc_url_prefix"]
+        if (!isDom) return
+        val rpcUrlPrefix = globalThis["rpc_url_prefix"]
         val urlPrefix: String = if (rpcUrlPrefix != null) "$rpcUrlPrefix/" else ""
         val (url, _) = serviceManager.requireCall(function)
         val serializerPAR1 = json.serializersModule.serializer<PAR1>()
@@ -378,7 +378,8 @@ public open class RpcAgent<T : Any>(
         noinline function: suspend T.(ReceiveChannel<PAR1>, SendChannel<List<PAR2>>) -> Unit,
         noinline handler: suspend (SendChannel<PAR1>, ReceiveChannel<List<PAR2>>) -> Unit
     ) {
-        val rpcUrlPrefix = window["rpc_url_prefix"]
+        if (!isDom) return
+        val rpcUrlPrefix = globalThis["rpc_url_prefix"]
         val urlPrefix: String = if (rpcUrlPrefix != null) "$rpcUrlPrefix/" else ""
         val (url, _) = serviceManager.requireCall(function)
         val serializerPAR1 = json.serializersModule.serializer<PAR1>()
@@ -485,7 +486,8 @@ public open class RpcAgent<T : Any>(
         noinline function: suspend T.(SendChannel<PAR>) -> Unit,
         noinline handler: suspend (ReceiveChannel<PAR>) -> Unit
     ) {
-        val rpcUrlPrefix = window["rpc_url_prefix"]
+        if (!isDom) return
+        val rpcUrlPrefix = globalThis["rpc_url_prefix"]
         val urlPrefix: String = if (rpcUrlPrefix != null) "$rpcUrlPrefix/" else ""
         val (url, _) = serviceManager.requireCall(function)
         val serializerPAR = json.serializersModule.serializer<PAR>()
@@ -524,7 +526,8 @@ public open class RpcAgent<T : Any>(
         noinline function: suspend T.(SendChannel<List<PAR>>) -> Unit,
         noinline handler: suspend (ReceiveChannel<List<PAR>>) -> Unit
     ) {
-        val rpcUrlPrefix = window["rpc_url_prefix"]
+        if (!isDom) return
+        val rpcUrlPrefix = globalThis["rpc_url_prefix"]
         val urlPrefix: String = if (rpcUrlPrefix != null) "$rpcUrlPrefix/" else ""
         val (url, _) = serviceManager.requireCall(function)
         val serializerPAR = json.serializersModule.serializer<PAR>()

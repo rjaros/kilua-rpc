@@ -22,6 +22,9 @@
 package dev.kilua.rpc
 
 import kotlinx.browser.window
+import org.w3c.fetch.RequestInit
+import org.w3c.fetch.Response
+import kotlin.js.Promise
 
 /**
  * JavaScript Object type
@@ -42,6 +45,17 @@ internal fun obj(init: dynamic.() -> Unit): dynamic {
 }
 
 /**
+ * JavaScript fetch function
+ */
+internal external fun fetch(input: String, init: RequestInit): Promise<Response>
+
+/**
+ * JavaScript global object
+ */
+@PublishedApi
+internal external val globalThis: dynamic
+
+/**
  * Creates a websocket URL from current window.location and given path.
  */
 public fun getWebSocketUrl(url: String): String {
@@ -56,4 +70,11 @@ public fun getWebSocketUrl(url: String): String {
         else if (location.port != "0" && location.port != "") ":${location.port}" else ""
         "$scheme://${location.hostname}$port/$url"
     }
+}
+
+/**
+ * Whether the DOM is available
+ */
+public val isDom: Boolean by lazy {
+    js("typeof document !== 'undefined' && typeof document.kilua == 'undefined'")
 }
