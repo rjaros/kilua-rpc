@@ -419,22 +419,36 @@ public abstract class KiluaRpcPlugin() : Plugin<Project> {
     }
 
     private fun getServerType(project: Project): RpcServerType? {
-        // To enable packaging tasks for Spring Boot MVC
-        if (project.configurations["jvmMainImplementation"].dependencies.any { it.name == "spring-boot-starter-web" }) {
-            return RpcServerType.SpringBoot
-        }
-        val rpcServerDependency = project.configurations["commonMainApi"].dependencies.map {
+        val rpcServerDependency = project.configurations["commonMainImplementation"].dependencies.map {
             it.name
         }.firstOrNull { it.startsWith("kilua-rpc-") }
-        return when (rpcServerDependency) {
-            "kilua-rpc-javalin" -> RpcServerType.Javalin
-            "kilua-rpc-jooby" -> RpcServerType.Jooby
-            "kilua-rpc-ktor-guice" -> RpcServerType.Ktor
-            "kilua-rpc-ktor-koin" -> RpcServerType.Ktor
-            "kilua-rpc-micronaut" -> RpcServerType.Micronaut
-            "kilua-rpc-spring-boot" -> RpcServerType.SpringBoot
-            "kilua-rpc-vertx" -> RpcServerType.VertX
-            else -> return null
+        if (rpcServerDependency != null) {
+            return when (rpcServerDependency) {
+                "kilua-rpc-javalin" -> RpcServerType.Javalin
+                "kilua-rpc-jooby" -> RpcServerType.Jooby
+                "kilua-rpc-ktor-guice" -> RpcServerType.Ktor
+                "kilua-rpc-ktor-koin" -> RpcServerType.Ktor
+                "kilua-rpc-micronaut" -> RpcServerType.Micronaut
+                "kilua-rpc-spring-boot" -> RpcServerType.SpringBoot
+                "kilua-rpc-vertx" -> RpcServerType.VertX
+                else -> return null
+            }
+        } else {
+            // Enable packaging tasks for other use cases without kilua-rpc dependency
+            val jvmMainDependencies = project.configurations["jvmMainImplementation"].dependencies.map { it.name }
+            if (jvmMainDependencies.contains("spring-boot-starter-web")) {
+                return RpcServerType.SpringBoot
+            }
+            val kiluaSsrDependency = jvmMainDependencies.firstOrNull { it.startsWith("kilua-ssr-server-") }
+            return when (kiluaSsrDependency) {
+                "kilua-ssr-server-javalin" -> RpcServerType.Javalin
+                "kilua-ssr-server-jooby" -> RpcServerType.Jooby
+                "kilua-ssr-server-ktor" -> RpcServerType.Ktor
+                "kilua-ssr-server-micronaut" -> RpcServerType.Micronaut
+                "kilua-ssr-server-spring-boot" -> RpcServerType.SpringBoot
+                "kilua-ssr-server-vertx" -> RpcServerType.VertX
+                else -> return null
+            }
         }
     }
 

@@ -96,8 +96,8 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                api(libs.kilua.rpc.micronaut)
-                api(libs.kotlinx.datetime)
+                implementation(libs.kilua.rpc.micronaut)
+                implementation(libs.kotlinx.datetime)
             }
         }
         val webMain by creating {

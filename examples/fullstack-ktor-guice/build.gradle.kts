@@ -81,7 +81,7 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                api(libs.kilua.rpc.ktor.guice)
+                implementation(libs.kilua.rpc.ktor.guice)
                 implementation(libs.kotlinx.datetime)
             }
         }

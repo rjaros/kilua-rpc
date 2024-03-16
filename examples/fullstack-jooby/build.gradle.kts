@@ -83,8 +83,8 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                api(libs.kilua.rpc.jooby)
-                api(libs.kotlinx.datetime)
+                implementation(libs.kilua.rpc.jooby)
+                implementation(libs.kotlinx.datetime)
             }
         }
         val webMain by creating {
@@ -98,7 +98,7 @@ kotlin {
         }
         val jvmMain by getting {
             dependencies {
-                api(libs.jooby.netty)
+                implementation(libs.jooby.netty)
                 implementation(libs.logback.classic)
             }
         }

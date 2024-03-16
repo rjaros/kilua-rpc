@@ -84,8 +84,8 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                api(libs.kilua.rpc.vertx)
-                api(libs.kotlinx.datetime)
+                implementation(libs.kilua.rpc.vertx)
+                implementation(libs.kotlinx.datetime)
             }
         }
         val webMain by creating {
