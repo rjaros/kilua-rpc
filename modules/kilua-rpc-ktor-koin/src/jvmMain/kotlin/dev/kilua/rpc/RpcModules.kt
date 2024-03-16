@@ -26,45 +26,44 @@ import io.ktor.server.application.*
 import io.ktor.server.http.content.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.routing.*
-import io.ktor.util.*
 import kotlinx.serialization.json.Json
 import org.koin.core.module.Module
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 
-private const val DEFAULT_INIT_STATIC_RESOURCES = true
+private const val DEFAULT_INIT_SPA = true
 
 /**
  * Initialization function for Ktor server.
  */
 public fun Application.initRpc(vararg modules: Module): Unit =
-    initRpc(DEFAULT_INIT_STATIC_RESOURCES, DefaultJson, *modules)
+    initRpc(DEFAULT_INIT_SPA, DefaultJson, *modules)
 
 /**
  * Initialization function for Ktor server with custom JsonSerializer.
  * @param json custom or default JsonSerializer
  */
 public fun Application.initRpc(json: Json, vararg modules: Module): Unit =
-    this.initRpc(DEFAULT_INIT_STATIC_RESOURCES, json, *modules)
+    this.initRpc(DEFAULT_INIT_SPA, json, *modules)
 
 /**
  * Initialization function for Ktor server.
- * @param initStaticResources initialize default static resources
+ * @param initSinglePageApplication initialize default static resources for SPA
  */
-public fun Application.initRpc(initStaticResources: Boolean, vararg modules: Module): Unit =
-    this.initRpc(initStaticResources, DefaultJson, *modules)
+public fun Application.initRpc(initSinglePageApplication: Boolean, vararg modules: Module): Unit =
+    this.initRpc(initSinglePageApplication, DefaultJson, *modules)
 
 /**
  * Initialization function for Ktor server.
- * @param initStaticResources initialize default static resources
+ * @param initSinglePageApplication initialize default static resources for SPA
  * @param json custom or default JsonSerializer
  */
-public fun Application.initRpc(initStaticResources: Boolean, json: Json, vararg modules: Module) {
+public fun Application.initRpc(initSinglePageApplication: Boolean, json: Json, vararg modules: Module) {
     install(ContentNegotiation) {
         json(json)
     }
 
-    if (initStaticResources) initStaticResources()
+    if (initSinglePageApplication) initSinglePageApplication()
 
     install(Koin) {
         slf4jLogger()
@@ -75,8 +74,12 @@ public fun Application.initRpc(initStaticResources: Boolean, json: Json, vararg 
 /**
  * Initialize default static resources for Ktor server.
  */
-public fun Application.initStaticResources() {
+public fun Application.initSinglePageApplication() {
     routing {
-        staticResources("/", "assets", "index.html")
+        singlePageApplication {
+            defaultPage = "index.html"
+            filesPath = "/assets"
+            useResources = true
+        }
     }
 }

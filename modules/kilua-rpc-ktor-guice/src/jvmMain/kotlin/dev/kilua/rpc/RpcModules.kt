@@ -34,39 +34,39 @@ import io.ktor.server.websocket.*
 import io.ktor.util.*
 import kotlinx.serialization.json.Json
 
-private const val DEFAULT_INIT_STATIC_RESOURCES = true
+private const val DEFAULT_INIT_SPA = true
 
 /**
  * Initialization function for Ktor server.
  */
 public fun Application.initRpc(vararg modules: Module): Injector =
-    initRpc(DEFAULT_INIT_STATIC_RESOURCES, DefaultJson, *modules)
+    initRpc(DEFAULT_INIT_SPA, DefaultJson, *modules)
 
 /**
  * Initialization function for Ktor server with custom JsonSerializer.
  * @param json custom or default JsonSerializer
  */
 public fun Application.initRpc(json: Json, vararg modules: Module): Injector =
-    this.initRpc(DEFAULT_INIT_STATIC_RESOURCES, json, *modules)
+    this.initRpc(DEFAULT_INIT_SPA, json, *modules)
 
 /**
  * Initialization function for Ktor server.
- * @param initStaticResources initialize default static resources
+ * @param initSinglePageApplication initialize default static resources for SPA
  */
-public fun Application.initRpc(initStaticResources: Boolean, vararg modules: Module): Injector =
-    this.initRpc(initStaticResources, DefaultJson, *modules)
+public fun Application.initRpc(initSinglePageApplication: Boolean, vararg modules: Module): Injector =
+    this.initRpc(initSinglePageApplication, DefaultJson, *modules)
 
 /**
  * Initialization function for Ktor server.
- * @param initStaticResources initialize default static resources
+ * @param initSinglePageApplication initialize default static resources for SPA
  * @param json custom or default JsonSerializer
  */
-public fun Application.initRpc(initStaticResources: Boolean, json: Json, vararg modules: Module): Injector {
+public fun Application.initRpc(initSinglePageApplication: Boolean, json: Json, vararg modules: Module): Injector {
     install(ContentNegotiation) {
         json(json)
     }
 
-    if (initStaticResources) initStaticResources()
+    if (initSinglePageApplication) initSinglePageApplication()
 
     @Suppress("SpreadOperator")
     val injector = Guice.createInjector(MainModule(this), *modules)
@@ -81,9 +81,13 @@ public fun Application.initRpc(initStaticResources: Boolean, json: Json, vararg 
 /**
  * Initialize default static resources for Ktor server.
  */
-public fun Application.initStaticResources() {
+public fun Application.initSinglePageApplication() {
     routing {
-        staticResources("/", "assets", "index.html")
+        singlePageApplication {
+            defaultPage = "index.html"
+            filesPath = "/assets"
+            useResources = true
+        }
     }
 }
 
