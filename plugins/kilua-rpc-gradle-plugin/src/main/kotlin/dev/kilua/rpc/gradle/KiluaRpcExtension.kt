@@ -47,7 +47,7 @@ public abstract class KiluaRpcExtension @Inject constructor(
         property: String,
         default: Boolean = true,
     ): Property<Boolean> {
-        val convention = providers.gradleProperty("dev.kilua.rpc.$property")
+        val convention = providers.gradleProperty("dev.kilua.rpc.plugin.$property")
             .map { it.toBoolean() }
             .orElse(default)
         return objects.property<Boolean>().convention(convention)
