@@ -56,6 +56,9 @@ public open class RpcRouterConfiguration {
     @Value("classpath:/public/index.html")
     private lateinit var indexHtml: Resource
 
+    /**
+     * Register application/wasm mime type.
+     */
     @Bean
     public open fun rpcRoutes(rpcHandler: RpcHandler): RouterFunction<ServerResponse> = coRouter {
         GET("/rpc/**", rpcHandler::handle)

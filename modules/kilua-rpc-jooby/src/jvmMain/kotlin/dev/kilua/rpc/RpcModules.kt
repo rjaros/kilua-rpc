@@ -25,6 +25,7 @@ import com.google.inject.AbstractModule
 import com.google.inject.Injector
 import com.google.inject.Module
 import io.jooby.Context
+import io.jooby.MediaType
 import io.jooby.guice.GuiceModule
 import io.jooby.handler.AssetSource
 import io.jooby.jackson.JacksonModule
@@ -49,6 +50,13 @@ public fun Kooby.initRpc(initStaticResources: Boolean = true, vararg modules: Mo
     before { ctx ->
         val injector = ctx.require(Injector::class.java).createChildInjector(ContextModule(ctx))
         ctx.setAttribute(RPC_INJECTOR_KEY, injector)
+    }
+    use {
+        val response = next.apply(ctx)
+        if (ctx.requestPath.endsWith(".wasm")) {
+            ctx.responseType = MediaType.valueOf("application/wasm")
+        }
+        response
     }
 }
 
