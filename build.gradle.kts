@@ -33,6 +33,7 @@ nmcp {
         project(":modules:kilua-rpc-vertx")
         project(":plugins:kilua-rpc-gradle-plugin")
         project(":plugins:kilua-rpc-ksp-processor")
+        endpoint.set("https://central.sonatype.com/api/v1/publisher/upload")
         username = findProperty("mavenCentralUsername")?.toString()
         password = findProperty("mavenCentralPassword")?.toString()
         publicationType = "USER_MANAGED"
