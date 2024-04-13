@@ -39,10 +39,9 @@ import org.gradle.kotlin.dsl.get
 import org.gradle.kotlin.dsl.getByName
 import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.withType
-import org.jetbrains.kotlin.gradle.dsl.KotlinCompile
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
-import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpack
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 import org.springframework.boot.gradle.tasks.bundling.BootJar
 import org.springframework.boot.gradle.tasks.run.BootRun
 import org.tomlj.Toml
@@ -103,8 +102,10 @@ public abstract class KiluaRpcPlugin() : Plugin<Project> {
             afterEvaluate {
                 kotlinMppExtension.targets.configureEach {
                     compilations.configureEach {
-                        compilerOptions.configure {
-                            freeCompilerArgs.add("-Xexpect-actual-classes")
+                        compileTaskProvider.configure {
+                            compilerOptions {
+                                freeCompilerArgs.add("-Xexpect-actual-classes")
+                            }
                         }
                     }
                 }
@@ -315,18 +316,15 @@ public abstract class KiluaRpcPlugin() : Plugin<Project> {
             archiveAppendix.set(appendix)
             val distribution =
                 project.tasks.getByName(
-                    "${prefix}BrowserProductionWebpack",
-                    KotlinWebpack::class
-                ).outputDirectory
+                    "${prefix}BrowserDistribution",
+                    Copy::class
+                ).outputs
             from(distribution) {
                 include("*.*")
             }
-            val processedResources =
-                project.tasks.getByName("${prefix}ProcessResources", Copy::class).destinationDir
-            from(processedResources)
             duplicatesStrategy = DuplicatesStrategy.EXCLUDE
             into(assetsPath)
-            inputs.files(distribution, processedResources)
+            inputs.files(distribution)
             outputs.file(archiveFile)
             manifest {
                 attributes(
@@ -396,13 +394,13 @@ public abstract class KiluaRpcPlugin() : Plugin<Project> {
     /** Lazy task collections */
     private inner class TaskCollections(private val tasks: TaskContainer) {
 
-        val compileKotlinJs: TaskCollection<KotlinCompile<*>>
+        val compileKotlinJs: TaskCollection<KotlinCompilationTask<*>>
             get() = collection("compileKotlinJs")
 
-        val compileKotlinWasmJs: TaskCollection<KotlinCompile<*>>
+        val compileKotlinWasmJs: TaskCollection<KotlinCompilationTask<*>>
             get() = collection("compileKotlinWasmJs")
 
-        val compileKotlinJvm: TaskCollection<KotlinCompile<*>>
+        val compileKotlinJvm: TaskCollection<KotlinCompilationTask<*>>
             get() = collection("compileKotlinJvm")
 
         val kspKotlinJs: TaskCollection<Task>
