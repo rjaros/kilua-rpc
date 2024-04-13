@@ -28,5 +28,5 @@ package dev.kilua.rpc
 public interface RpcServiceMgr<out T : Any> {
     public fun getCall(function: Function<*>): Pair<String, HttpMethod>? = null
     public fun requireCall(function: Function<*>): Pair<String, HttpMethod> =
-        getCall(function) ?: throw IllegalStateException("Function not specified!")
+        getCall(function) ?: error("Function not specified!")
 }

@@ -27,7 +27,9 @@ import kotlinx.serialization.Serializable
  * JSON-RPC request data class.
  */
 @Serializable
-public data class JsonRpcRequest(val id: Int, val method: String, val params: List<String?>, val jsonrpc: String = "2.0") {
+public data class JsonRpcRequest(
+    val id: Int, val method: String, val params: List<String?>, val jsonrpc: String = "2.0"
+) {
     public constructor() : this(0, "", listOf())
 }
 
