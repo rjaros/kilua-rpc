@@ -2,7 +2,7 @@
 
 Fullstack RPC library for Kotlin/Wasm and Kotlin/JS.
 
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/dev.kilua/kilua-rpc-core/badge.svg)](https://maven-badges.herokuapp.com/maven-central/dev.kilua/kilua-rpc-core)
+[![Maven Central](https://img.shields.io/maven-central/v/dev.kilua/kilua-rpc-core.svg?label=Maven%20Central)](https://central.sonatype.com/search?namespace=dev.kilua&name=kilua-rpc-core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Kilua RPC is a powerful Remote Procedure Call (RPC) library designed for fullstack applications 
