@@ -321,6 +321,7 @@ public abstract class KiluaRpcPlugin() : Plugin<Project> {
                 ).outputs
             from(distribution) {
                 include("*.*")
+                include("composeResources/**")
             }
             duplicatesStrategy = DuplicatesStrategy.EXCLUDE
             into(assetsPath)
