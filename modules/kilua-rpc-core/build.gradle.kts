@@ -60,12 +60,3 @@ setupPublishing()
 nmcp {
     publishAllPublications {}
 }
-
-rootProject.the<org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootExtension>().apply {
-    version = "22.0.0-v8-canary202401102ecfc94f85"
-    downloadBaseUrl = "https://nodejs.org/download/v8-canary"
-}
-
-rootProject.tasks.withType<org.jetbrains.kotlin.gradle.targets.js.npm.tasks.KotlinNpmInstallTask>().configureEach {
-    args.add("--ignore-engines")
-}
