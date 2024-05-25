@@ -319,10 +319,7 @@ public abstract class KiluaRpcPlugin() : Plugin<Project> {
                     "${prefix}BrowserDistribution",
                     Copy::class
                 ).outputs
-            from(distribution) {
-                include("*.*")
-                include("composeResources/**")
-            }
+            from(distribution)
             duplicatesStrategy = DuplicatesStrategy.EXCLUDE
             into(assetsPath)
             inputs.files(distribution)
@@ -435,7 +432,7 @@ public abstract class KiluaRpcPlugin() : Plugin<Project> {
         } else {
             // Enable packaging tasks for other use cases without kilua-rpc dependency
             val jvmMainDependencies = project.configurations["jvmMainImplementation"].dependencies.map { it.name }
-            if (jvmMainDependencies.contains("spring-boot-starter-web")) {
+            if (jvmMainDependencies.contains("spring-boot-starter-web") || jvmMainDependencies.contains("spring-boot-starter-webflux")) {
                 return RpcServerType.SpringBoot
             }
             val kiluaSsrDependency = jvmMainDependencies.firstOrNull { it.startsWith("kilua-ssr-server-") }
