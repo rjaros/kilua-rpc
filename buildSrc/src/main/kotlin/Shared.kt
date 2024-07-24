@@ -11,7 +11,7 @@ import org.gradle.plugins.signing.Sign
 import org.gradle.plugins.signing.SigningExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
-import org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 fun KotlinMultiplatformExtension.compilerOptions() {
     targets.configureEach {
