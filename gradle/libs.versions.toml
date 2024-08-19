@@ -1,18 +1,18 @@
 [versions]
 kilua-rpc = "0.0.15"
 kilua-rpc-published = "0.0.15"
-kotlin = "2.0.0"
+kotlin = "2.0.20-RC2"
 dokka = "1.9.20"
 nmcp = "0.0.8"
-ksp = "2.0.0-1.0.23"
+ksp = "2.0.20-RC2-1.0.24"
 gradle-plugin-publish = "1.2.1"
-kotlinx-coroutines = "1.9.0-RC"
+kotlinx-coroutines = "1.9.0-RC.2"
 kotlinx-serialization = "1.7.1"
 kotlinx-datetime = "0.6.0"
 javalin = "6.2.0"
-jooby = "3.2.6"
+jooby = "3.2.9"
 ktor = "2.3.12"
-koin = "3.6.0-Beta5"
+koin = "4.0.0-RC1"
 koin-annotations = "1.4.0-RC3"
 micronaut = "4.5.1"
 micronaut-plugins = "4.4.2"
@@ -23,10 +23,10 @@ vertx-plugin = "1.4.0"
 tomlj = "1.1.1"
 guice = "7.0.0"
 jackson-module-kotlin = "2.17.2"
-logback = "1.5.6"
-shadow = "8.1.1"
+logback = "1.5.7"
+shadow = "8.3.0"
 testng = "7.10.2"
-hamcrest = "2.2"
+hamcrest = "3.0"
 
 [libraries]
 kotlinx-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
@@ -65,7 +65,7 @@ tomlj = { module = "org.tomlj:tomlj", version.ref = "tomlj" }
 guice = { module = "com.google.inject:guice", version.ref = "guice" }
 jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson-module-kotlin" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
-shadow-gradle-plugin = { module = "com.github.johnrengelman.shadow:com.github.johnrengelman.shadow.gradle.plugin", version.ref = "shadow" }
+shadow-gradle-plugin = { module = "com.gradleup.shadow:shadow-gradle-plugin", version.ref = "shadow" }
 testng = { module = "org.testng:testng", version.ref = "testng" }
 hamcrest = { module = "org.hamcrest:hamcrest", version.ref = "hamcrest" }
 kilua-rpc-javalin = { module = "dev.kilua:kilua-rpc-javalin", version.ref = "kilua-rpc-published" }
@@ -89,5 +89,5 @@ micronaut-aot = { id = "io.micronaut.aot", version.ref = "micronaut-plugins" }
 spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
 vertx = { id = "io.vertx.vertx-plugin", version.ref = "vertx-plugin" }
-shadow = { id = "com.github.johnrengelman.shadow", version.ref = "shadow" }
+shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
 kilua-rpc = { id = "dev.kilua.rpc", version.ref = "kilua-rpc-published" }
