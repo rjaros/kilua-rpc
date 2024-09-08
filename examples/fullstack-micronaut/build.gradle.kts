@@ -4,19 +4,14 @@ import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
+    id("com.google.devtools.ksp")
     kotlin("plugin.allopen") version libs.versions.kotlin.get()
     kotlin("kapt")
     alias(libs.plugins.shadow)
-    alias(libs.plugins.micronaut.application)
-    alias(libs.plugins.micronaut.aot)
     alias(libs.plugins.kilua.rpc)
 }
 
-val mainClassNameVal = "example.MainKt"
-
-application {
-    mainClass.set(mainClassNameVal)
-}
+extra["mainClassName"] = "example.MainKt"
 
 allOpen {
     annotation("io.micronaut.aop.Around")
@@ -34,7 +29,7 @@ kotlin {
         }
         @OptIn(ExperimentalKotlinGradlePluginApi::class)
         mainRun {
-            mainClass.set(mainClassNameVal)
+            mainClass.set(extra["mainClassName"].toString())
         }
     }
     js(IR) {
@@ -103,38 +98,6 @@ kotlin {
                 implementation("ch.qos.logback:logback-classic")
                 implementation("org.yaml:snakeyaml")
             }
-        }
-    }
-}
-
-micronaut {
-    runtime("netty")
-    processing {
-        incremental(true)
-        annotations("example.*")
-    }
-    aot {
-        optimizeServiceLoading.set(false)
-        convertYamlToJava.set(false)
-        precomputeOperations.set(true)
-        cacheEnvironment.set(true)
-        optimizeClassLoading.set(true)
-        deduceEnvironment.set(true)
-        optimizeNetty.set(true)
-    }
-}
-
-tasks {
-    withType<JavaExec> {
-        jvmArgs("-XX:TieredStopAtLevel=1", "-Dcom.sun.management.jmxremote")
-        if (gradle.startParameter.isContinuous) {
-            systemProperties(
-                mapOf(
-                    "micronaut.io.watch.restart" to "true",
-                    "micronaut.io.watch.enabled" to "true",
-                    "micronaut.io.watch.paths" to "src/jvmMain"
-                )
-            )
         }
     }
 }

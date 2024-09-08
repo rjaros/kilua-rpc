@@ -4,14 +4,16 @@ import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
+    id("com.google.devtools.ksp")
     kotlin("plugin.spring") version libs.versions.kotlin.get()
     alias(libs.plugins.spring.dependency.management)
-    alias(libs.plugins.spring.boot)
     alias(libs.plugins.kilua.rpc)
 }
 
 extra["kotlin.version"] = libs.versions.kotlin.get()
 extra["kotlin-coroutines.version"] = libs.versions.kotlinx.coroutines.get()
+
+extra["mainClassName"] = "example.MainKt"
 
 @OptIn(ExperimentalWasmDsl::class)
 kotlin {
@@ -77,7 +79,6 @@ kotlin {
             dependencies {
                 implementation(kotlin("reflect"))
                 implementation("org.springframework.boot:spring-boot-starter")
-                implementation("org.springframework.boot:spring-boot-devtools")
                 implementation("org.springframework.boot:spring-boot-starter-webflux")
                 implementation("org.springframework.boot:spring-boot-starter-security")
             }

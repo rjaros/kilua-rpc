@@ -41,8 +41,6 @@ public abstract class KiluaRpcExtension @Inject constructor(
 
     public val enableGradleTasks: Property<Boolean> = kiluaRpcGradleProperty("enableGradleTasks")
 
-    public val enableKsp: Property<Boolean> = kiluaRpcGradleProperty("enableKsp")
-
     private fun kiluaRpcGradleProperty(
         property: String,
         default: Boolean = true,

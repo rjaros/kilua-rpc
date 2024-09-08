@@ -4,6 +4,7 @@ import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
+    id("com.google.devtools.ksp")
     alias(libs.plugins.jooby)
     alias(libs.plugins.kilua.rpc)
 }

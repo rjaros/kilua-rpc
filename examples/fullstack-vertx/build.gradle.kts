@@ -4,12 +4,12 @@ import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
+    id("com.google.devtools.ksp")
     alias(libs.plugins.shadow)
-    alias(libs.plugins.vertx)
     alias(libs.plugins.kilua.rpc)
 }
 
-val mainClassName = "example.MainVerticle"
+extra["mainClassName"] = "example.MainVerticle"
 
 @OptIn(ExperimentalWasmDsl::class)
 kotlin {
@@ -81,8 +81,4 @@ kotlin {
             }
         }
     }
-}
-
-vertx {
-    mainVerticle = mainClassName
 }

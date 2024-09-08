@@ -23,7 +23,7 @@
 package dev.kilua.rpc.gradle
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import io.vertx.gradle.VertxExtension
+import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
@@ -33,6 +33,7 @@ import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.TaskCollection
 import org.gradle.api.tasks.TaskContainer
 import org.gradle.api.tasks.bundling.Jar
+import org.gradle.internal.extensions.core.extra
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.dependencies
 import org.gradle.kotlin.dsl.get
@@ -43,7 +44,6 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 import org.springframework.boot.gradle.tasks.bundling.BootJar
-import org.springframework.boot.gradle.tasks.run.BootRun
 import org.tomlj.Toml
 import java.util.Locale.US
 
@@ -51,7 +51,7 @@ public enum class RpcServerType {
     Javalin, Jooby, Ktor, Micronaut, SpringBoot, VertX
 }
 
-public abstract class KiluaRpcPlugin() : Plugin<Project> {
+public abstract class KiluaRpcPlugin : Plugin<Project> {
 
     override fun apply(target: Project): Unit = with(target) {
         logger.debug("Applying Kilua RPC plugin")
@@ -59,7 +59,7 @@ public abstract class KiluaRpcPlugin() : Plugin<Project> {
         val kiluaRpcExtension = createKiluaRpcExtension()
 
         val versions =
-            Toml.parse(this@KiluaRpcPlugin.javaClass.classLoader.getResourceAsStream("dev.kilua.rpc.versions.toml"))
+            Toml.parse(this@KiluaRpcPlugin.javaClass.classLoader.getResourceAsStream("dev.kilua.rpc.versions.toml")!!)
         val kiluaRpcVersion = versions.getString("versions.kilua-rpc") ?: "undefined"
         with(KiluaRpcPluginContext(project, kiluaRpcExtension, kiluaRpcVersion)) {
             plugins.withId("org.jetbrains.kotlin.multiplatform") {
@@ -84,224 +84,152 @@ public abstract class KiluaRpcPlugin() : Plugin<Project> {
     private fun KiluaRpcPluginContext.configureProject() {
         logger.debug("Configuring Kotlin/MPP plugin")
 
-        val jvmMainExists = layout.projectDirectory.dir("src/jvmMain").asFile.exists()
-        val jsMainExists = layout.projectDirectory.dir("src/jsMain").asFile.exists()
-        val wasmJsMainExists = layout.projectDirectory.dir("src/wasmJsMain").asFile.exists()
-        val webMainExists = jsMainExists || wasmJsMainExists
-
-        if (webMainExists && jvmMainExists && kiluaRpcExtension.enableKsp.get()) {
-            if (!pluginManager.hasPlugin("java")) {
-                pluginManager.apply("java")
-            }
-            pluginManager.apply("com.google.devtools.ksp")
-        }
+        val enableKsp = pluginManager.hasPlugin("com.google.devtools.ksp")
 
         val kotlinMppExtension = extensions.getByType<KotlinMultiplatformExtension>()
 
-        if (webMainExists && jvmMainExists) {
-            afterEvaluate {
-                kotlinMppExtension.targets.configureEach {
-                    compilations.configureEach {
-                        compileTaskProvider.configure {
-                            compilerOptions {
-                                freeCompilerArgs.add("-Xexpect-actual-classes")
-                            }
-                        }
+        kotlinMppExtension.targets.configureEach {
+            compilations.configureEach {
+                compileTaskProvider.configure {
+                    compilerOptions {
+                        freeCompilerArgs.add("-Xexpect-actual-classes")
                     }
                 }
             }
-            if (kiluaRpcExtension.enableKsp.get()) {
-                if (jsMainExists) {
-                    tasks.all.compileKotlinJs.configureEach {
-                        dependsOn("kspCommonMainKotlinMetadata")
-                    }
-                }
-                if (wasmJsMainExists) {
-                    tasks.all.compileKotlinWasmJs.configureEach {
-                        dependsOn("kspCommonMainKotlinMetadata")
-                    }
-                }
+        }
 
-                tasks.all.compileKotlinJvm.configureEach {
-                    dependsOn("kspCommonMainKotlinMetadata")
-                }
-
-                dependencies {
-                    add("kspCommonMainMetadata", "dev.kilua:kilua-rpc-ksp-processor:${kiluaRpcVersion}")
-                }
-                kotlinMppExtension.targets
-                    .matching {
-                        it.platformType in setOf(
-                            KotlinPlatformType.jvm,
-                            KotlinPlatformType.js,
-                            KotlinPlatformType.wasm
-                        )
-                    }.configureEach {
-                        project.dependencies.add(
-                            "ksp${
-                                targetName.replaceFirstChar {
-                                    if (it.isLowerCase()) it.titlecase(
-                                        US
-                                    ) else it.toString()
-                                }
-                            }", "dev.kilua:kilua-rpc-ksp-processor:${kiluaRpcVersion}"
-                        )
-                    }
-
-                afterEvaluate {
-                    kotlinMppExtension.sourceSets.getByName("commonMain").kotlin.srcDir("build/generated/ksp/metadata/commonMain/kotlin")
-                    if (jsMainExists) {
-                        kotlinMppExtension.sourceSets.getByName("jsMain").kotlin.srcDir("build/generated/ksp/js/jsMain/kotlin")
-                    }
-                    if (wasmJsMainExists) {
-                        kotlinMppExtension.sourceSets.getByName("wasmJsMain").kotlin.srcDir("build/generated/ksp/wasmJs/wasmJsMain/kotlin")
-                    }
-                    kotlinMppExtension.sourceSets.getByName("jvmMain").kotlin.srcDir("build/generated/ksp/jvm/jvmMain/kotlin")
-
-                    // Workaround duplicated source roots in IntelliJ IDEA
-                    afterEvaluate {
-                        afterEvaluate {
-                            afterEvaluate {
-                                afterEvaluate {
-                                    kotlinMppExtension.sourceSets.filter { it.name.startsWith("generatedByKsp") }
-                                        .forEach {
-                                            kotlinMppExtension.sourceSets.remove(it)
-                                        }
-                                }
+        if (enableKsp) {
+            tasks.all.compileKotlinJs.configureEach {
+                dependsOn("kspCommonMainKotlinMetadata")
+            }
+            tasks.all.compileKotlinWasmJs.configureEach {
+                dependsOn("kspCommonMainKotlinMetadata")
+            }
+            tasks.all.compileKotlinJvm.configureEach {
+                dependsOn("kspCommonMainKotlinMetadata")
+            }
+            dependencies {
+                add("kspCommonMainMetadata", "dev.kilua:kilua-rpc-ksp-processor:${kiluaRpcVersion}")
+            }
+            kotlinMppExtension.targets
+                .matching {
+                    it.platformType in setOf(
+                        KotlinPlatformType.jvm,
+                        KotlinPlatformType.js,
+                        KotlinPlatformType.wasm
+                    )
+                }.configureEach {
+                    project.dependencies.add(
+                        "ksp${
+                            targetName.replaceFirstChar {
+                                if (it.isLowerCase()) it.titlecase(
+                                    US
+                                ) else it.toString()
                             }
-                        }
-                    }
+                        }", "dev.kilua:kilua-rpc-ksp-processor:${kiluaRpcVersion}"
+                    )
                 }
-
-                tasks.all.kspKotlinJs.configureEach {
-                    dependsOn("kspCommonMainKotlinMetadata")
-                }
-
-                tasks.all.kspKotlinWasmJs.configureEach {
-                    dependsOn("kspCommonMainKotlinMetadata")
-                }
-
-                tasks.all.kspKotlinJvm.configureEach {
-                    dependsOn("kspCommonMainKotlinMetadata")
-                }
-
-                if (kiluaRpcExtension.enableGradleTasks.get()) {
-                    tasks.create("generateKiluaRpcSources") {
-                        group = KILUA_RPC_TASK_GROUP
-                        description = "Generates Kilua RPC sources"
-                        dependsOn("kspCommonMainKotlinMetadata")
-                    }
+            kotlinMppExtension.sourceSets.configureEach {
+                when (name) {
+                    "commonMain" -> kotlin.srcDir("build/generated/ksp/metadata/commonMain/kotlin")
+                    "jsMain" -> kotlin.srcDir("build/generated/ksp/js/jsMain/kotlin")
+                    "wasmJsMain" -> kotlin.srcDir("build/generated/ksp/wasmJs/wasmJsMain/kotlin")
+                    "jvmMain" -> kotlin.srcDir("build/generated/ksp/jvm/jvmMain/kotlin")
                 }
             }
+            tasks.all.kspKotlinJs.configureEach {
+                dependsOn("kspCommonMainKotlinMetadata")
+            }
+            tasks.all.kspKotlinWasmJs.configureEach {
+                dependsOn("kspCommonMainKotlinMetadata")
+            }
+            tasks.all.kspKotlinJvm.configureEach {
+                dependsOn("kspCommonMainKotlinMetadata")
+            }
+
             if (kiluaRpcExtension.enableGradleTasks.get()) {
+                tasks.create("generateKiluaRpcSources") {
+                    group = KILUA_RPC_TASK_GROUP
+                    description = "Generates Kilua RPC sources"
+                    dependsOn("kspCommonMainKotlinMetadata")
+                }
+            }
+        }
+
+        if (kiluaRpcExtension.enableGradleTasks.get()) {
+            afterEvaluate {
                 afterEvaluate {
-                    afterEvaluate {
-                        val serverType = getServerType(project)
-                        val assetsPath = when (serverType) {
-                            RpcServerType.Micronaut, RpcServerType.SpringBoot -> "/public"
-                            RpcServerType.VertX -> "/webroot"
-                            else -> "/assets"
+                    val serverType = getServerType(project)
+                    val assetsPath = when (serverType) {
+                        RpcServerType.Micronaut, RpcServerType.SpringBoot -> "/public"
+                        RpcServerType.VertX -> "/webroot"
+                        else -> "/assets"
+                    }
+                    val isJsTarget = kotlinMppExtension.targets.any { it.platformType == KotlinPlatformType.js }
+                    val isWasmJsTarget = kotlinMppExtension.targets.any { it.platformType == KotlinPlatformType.wasm }
+                    if (isJsTarget) createWebArchiveTask("js", "js", assetsPath)
+                    if (isWasmJsTarget) createWebArchiveTask("wasmJs", "wasm-js", assetsPath)
+                    tasks.getByName("jvmProcessResources", Copy::class) {
+                        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+                    }
+                    when (serverType) {
+                        RpcServerType.Javalin, RpcServerType.Jooby, RpcServerType.Ktor -> {
+                            if (isJsTarget) createShadowJarTask("jarWithJs", "js")
+                            if (isWasmJsTarget) createShadowJarTask("jarWithWasmJs", "wasmJs")
+                            tasks.findByName("jar")?.enabled = false
                         }
-                        if (jsMainExists) {
-                            createWebArchiveTask("js", "js", assetsPath)
-                        }
-                        if (wasmJsMainExists) {
-                            createWebArchiveTask("wasmJs", "wasm-js", assetsPath)
-                        }
-                        tasks.getByName("jvmProcessResources", Copy::class) {
-                            duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-                        }
-                        when (serverType) {
-                            RpcServerType.Javalin, RpcServerType.Jooby, RpcServerType.Ktor -> {
-                                if (jsMainExists) {
-                                    createShadowJarTask("jarWithJs", "js")
-                                }
-                                if (wasmJsMainExists) {
-                                    createShadowJarTask("jarWithWasmJs", "wasmJs")
-                                }
-                                val defaultJarTaskName = if (jsMainExists) "jarWithJs" else "jarWithWasmJs"
-                                tasks.findByName("jar")?.apply {
-                                    enabled = false
-                                    dependsOn(defaultJarTaskName)
-                                }
-                            }
 
-                            RpcServerType.SpringBoot -> {
-                                if (jsMainExists) {
-                                    createBootJarTask("jarWithJs", "js", kotlinMppExtension)
-                                }
-                                if (wasmJsMainExists) {
-                                    createBootJarTask("jarWithWasmJs", "wasmJs", kotlinMppExtension)
-                                }
-                                val defaultJarTaskName = if (jsMainExists) "jarWithJs" else "jarWithWasmJs"
-                                tasks.findByName("jar")?.apply {
-                                    enabled = false
-                                    dependsOn(defaultJarTaskName)
-                                }
-                                tasks.getByName("bootRun", BootRun::class) {
-                                    dependsOn("jvmMainClasses")
-                                    classpath = files(
-                                        kotlinMppExtension.targets["jvm"].compilations["main"].output.allOutputs,
-                                        project.configurations["jvmRuntimeClasspath"]
-                                    )
-                                }
-                                tasks.getByName("jvmRun").apply {
-                                    dependsOn("bootRun")
-                                }
-                            }
-
-                            RpcServerType.Micronaut -> {
-                                if (jsMainExists) {
-                                    createShadowJarTask("jarWithJs", "js")
-                                }
-                                if (wasmJsMainExists) {
-                                    createShadowJarTask("jarWithWasmJs", "wasmJs")
-                                }
-                                val defaultJarTaskName = if (jsMainExists) "jarWithJs" else "jarWithWasmJs"
-                                tasks.findByName("jar")?.apply {
-                                    enabled = false
-                                    dependsOn(defaultJarTaskName)
-                                }
-                                if (kiluaRpcExtension.enableKsp.get()) {
-                                    tasks.getByName("kaptGenerateStubsKotlinJvm").apply {
-                                        dependsOn("kspCommonMainKotlinMetadata")
+                        RpcServerType.SpringBoot -> {
+                            val mainClassName = extra["mainClassName"].toString()
+                            if (isJsTarget)
+                                createBootJarTask("jarWithJs", "js", mainClassName, kotlinMppExtension)
+                            if (isWasmJsTarget)
+                                createBootJarTask("jarWithWasmJs", "wasmJs", mainClassName, kotlinMppExtension)
+                            tasks.findByName("jar")?.enabled = false
+                            tasks.getByName("jvmRun").apply {
+                                subprojects.forEach {
+                                    if (it.name == "application") {
+                                        dependsOn("${it.path}:bootRun")
                                     }
                                 }
-                                tasks.getByName("jvmRun").apply {
-                                    dependsOn("run")
-                                }
                             }
-
-                            RpcServerType.VertX -> {
-                                afterEvaluate {
-                                    val vertxExtension = extensions.getByType<VertxExtension>()
-                                    if (jsMainExists) {
-                                        createShadowJarTask(
-                                            "jarWithJs",
-                                            "js",
-                                            mapOf("Main-Verticle" to vertxExtension.mainVerticle)
-                                        )
-                                    }
-                                    if (wasmJsMainExists) {
-                                        createShadowJarTask(
-                                            "jarWithWasmJs",
-                                            "wasmJs",
-                                            mapOf("Main-Verticle" to vertxExtension.mainVerticle)
-                                        )
-                                    }
-                                    val defaultJarTaskName = if (jsMainExists) "jarWithJs" else "jarWithWasmJs"
-                                    tasks.findByName("jar")?.apply {
-                                        enabled = false
-                                        dependsOn(defaultJarTaskName)
-                                    }
-                                }
-                                tasks.getByName("jvmRun").apply {
-                                    dependsOn("vertxRun")
-                                }
-                            }
-
-                            else -> {}
                         }
+
+                        RpcServerType.Micronaut -> {
+                            if (isJsTarget) createShadowJarTask("jarWithJs", "js")
+                            if (isWasmJsTarget) createShadowJarTask("jarWithWasmJs", "wasmJs")
+                            tasks.findByName("jar")?.enabled = false
+                            if (enableKsp) {
+                                tasks.getByName("kaptGenerateStubsKotlinJvm").apply {
+                                    dependsOn("kspCommonMainKotlinMetadata")
+                                }
+                            }
+                            tasks.getByName("jvmRun").apply {
+                                subprojects.forEach {
+                                    if (it.name == "application") {
+                                        dependsOn("${it.path}:run")
+                                    }
+                                }
+                            }
+                        }
+
+                        RpcServerType.VertX -> {
+                            val mainClassName = extra["mainClassName"].toString()
+                            if (isJsTarget)
+                                createShadowJarTask("jarWithJs", "js", mapOf("Main-Verticle" to mainClassName))
+                            if (isWasmJsTarget)
+                                createShadowJarTask("jarWithWasmJs", "wasmJs", mapOf("Main-Verticle" to mainClassName))
+                            tasks.findByName("jar")?.enabled = false
+                            tasks.getByName("jvmRun").apply {
+                                subprojects.forEach {
+                                    if (it.name == "application") {
+                                        dependsOn("${it.path}:vertxRun")
+                                    }
+                                }
+                            }
+                        }
+
+                        else -> {}
                     }
                 }
             }
@@ -371,14 +299,15 @@ public abstract class KiluaRpcPlugin() : Plugin<Project> {
     private fun KiluaRpcPluginContext.createBootJarTask(
         name: String,
         webPrefix: String,
+        mainClassName: String,
         kotlinMppExtension: KotlinMultiplatformExtension
     ) {
         tasks.create(name, BootJar::class) {
             dependsOn("${webPrefix}Archive")
             group = KILUA_RPC_TASK_GROUP
             description = "Assembles a fat jar archive containing application with $webPrefix frontend."
-            mainClass.set(tasks.getByName("bootJar", BootJar::class).mainClass)
-            targetJavaVersion.set(tasks.getByName("bootJar", BootJar::class).targetJavaVersion)
+            mainClass.set(mainClassName)
+            targetJavaVersion.set(JavaVersion.VERSION_17)
             classpath = files(
                 kotlinMppExtension.targets["jvm"].compilations["main"].output.allOutputs,
                 project.configurations["jvmRuntimeClasspath"],
@@ -415,37 +344,46 @@ public abstract class KiluaRpcPlugin() : Plugin<Project> {
     }
 
     private fun getServerType(project: Project): RpcServerType? {
-        val rpcServerDependency = project.configurations["commonMainImplementation"].dependencies.map {
-            it.name
-        }.firstOrNull { it.startsWith("kilua-rpc-") }
-        if (rpcServerDependency != null) {
-            return when (rpcServerDependency) {
-                "kilua-rpc-javalin" -> RpcServerType.Javalin
-                "kilua-rpc-jooby" -> RpcServerType.Jooby
-                "kilua-rpc-ktor-guice" -> RpcServerType.Ktor
-                "kilua-rpc-ktor-koin" -> RpcServerType.Ktor
-                "kilua-rpc-micronaut" -> RpcServerType.Micronaut
-                "kilua-rpc-spring-boot" -> RpcServerType.SpringBoot
-                "kilua-rpc-vertx" -> RpcServerType.VertX
-                else -> return null
-            }
-        } else {
-            // Enable packaging tasks for other use cases without kilua-rpc dependency
-            val jvmMainDependencies = project.configurations["jvmMainImplementation"].dependencies.map { it.name }
-            if (jvmMainDependencies.contains("spring-boot-starter-web") || jvmMainDependencies.contains("spring-boot-starter-webflux")) {
-                return RpcServerType.SpringBoot
-            }
-            val kiluaSsrDependency = jvmMainDependencies.firstOrNull { it.startsWith("kilua-ssr-server-") }
-            return when (kiluaSsrDependency) {
-                "kilua-ssr-server-javalin" -> RpcServerType.Javalin
-                "kilua-ssr-server-jooby" -> RpcServerType.Jooby
-                "kilua-ssr-server-ktor" -> RpcServerType.Ktor
-                "kilua-ssr-server-micronaut" -> RpcServerType.Micronaut
-                "kilua-ssr-server-spring-boot" -> RpcServerType.SpringBoot
-                "kilua-ssr-server-vertx" -> RpcServerType.VertX
-                else -> return null
-            }
+        val commonMainDependencies = project.configurations["commonMainImplementation"].dependencies.map { it.name }
+        val kiluaRpcDependency = commonMainDependencies.firstOrNull { it.startsWith("kilua-rpc-") }
+        when (kiluaRpcDependency) {
+            "kilua-rpc-javalin" -> return RpcServerType.Javalin
+            "kilua-rpc-jooby" -> return RpcServerType.Jooby
+            "kilua-rpc-ktor-guice" -> return RpcServerType.Ktor
+            "kilua-rpc-ktor-koin" -> return RpcServerType.Ktor
+            "kilua-rpc-micronaut" -> return RpcServerType.Micronaut
+            "kilua-rpc-spring-boot" -> return RpcServerType.SpringBoot
+            "kilua-rpc-vertx" -> return RpcServerType.VertX
         }
+        val jvmMainDependencies = project.configurations["jvmMainImplementation"].dependencies.map { it.name }
+        val kiluaSsrDependency = jvmMainDependencies.firstOrNull { it.startsWith("kilua-ssr-server-") }
+        when (kiluaSsrDependency) {
+            "kilua-ssr-server-javalin" -> return RpcServerType.Javalin
+            "kilua-ssr-server-jooby" -> return RpcServerType.Jooby
+            "kilua-ssr-server-ktor" -> return RpcServerType.Ktor
+            "kilua-ssr-server-micronaut" -> return RpcServerType.Micronaut
+            "kilua-ssr-server-spring-boot" -> return RpcServerType.SpringBoot
+            "kilua-ssr-server-vertx" -> return RpcServerType.VertX
+        }
+        if (jvmMainDependencies.contains("javalin")) {
+            return RpcServerType.Javalin
+        }
+        if (jvmMainDependencies.contains("jooby-kotlin")) {
+            return RpcServerType.Jooby
+        }
+        if (jvmMainDependencies.contains("ktor-server-core") || jvmMainDependencies.contains("ktor-server-core-jvm")) {
+            return RpcServerType.Ktor
+        }
+        if (jvmMainDependencies.contains("micronaut-runtime")) {
+            return RpcServerType.Micronaut
+        }
+        if (jvmMainDependencies.contains("spring-boot-starter-web") || jvmMainDependencies.contains("spring-boot-starter-webflux")) {
+            return RpcServerType.SpringBoot
+        }
+        if (jvmMainDependencies.contains("vertx-web")) {
+            return RpcServerType.VertX
+        }
+        return null
     }
 
     public companion object {
