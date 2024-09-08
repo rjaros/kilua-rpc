@@ -88,7 +88,7 @@ import io.ktor.server.plugins.compression.*
 import io.ktor.server.routing.*
 
 actual class EncodingService : IEncodingService {
-    override suspend fun encode(input: String, encodingType: EncodingType): String {
+    actual override suspend fun encode(input: String, encodingType: EncodingType): String {
         return when (encodingType) {
                 EncodingType.BASE64 -> {
                     Base64Encoder.encode(input)
