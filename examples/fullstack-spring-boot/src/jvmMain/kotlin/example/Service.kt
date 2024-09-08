@@ -21,12 +21,12 @@ import kotlin.time.Duration.Companion.seconds
 @Scope(value = ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 actual class PingService : IPingService {
 
-    override suspend fun ping(message: String?): String {
+    actual override suspend fun ping(message: String?): String {
         println(message)
         return "Hello world from server!"
     }
 
-    override suspend fun getData(id: Int, name: String): MyData {
+    actual override suspend fun getData(id: Int, name: String): MyData {
         if (id < 0) {
             throw MyFirstException("id must be positive")
         }
@@ -36,7 +36,7 @@ actual class PingService : IPingService {
         return MyData(id, name)
     }
 
-    override suspend fun getDataResult(id: Int, name: String): Result<MyData> {
+    actual override suspend fun getDataResult(id: Int, name: String): Result<MyData> {
         try {
             return Result.success(getData(id, name))
         } catch (e: AbstractServiceException) {
@@ -44,7 +44,7 @@ actual class PingService : IPingService {
         }
     }
 
-    override suspend fun kiluaTypes(
+    actual override suspend fun kiluaTypes(
         files: List<MyData>,
         localDate: LocalDate,
         localTime: LocalTime,
@@ -59,13 +59,13 @@ actual class PingService : IPingService {
         return Result.success(listOf(localDate))
     }
 
-    override suspend fun wservice(input: ReceiveChannel<Int>, output: SendChannel<String>) {
+    actual override suspend fun wservice(input: ReceiveChannel<Int>, output: SendChannel<String>) {
         for (i in input) {
             output.send("I'v got: $i")
         }
     }
 
-    override suspend fun sseConnection(output: SendChannel<String>) {
+    actual override suspend fun sseConnection(output: SendChannel<String>) {
         var i = 0
         while (true) {
             output.send("Hello world (${i++})!")
@@ -73,7 +73,7 @@ actual class PingService : IPingService {
         }
     }
 
-    override suspend fun rowData(
+    actual override suspend fun rowData(
         page: Int?,
         size: Int?,
         filter: List<RemoteFilter>?,
