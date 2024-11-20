@@ -35,7 +35,6 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.serializer
 import org.w3c.dom.EventSource
-import org.w3c.dom.get
 import org.w3c.fetch.RequestInit
 
 /**

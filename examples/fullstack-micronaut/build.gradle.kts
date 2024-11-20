@@ -29,7 +29,7 @@ kotlin {
         }
         @OptIn(ExperimentalKotlinGradlePluginApi::class)
         mainRun {
-            mainClass.set(extra["mainClassName"].toString())
+            mainClass.set(project.extra["mainClassName"].toString())
         }
     }
     js(IR) {

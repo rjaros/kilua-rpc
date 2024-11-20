@@ -39,6 +39,7 @@ import org.gradle.kotlin.dsl.dependencies
 import org.gradle.kotlin.dsl.get
 import org.gradle.kotlin.dsl.getByName
 import org.gradle.kotlin.dsl.getByType
+import org.gradle.kotlin.dsl.register
 import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
@@ -72,7 +73,7 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
      * Initialise the [KiluaRpcExtension] on a [Project].
      */
     private fun Project.createKiluaRpcExtension(): KiluaRpcExtension {
-        return extensions.create("kilua-rpc", KiluaRpcExtension::class)
+        return extensions.create<KiluaRpcExtension>("kilua-rpc")
     }
 
     private data class KiluaRpcPluginContext(
@@ -148,7 +149,7 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
             }
 
             if (kiluaRpcExtension.enableGradleTasks.get()) {
-                tasks.create("generateKiluaRpcSources") {
+                tasks.register("generateKiluaRpcSources") {
                     group = KILUA_RPC_TASK_GROUP
                     description = "Generates Kilua RPC sources"
                     dependsOn("kspCommonMainKotlinMetadata")
@@ -169,7 +170,7 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
                     val isWasmJsTarget = kotlinMppExtension.targets.any { it.platformType == KotlinPlatformType.wasm }
                     if (isJsTarget) createWebArchiveTask("js", "js", assetsPath)
                     if (isWasmJsTarget) createWebArchiveTask("wasmJs", "wasm-js", assetsPath)
-                    tasks.getByName("jvmProcessResources", Copy::class) {
+                    tasks.getByName<Copy>("jvmProcessResources") {
                         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
                     }
                     when (serverType) {
@@ -237,16 +238,14 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
     }
 
     private fun KiluaRpcPluginContext.createWebArchiveTask(prefix: String, appendix: String, assetsPath: String) {
-        tasks.create("${prefix}Archive", Jar::class).apply {
+        tasks.register<Jar>("${prefix}Archive") {
             dependsOn("${prefix}BrowserDistribution")
             group = KILUA_RPC_TASK_GROUP
             description = "Assembles a jar archive containing $prefix web application."
             archiveAppendix.set(appendix)
-            val distribution =
-                project.tasks.getByName(
-                    "${prefix}BrowserDistribution",
-                    Copy::class
-                ).outputs
+            val distribution = project.tasks.getByName<Copy>(
+                "${prefix}BrowserDistribution",
+            ).outputs
             from(distribution)
             duplicatesStrategy = DuplicatesStrategy.EXCLUDE
             into(assetsPath)
@@ -270,7 +269,7 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
         webPrefix: String,
         manifestAttributes: Map<String, String> = emptyMap()
     ) {
-        tasks.create(name, ShadowJar::class).apply {
+        tasks.register<ShadowJar>(name) {
             dependsOn("${webPrefix}Archive", "jvmJar")
             group = KILUA_RPC_TASK_GROUP
             description = "Assembles a fat jar archive containing application with $webPrefix frontend."
@@ -281,10 +280,7 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
                         "Implementation-Group" to rootProject.group,
                         "Implementation-Version" to rootProject.version,
                         "Timestamp" to System.currentTimeMillis(),
-                        "Main-Class" to tasks.getByName(
-                            "jvmRun",
-                            JavaExec::class
-                        ).mainClass.get()
+                        "Main-Class" to tasks.getByName<JavaExec>("jvmRun").mainClass.get()
                     ) + manifestAttributes
                 )
             }
@@ -302,7 +298,7 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
         mainClassName: String,
         kotlinMppExtension: KotlinMultiplatformExtension
     ) {
-        tasks.create(name, BootJar::class) {
+        tasks.register<BootJar>(name) {
             dependsOn("${webPrefix}Archive")
             group = KILUA_RPC_TASK_GROUP
             description = "Assembles a fat jar archive containing application with $webPrefix frontend."

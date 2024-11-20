@@ -36,6 +36,7 @@ kotlin {
                 api(libs.vertx.web)
                 api(libs.vertx.lang.kotlin)
                 api(libs.vertx.lang.kotlin.coroutines)
+                api(libs.vertx.launcher.application)
                 api(libs.guice)
                 api(libs.jackson.module.kotlin)
                 api(libs.logback.classic)
