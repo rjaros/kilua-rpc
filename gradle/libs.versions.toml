@@ -1,6 +1,6 @@
 [versions]
-kilua-rpc = "0.0.21"
-kilua-rpc-published = "0.0.21"
+kilua-rpc = "0.0.22"
+kilua-rpc-published = "0.0.22"
 kotlin = "2.1.0-RC2"
 dokka = "1.9.20"
 nmcp = "0.0.8"
