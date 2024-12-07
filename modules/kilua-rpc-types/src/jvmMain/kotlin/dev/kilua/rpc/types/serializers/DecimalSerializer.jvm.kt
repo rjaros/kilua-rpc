@@ -36,11 +36,11 @@ import java.math.BigDecimal
 public actual object DecimalSerializer : KSerializer<Decimal> {
     actual override val descriptor: SerialDescriptor = buildClassSerialDescriptor("java.math.BigDecimal")
 
-    actual override fun deserialize(decoder: Decoder): BigDecimal {
+    actual override fun deserialize(decoder: Decoder): Decimal {
         return decoder.decodeDouble().toBigDecimal()
     }
 
-    actual override fun serialize(encoder: Encoder, value: BigDecimal) {
+    actual override fun serialize(encoder: Encoder, value: Decimal) {
         encoder.encodeDouble(value.toDouble())
     }
 }
