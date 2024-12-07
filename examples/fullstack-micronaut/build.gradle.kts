@@ -106,8 +106,6 @@ kapt {
     arguments {
         arg("micronaut.processing.incremental", "true")
         arg("micronaut.processing.annotations", "example.*")
-        arg("micronaut.processing.group", "example")
-        arg("micronaut.processing.module", "fullstack-micronaut")
     }
 }
 
