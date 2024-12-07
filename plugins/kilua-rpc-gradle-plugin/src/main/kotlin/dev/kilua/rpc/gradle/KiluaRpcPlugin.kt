@@ -284,7 +284,7 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
                     ) + manifestAttributes
                 )
             }
-            configurations = listOf(project.configurations.getByName("jvmRuntimeClasspath"))
+            configurations.convention(listOf(project.configurations.getByName("jvmRuntimeClasspath")))
             from(project.tasks["${webPrefix}Archive"].outputs.files, project.tasks["jvmJar"].outputs.files)
             outputs.file(archiveFile)
             duplicatesStrategy = DuplicatesStrategy.EXCLUDE
@@ -388,5 +388,4 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
         public const val PACKAGE_TASK_GROUP: String = "package"
 
     }
-
 }

@@ -11,3 +11,4 @@ refreshW.sh
 /build-mvnlocal.sh
 /examples/fullstack-ktor-guice/logs/
 /examples/fullstack-ktor-koin/logs/
+/examples.sh
