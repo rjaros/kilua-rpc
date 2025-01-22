@@ -2,8 +2,8 @@ plugins {
     `kotlin-dsl`
     kotlin("jvm")
     id("java-gradle-plugin")
-    alias(libs.plugins.dokka)
     alias(libs.plugins.nmcp)
+    id("org.jetbrains.dokka")
     id("maven-publish")
     id("signing")
     alias(libs.plugins.gradle.plugin.publish)
@@ -51,16 +51,6 @@ dependencies {
     implementation(libs.spring.boot.gradle.plugin)
 }
 
-tasks.register<Jar>("javadocJar") {
-    dependsOn(tasks.dokkaHtml)
-    from(tasks.dokkaHtml.flatMap { it.outputDirectory })
-    archiveClassifier.set("javadoc")
-}
-
-tasks.getByName("dokkaHtml").apply {
-    enabled = !project.hasProperty("SNAPSHOT")
-}
-
 tasks.getByName("jar", Jar::class) {
     from(rootProject.layout.projectDirectory.file("gradle/libs.versions.toml")) {
         rename { "dev.kilua.rpc.versions.toml" }
@@ -78,10 +68,16 @@ publishing {
     }
 }
 
+tasks.getByName("dokkaGeneratePublicationHtml").run {
+    enabled = !project.hasProperty("SNAPSHOT")
+}
+
 extensions.getByType<SigningExtension>().run {
     isRequired = !project.hasProperty("SNAPSHOT")
     sign(extensions.getByType<PublishingExtension>().publications)
 }
+
+setupDokka(tasks.dokkaGenerate)
 
 nmcp {
     publishAllPublications {}

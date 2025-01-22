@@ -3,15 +3,22 @@ import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPom
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.publish.maven.tasks.AbstractPublishToMaven
+import org.gradle.api.tasks.TaskProvider
+import org.gradle.api.tasks.bundling.Jar
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.kotlin.dsl.get
 import org.gradle.kotlin.dsl.getByType
+import org.gradle.kotlin.dsl.invoke
+import org.gradle.kotlin.dsl.register
 import org.gradle.kotlin.dsl.withType
 import org.gradle.plugins.signing.Sign
 import org.gradle.plugins.signing.SigningExtension
+import org.jetbrains.dokka.gradle.DokkaExtension
+import org.jetbrains.dokka.gradle.tasks.DokkaBaseTask
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import java.net.URI
 
 fun KotlinMultiplatformExtension.compilerOptions() {
     targets.configureEach {
@@ -138,5 +145,25 @@ fun Project.setupPublishing() {
     tasks.withType<AbstractPublishToMaven>().configureEach {
         val signingTasks = tasks.withType<Sign>()
         mustRunAfter(signingTasks)
+    }
+}
+
+fun Project.setupDokka(provider: TaskProvider<DokkaBaseTask>) {
+    tasks.register<Jar>("javadocJar") {
+        dependsOn(provider)
+        from(provider.map { it.outputs })
+        archiveClassifier.set("javadoc")
+    }
+
+    extensions.getByType<DokkaExtension>().run {
+        dokkaSourceSets.invoke {
+            configureEach {
+                sourceLink {
+                    localDirectory.set(projectDir.resolve("src"))
+                    remoteUrl.set(URI("https://github.com/rjaros/kilua-rpc/tree/master/modules/${project.name}/src"))
+                    remoteLineSuffix.set("#L")
+                }
+            }
+        }
     }
 }

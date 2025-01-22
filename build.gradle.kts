@@ -3,8 +3,8 @@ plugins {
     `kotlin-dsl` apply false
     alias(libs.plugins.kotlinx.serialization) apply false
     alias(libs.plugins.ksp) apply false
-    alias(libs.plugins.dokka)
     alias(libs.plugins.nmcp)
+    id("org.jetbrains.dokka")
     id("maven-publish")
 }
 
@@ -38,4 +38,16 @@ nmcp {
         password = findProperty("mavenCentralPassword")?.toString()
         publicationType = "USER_MANAGED"
     }
+}
+dependencies {
+    dokka(project(":modules:kilua-rpc-annotations"))
+    dokka(project(":modules:kilua-rpc-core"))
+    dokka(project(":modules:kilua-rpc-javalin"))
+    dokka(project(":modules:kilua-rpc-jooby"))
+    dokka(project(":modules:kilua-rpc-ktor-guice"))
+    dokka(project(":modules:kilua-rpc-ktor-koin"))
+    dokka(project(":modules:kilua-rpc-micronaut"))
+    dokka(project(":modules:kilua-rpc-spring-boot"))
+    dokka(project(":modules:kilua-rpc-vertx"))
+    dokka(project(":modules:kilua-rpc-types"))
 }
