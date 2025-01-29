@@ -160,7 +160,7 @@ fun Project.setupDokka(provider: TaskProvider<DokkaBaseTask>) {
             configureEach {
                 sourceLink {
                     localDirectory.set(projectDir.resolve("src"))
-                    remoteUrl.set(URI("https://github.com/rjaros/kilua-rpc/tree/master/modules/${project.name}/src"))
+                    remoteUrl.set(URI("https://github.com/rjaros/kilua-rpc/tree/main/modules/${project.name}/src"))
                     remoteLineSuffix.set("#L")
                 }
             }
