@@ -60,7 +60,7 @@ tasks.getByName("jar", Jar::class) {
 
 publishing {
     publications {
-        withType<MavenPublication>() {
+        withType<MavenPublication> {
             pom {
                 defaultPom()
             }
