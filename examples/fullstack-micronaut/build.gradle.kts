@@ -19,7 +19,7 @@ allOpen {
 
 @OptIn(ExperimentalWasmDsl::class)
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(21)
     jvm {
         withJava()
         @OptIn(ExperimentalKotlinGradlePluginApi::class)

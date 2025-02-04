@@ -243,9 +243,7 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
             group = KILUA_RPC_TASK_GROUP
             description = "Assembles a jar archive containing $prefix web application."
             archiveAppendix.set(appendix)
-            val distribution = project.tasks.getByName<Copy>(
-                "${prefix}BrowserDistribution",
-            ).outputs
+            val distribution = project.tasks.getByName("${prefix}BrowserDistribution").outputs
             from(distribution)
             duplicatesStrategy = DuplicatesStrategy.EXCLUDE
             into(assetsPath)
@@ -303,7 +301,7 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
             group = KILUA_RPC_TASK_GROUP
             description = "Assembles a fat jar archive containing application with $webPrefix frontend."
             mainClass.set(mainClassName)
-            targetJavaVersion.set(JavaVersion.VERSION_17)
+            targetJavaVersion.set(JavaVersion.VERSION_21)
             classpath = files(
                 kotlinMppExtension.targets["jvm"].compilations["main"].output.allOutputs,
                 project.configurations["jvmRuntimeClasspath"],
