@@ -15,7 +15,6 @@ val mainClassNameVal = "example.MainKt"
 kotlin {
     jvmToolchain(21)
     jvm {
-        withJava()
         @OptIn(ExperimentalKotlinGradlePluginApi::class)
         compilerOptions {
             freeCompilerArgs = listOf("-Xjsr305=strict")

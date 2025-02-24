@@ -15,7 +15,6 @@ extra["mainClassName"] = "example.MainVerticle"
 kotlin {
     jvmToolchain(21)
     jvm {
-        withJava()
         @OptIn(ExperimentalKotlinGradlePluginApi::class)
         compilerOptions {
             freeCompilerArgs = listOf("-Xjsr305=strict")
