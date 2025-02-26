@@ -282,8 +282,9 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
                     ) + manifestAttributes
                 )
             }
+            project.configurations.getByName("jvmRuntimeClasspath").dependencies.add(project.dependencies.create(tasks["${webPrefix}Archive"].outputs.files))
+            project.configurations.getByName("jvmRuntimeClasspath").dependencies.add(project.dependencies.create(tasks["jvmJar"].outputs.files))
             configurations.convention(listOf(project.configurations.getByName("jvmRuntimeClasspath")))
-            from(project.tasks["${webPrefix}Archive"].outputs.files, project.tasks["jvmJar"].outputs.files)
             outputs.file(archiveFile)
             duplicatesStrategy = DuplicatesStrategy.EXCLUDE
             mergeServiceFiles()
