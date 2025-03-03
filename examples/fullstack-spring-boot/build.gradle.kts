@@ -10,6 +10,12 @@ plugins {
     alias(libs.plugins.kilua.rpc)
 }
 
+dependencyManagement {
+    imports {
+        mavenBom("org.springframework.boot:spring-boot-dependencies:${libs.versions.spring.boot.get()}")
+    }
+}
+
 extra["kotlin.version"] = libs.versions.kotlin.get()
 extra["kotlin-coroutines.version"] = libs.versions.kotlinx.coroutines.get()
 
