@@ -12,6 +12,7 @@ plugins {
 
 extra["kotlin.version"] = libs.versions.kotlin.get()
 extra["kotlin-coroutines.version"] = libs.versions.kotlinx.coroutines.get()
+extra["kotlin-serialization.version"] = libs.versions.kotlinx.serialization.get()
 
 extra["mainClassName"] = "example.MainKt"
 
