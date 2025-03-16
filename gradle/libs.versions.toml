@@ -71,6 +71,7 @@ testng = { module = "org.testng:testng", version.ref = "testng" }
 hamcrest = { module = "org.hamcrest:hamcrest", version.ref = "hamcrest" }
 kilua-rpc-javalin = { module = "dev.kilua:kilua-rpc-javalin", version.ref = "kilua-rpc-published" }
 kilua-rpc-jooby = { module = "dev.kilua:kilua-rpc-jooby", version.ref = "kilua-rpc-published" }
+kilua-rpc-ktor = { module = "dev.kilua:kilua-rpc-ktor", version.ref = "kilua-rpc-published" }
 kilua-rpc-ktor-guice = { module = "dev.kilua:kilua-rpc-ktor-guice", version.ref = "kilua-rpc-published" }
 kilua-rpc-ktor-koin = { module = "dev.kilua:kilua-rpc-ktor-koin", version.ref = "kilua-rpc-published" }
 kilua-rpc-spring-boot = { module = "dev.kilua:kilua-rpc-spring-boot", version.ref = "kilua-rpc-published" }
