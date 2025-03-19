@@ -10,7 +10,7 @@ created with the Kotlin programming language. Is can be used with frontend apps 
 [Kotlin/Wasm](https://kotlinlang.org/docs/wasm-overview.html) and [Kotlin/JS](https://kotlinlang.org/docs/js-overview.html) targets. On the backend side different popular Kotlin/JVM web frameworks 
 are fully supported:
 
-- [Ktor](https://ktor.io/) (with [Koin](https://insert-koin.io/) or [Guice](https://github.com/google/guice) dependency injection)
+- [Ktor](https://ktor.io/)
 - [Jooby](https://jooby.io)
 - [Spring Boot](https://spring.io/projects/spring-boot)
 - [Javalin](https://javalin.io)
@@ -74,7 +74,7 @@ launch {
 ```
 ### Backend source set (Ktor)
 
-Implement the interface as a DI component and initialize the library routing with a few lines of code.
+Implement the interface and initialize the library routing with a few lines of code.
 
 ```kotlin
 import java.net.URLEncoder
@@ -87,8 +87,8 @@ import io.ktor.server.application.*
 import io.ktor.server.plugins.compression.*
 import io.ktor.server.routing.*
 
-actual class EncodingService : IEncodingService {
-    actual override suspend fun encode(input: String, encodingType: EncodingType): String {
+class EncodingService : IEncodingService {
+    override suspend fun encode(input: String, encodingType: EncodingType): String {
         return when (encodingType) {
                 EncodingType.BASE64 -> {
                     Base64Encoder.encode(input)
@@ -108,7 +108,9 @@ fun Application.main() {
     routing {
         getAllServiceManagers().forEach { applyRoutes(it) }
     }
-    initRpc()
+    initRpc {
+        registerService<IEncodingService> { EncodingService() }
+    }
 }
 ```
 Everything else happens automatically - a call on the client side will run the code on the server and the result will be sent back to the caller.
@@ -162,8 +164,8 @@ is the backend app dependencies list and the main initialization code.
 Kilua RPC gradle plugin defines custom tasks to run and package fullstack applications. 
 No matter which server is used these tasks are available:
 
-- `jsRun` - run the frontend JS application in the development mode
-- `wasmJsRun` - run the frontend WASM application in the development mode
+- `jsBrowserDevelopmentRun` - run the frontend JS application in the development mode
+- `wasmJsBrowserDevelopmentRun` - run the frontend WASM application in the development mode
 - `jvmRun` - run the backend application in the development mode
 - `jarWithJs` - package the fullstack application with JS frontend as a single JAR file
 - `jarWithWasmJs` - package the fullstack application with WASM frontend as a single JAR file
