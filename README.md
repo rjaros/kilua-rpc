@@ -119,9 +119,9 @@ Everything else happens automatically - a call on the client side will run the c
 
 Designing the interface is probably the most important step, and during this process you have to stick to some important rules.
 
-#### An interface name need to start with `'I'` and end with `'Service'` phrases and must be annotated with `@RpcService` annotation.
+#### An interface must be annotated with `@RpcService` annotation.
 
-This convention allows Kilua RPC compiler plugin to generate common, backend and frontend code.
+Kilua RPC compiler plugin will generate common, backend and frontend code based on the interface name.
 
 #### A method must be suspending
 
