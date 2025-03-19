@@ -31,7 +31,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.reactive.awaitSingle
 import kotlinx.coroutines.reactor.flux
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.encodeToString
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationContext
@@ -103,7 +102,7 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
                             id = jsonRpcRequest.id,
                             result = deSerializer.serializeNullableToString(result, serializer)
                         )
-                    } catch (e: IllegalParameterCountException) {
+                    } catch (_: IllegalParameterCountException) {
                         JsonRpcResponse(
                             id = jsonRpcRequest.id,
                             error = "Invalid parameters"

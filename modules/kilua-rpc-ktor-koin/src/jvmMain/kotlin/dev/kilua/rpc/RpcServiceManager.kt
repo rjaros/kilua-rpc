@@ -34,7 +34,6 @@ import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.modules.SerializersModule
 import org.koin.ktor.ext.getKoin
 import org.slf4j.Logger
@@ -42,10 +41,6 @@ import org.slf4j.LoggerFactory
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import kotlin.reflect.KClass
-
-public typealias RequestHandler = suspend RoutingContext.() -> Unit
-public typealias WebsocketHandler = suspend WebSocketServerSession.() -> Unit
-public typealias SseHandler = RequestHandler
 
 /**
  * Fullstack service manager for Ktor.

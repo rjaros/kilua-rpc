@@ -21,70 +21,31 @@
  */
 package dev.kilua.rpc
 
-import com.google.inject.AbstractModule
-import com.google.inject.Guice
-import com.google.inject.Injector
-import com.google.inject.Module
 import io.javalin.Javalin
-import io.javalin.http.Context
-import io.javalin.http.staticfiles.Location
-import io.javalin.websocket.WsContext
 
-public const val RPC_INJECTOR_KEY: String = "dev.kilua.rpc.injector.key"
+private const val DEFAULT_INIT_RESOURCES = true
+
+internal const val RPC_JAVALIN_KEY: String = "dev.kilua.rpc.javalin.key"
 
 /**
  * Initialization function for Javalin server.
  */
-public fun Javalin.initRpc(vararg modules: Module): Injector = initRpc(true, *modules)
+public fun Javalin.initRpc(serviceRegistration: ServiceRegistryContext.() -> Unit) =
+    initRpc(DEFAULT_INIT_RESOURCES, serviceRegistration)
 
 /**
  * Initialization function for Javalin server.
  * @param initStaticResources initialize default static resources
  */
-public fun Javalin.initRpc(initStaticResources: Boolean = true, vararg modules: Module): Injector {
+public fun Javalin.initRpc(initStaticResources: Boolean, serviceRegistration: ServiceRegistryContext.() -> Unit) {
     if (initStaticResources) initStaticResources()
-
-    @Suppress("SpreadOperator")
-    val injector = Guice.createInjector(MainModule(this), *modules)
-
+    ServiceRegistry.serviceRegistration()
     before { ctx ->
-        ctx.attribute(
-            RPC_INJECTOR_KEY,
-            injector.createChildInjector(ContextModule(ctx), WsContextModule(DummyWsContext()))
-        )
+        ctx.attribute(RPC_JAVALIN_KEY, this)
     }
     wsBefore { ws ->
         ws.onConnect { ctx ->
-            ctx.attribute(
-                RPC_INJECTOR_KEY,
-                injector.createChildInjector(ContextModule(DummyContext()), WsContextModule(ctx))
-            )
+            ctx.attribute(RPC_JAVALIN_KEY, this)
         }
-    }
-    return injector
-}
-
-/**
- * Initialize default static resources for Javalin server.
- */
-public fun Javalin.initStaticResources() {
-    unsafeConfig().staticFiles.add("/assets", Location.CLASSPATH)
-}
-
-internal class MainModule(private val javalin: Javalin) : AbstractModule() {
-    override fun configure() {
-        bind(Javalin::class.java).toInstance(javalin)
-    }
-}
-
-internal class ContextModule(private val ctx: Context) : AbstractModule() {
-    override fun configure() {
-        bind(Context::class.java).toInstance(ctx)
-    }
-}
-
-internal class WsContextModule(private val wsCtx: WsContext) : AbstractModule() {
-    override fun configure() {
-        bind(WsContext::class.java).toInstance(wsCtx)
     }
 }

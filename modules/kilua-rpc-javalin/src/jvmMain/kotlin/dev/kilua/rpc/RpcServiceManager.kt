@@ -21,13 +21,9 @@
  */
 package dev.kilua.rpc
 
-import com.google.inject.Injector
 import io.javalin.Javalin
-import io.javalin.http.Context
 import io.javalin.http.bodyAsClass
-import io.javalin.http.sse.SseClient
 import io.javalin.security.RouteRole
-import io.javalin.websocket.WsConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -40,17 +36,12 @@ import kotlinx.coroutines.future.future
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.modules.SerializersModule
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import kotlin.reflect.KClass
-
-public typealias RequestHandler = (Context) -> Unit
-public typealias WebsocketHandler = (WsConfig) -> Unit
-public typealias SseHandler = (SseClient) -> Unit
 
 /**
  * Fullstack service manager for Javalin.
@@ -85,8 +76,12 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
             } else {
                 ctx.bodyAsClass()
             }
-            val injector = ctx.attribute<Injector>(RPC_INJECTOR_KEY)!!
-            val service = injector.getInstance(serviceClass.java)
+            val javalin = ctx.attribute<Javalin>(RPC_JAVALIN_KEY)!!
+
+            @Suppress("UNCHECKED_CAST")
+            val service = ServiceRegistry.services[serviceClass]?.invoke(ctx, javalin, DummyWsContext())?.let {
+                it as? T
+            } ?: throw IllegalStateException("Service ${serviceClass.simpleName} not found")
             val future = applicationScope.future {
                 try {
                     val result = function.invoke(service, jsonRpcRequest.params)
@@ -94,7 +89,7 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
                         id = jsonRpcRequest.id,
                         result = deSerializer.serializeNullableToString(result, serializer)
                     )
-                } catch (e: IllegalParameterCountException) {
+                } catch (_: IllegalParameterCountException) {
                     JsonRpcResponse(id = jsonRpcRequest.id, error = "Invalid parameters")
                 } catch (e: Exception) {
                     if (e !is ServiceException && e !is AbstractServiceException) LOG.error(e.message, e)
@@ -125,8 +120,12 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
                 val outgoing = Channel<String>()
                 ctx.attribute(RPC_WS_INCOMING_KEY, incoming)
                 ctx.attribute(RPC_WS_OUTGOING_KEY, outgoing)
-                val injector = ctx.attribute<Injector>(RPC_INJECTOR_KEY)!!
-                val service = injector.getInstance(serviceClass.java)
+                val javalin = ctx.attribute<Javalin>(RPC_JAVALIN_KEY)!!
+
+                @Suppress("UNCHECKED_CAST")
+                val service = ServiceRegistry.services[serviceClass]?.invoke(DummyContext(), javalin, ctx)?.let {
+                    it as? T
+                } ?: throw IllegalStateException("Service ${serviceClass.simpleName} not found")
                 applicationScope.launch {
                     coroutineScope {
                         launch {
@@ -172,8 +171,13 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
         val serializer by lazy { serializerFactory() }
         return { sseClient ->
             val channel = Channel<String>()
-            val injector = sseClient.ctx().attribute<Injector>(RPC_INJECTOR_KEY)!!
-            val service = injector.getInstance(serviceClass.java)
+            val javalin = sseClient.ctx().attribute<Javalin>(RPC_JAVALIN_KEY)!!
+
+            @Suppress("UNCHECKED_CAST")
+            val service =
+                ServiceRegistry.services[serviceClass]?.invoke(sseClient.ctx(), javalin, DummyWsContext())?.let {
+                    it as? T
+                } ?: throw IllegalStateException("Service ${serviceClass.simpleName} not found")
             sseClient.onClose {
                 channel.close()
             }

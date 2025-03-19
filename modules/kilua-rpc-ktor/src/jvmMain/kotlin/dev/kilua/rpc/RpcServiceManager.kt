@@ -41,10 +41,6 @@ import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import kotlin.reflect.KClass
 
-public typealias RequestHandler = suspend RoutingContext.() -> Unit
-public typealias WebsocketHandler = suspend WebSocketServerSession.() -> Unit
-public typealias SseHandler = RequestHandler
-
 /**
  * Fullstack service manager for Ktor.
  */

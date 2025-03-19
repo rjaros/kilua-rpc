@@ -21,51 +21,33 @@
  */
 package dev.kilua.rpc
 
-import com.google.inject.AbstractModule
-import com.google.inject.Guice
-import com.google.inject.Injector
-import com.google.inject.Module
 import io.vertx.core.Vertx
 import io.vertx.core.http.HttpServer
 import io.vertx.ext.web.Router
-import io.vertx.ext.web.RoutingContext
 import io.vertx.ext.web.handler.BodyHandler
-import io.vertx.ext.web.handler.StaticHandler
 import kotlinx.serialization.modules.SerializersModule
 
-public const val RPC_INJECTOR_KEY: String = "dev.kilua.rpc.injector.key"
+private const val DEFAULT_INIT_RESOURCES = true
 
 /**
  * Initialization function for Vert.x server.
  */
-public fun Vertx.initRpc(router: Router, vararg modules: Module): Injector = initRpc(true, router, *modules)
+public fun Vertx.initRpc(router: Router, serviceRegistration: ServiceRegistryContext.() -> Unit) =
+    initRpc(DEFAULT_INIT_RESOURCES, router, serviceRegistration)
 
 /**
  * Initialization function for Vert.x server.
  * @param initStaticResources initialize default static resources
  */
 public fun Vertx.initRpc(
-    initStaticResources: Boolean = true,
+    initStaticResources: Boolean,
     router: Router,
-    vararg modules: Module
-): Injector {
+    serviceRegistration: ServiceRegistryContext.() -> Unit
+) {
     if (initStaticResources) router.initStaticResources()
-
+    ServiceRegistry.serviceRegistration()
     router.route("/rpc/*").handler(BodyHandler.create(false))
     router.route("/rpcsse/*").handler(BodyHandler.create(false))
-
-    @Suppress("SpreadOperator")
-    val injector = Guice.createInjector(MainModule(this), *modules)
-
-    router.route("/rpc/*").handler { rctx ->
-        rctx.put(RPC_INJECTOR_KEY, injector.createChildInjector(RoutingContextModule(rctx)))
-        rctx.next()
-    }
-    router.route("/rpcsse/*").handler { rctx ->
-        rctx.put(RPC_INJECTOR_KEY, injector.createChildInjector(RoutingContextModule(rctx)))
-        rctx.next()
-    }
-    return injector
 }
 
 /**
@@ -76,43 +58,31 @@ public fun Vertx.initRpc(
     server: HttpServer,
     wsServiceManagers: List<RpcServiceManager<*>> = emptyList(),
     serializersModules: List<SerializersModule>? = null,
-    vararg modules: Module
-): Injector = initRpc(true, router, server, wsServiceManagers, serializersModules, *modules)
+    serviceRegistration: ServiceRegistryContext.() -> Unit
+) = initRpc(DEFAULT_INIT_RESOURCES, router, server, wsServiceManagers, serializersModules, serviceRegistration)
 
 /**
  * Initialization function for Vert.x server with support for WebSockets.
  * @param initStaticResources initialize default static resources
  */
 public fun Vertx.initRpc(
-    initStaticResources: Boolean = true,
+    initStaticResources: Boolean,
     router: Router,
     server: HttpServer,
     wsServiceManagers: List<RpcServiceManager<*>> = emptyList(),
     serializersModules: List<SerializersModule>? = null,
-    vararg modules: Module
-): Injector {
+    serviceRegistration: ServiceRegistryContext.() -> Unit
+) {
     if (initStaticResources) router.initStaticResources()
-
     router.route("/rpc/*").handler(BodyHandler.create(false))
     router.route("/rpcsse/*").handler(BodyHandler.create(false))
-
-    @Suppress("SpreadOperator")
-    val injector = Guice.createInjector(MainModule(this), *modules)
-
-    router.route("/rpc/*").handler { rctx ->
-        rctx.put(RPC_INJECTOR_KEY, injector.createChildInjector(RoutingContextModule(rctx)))
-        rctx.next()
-    }
-    router.route("/rpcsse/*").handler { rctx ->
-        rctx.put(RPC_INJECTOR_KEY, injector.createChildInjector(RoutingContextModule(rctx)))
-        rctx.next()
-    }
+    ServiceRegistry.serviceRegistration()
     wsServiceManagers.forEach { serviceManager ->
         if (serviceManager.webSocketRequests.isNotEmpty()) {
             serviceManager.deSerializer = kotlinxObjectDeSerializer(serializersModules)
             server.webSocketHandler { webSocket ->
                 serviceManager.webSocketRequests[webSocket.path()]?.let {
-                    it(injector, webSocket)
+                    it(this, webSocket)
                 }
             }
             server.webSocketHandshakeHandler { serverWebSocketHandshake ->
@@ -121,25 +91,5 @@ public fun Vertx.initRpc(
                 } ?: serverWebSocketHandshake.reject()
             }
         }
-    }
-    return injector
-}
-
-/**
- * Initialize default static resources for Vert.x server.
- */
-public fun Router.initStaticResources() {
-    route("/*").last().handler(StaticHandler.create())
-}
-
-internal class MainModule(private val vertx: Vertx) : AbstractModule() {
-    override fun configure() {
-        bind(Vertx::class.java).toInstance(vertx)
-    }
-}
-
-internal class RoutingContextModule(private val rctx: RoutingContext) : AbstractModule() {
-    override fun configure() {
-        bind(RoutingContext::class.java).toInstance(rctx)
     }
 }

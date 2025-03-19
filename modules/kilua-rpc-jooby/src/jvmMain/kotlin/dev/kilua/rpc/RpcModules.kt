@@ -21,35 +21,30 @@
  */
 package dev.kilua.rpc
 
-import com.google.inject.AbstractModule
-import com.google.inject.Injector
-import com.google.inject.Module
-import io.jooby.Context
 import io.jooby.MediaType
-import io.jooby.guice.GuiceModule
-import io.jooby.handler.AssetSource
 import io.jooby.jackson.JacksonModule
 import io.jooby.kt.Kooby
 
-public const val RPC_INJECTOR_KEY: String = "dev.kilua.rpc.injector.key"
+private const val DEFAULT_INIT_RESOURCES = true
+
+internal const val RPC_KOOBY_KEY: String = "dev.kilua.rpc.kooby.key"
 
 /**
  * Initialization function for Jooby server.
  */
-public fun Kooby.initRpc(vararg modules: Module): Unit = initRpc(true, *modules)
+public fun Kooby.initRpc(serviceRegistration: ServiceRegistryContext.() -> Unit) =
+    initRpc(DEFAULT_INIT_RESOURCES, serviceRegistration)
 
 /**
  * Initialization function for Jooby server.
  * @param initStaticResources initialize default static resources
  */
-public fun Kooby.initRpc(initStaticResources: Boolean = true, vararg modules: Module) {
+public fun Kooby.initRpc(initStaticResources: Boolean, serviceRegistration: ServiceRegistryContext.() -> Unit) {
     if (initStaticResources) initStaticResources()
-
-    install(GuiceModule(MainModule(this), *modules))
     install(JacksonModule())
+    ServiceRegistry.serviceRegistration()
     before { ctx ->
-        val injector = ctx.require(Injector::class.java).createChildInjector(ContextModule(ctx))
-        ctx.setAttribute(RPC_INJECTOR_KEY, injector)
+        ctx.setAttribute(RPC_KOOBY_KEY, this)
     }
     use {
         val response = next.apply(ctx)
@@ -57,25 +52,5 @@ public fun Kooby.initRpc(initStaticResources: Boolean = true, vararg modules: Mo
             ctx.responseType = MediaType.valueOf("application/wasm")
         }
         response
-    }
-}
-
-/**
- * Initialize default static resources for Jooby server.
- */
-public fun Kooby.initStaticResources() {
-    assets("/", "/assets/index.html")
-    assets("/*", AssetSource.create(javaClass.classLoader, "assets"))
-}
-
-internal class MainModule(private val kooby: Kooby) : AbstractModule() {
-    override fun configure() {
-        bind(Kooby::class.java).toInstance(kooby)
-    }
-}
-
-public class ContextModule(private val ctx: Context) : AbstractModule() {
-    override fun configure() {
-        bind(Context::class.java).toInstance(ctx)
     }
 }

@@ -16,6 +16,6 @@ fun Application.main() {
         getAllServiceManagers().forEach { applyRoutes(it) }
     }
     initRpc {
-        registerService { PingService() }
+        registerService<IPingService> { PingService() }
     }
 }

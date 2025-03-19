@@ -82,7 +82,6 @@ public class RpcProcessor(
                             it.write(
                                 generateCommonCode(
                                     packageName,
-                                    className,
                                     interfaceName,
                                     managerName,
                                     classDeclaration
@@ -172,7 +171,6 @@ public class RpcProcessor(
 
     private fun generateCommonCode(
         packageName: String,
-        className: String,
         interfaceName: String,
         managerName: String,
         ksClassDeclaration: KSClassDeclaration
@@ -196,40 +194,7 @@ public class RpcProcessor(
                 appendLine("import kotlinx.coroutines.channels.ReceiveChannel")
             }
             appendLine()
-            appendLine("expect class $className : $interfaceName {")
-            val wsMethodsForClass = mutableListOf<String>()
-            val sseMethodsForClass = mutableListOf<String>()
-            ksClassDeclaration.getDeclaredFunctions().forEach {
-                val name = it.simpleName.asString()
-                val params = it.parameters
-                val wsMethod =
-                    if (params.size == 2)
-                        params.first().type.toString().startsWith("ReceiveChannel")
-                    else false
-                val sseMethod =
-                    if (params.size == 1)
-                        params.first().type.toString().startsWith("SendChannel")
-                    else false
-                if (!wsMethod && !sseMethod) {
-                    if (!wsMethodsForClass.contains(name) && !sseMethodsForClass.contains(name)) {
-                        appendLine("    override suspend fun $name(${getParameterList(params)}): ${getTypeString(it.returnType?.resolve())}")
-                    }
-                } else if (wsMethod) {
-                    appendLine("    override suspend fun $name(${getParameterList(params)}): Unit")
-                    val type1 = getTypeString(params[0].type.resolve()).replace("ReceiveChannel", "SendChannel")
-                    val type2 = getTypeString(params[1].type.resolve()).replace("SendChannel", "ReceiveChannel")
-                    appendLine("    override suspend fun $name(handler: suspend ($type1, $type2) -> Unit): Unit")
-                } else {
-                    appendLine("    override suspend fun $name(${getParameterList(params)}): Unit")
-                    val type = getTypeString(params[0].type.resolve()).replace("SendChannel", "ReceiveChannel")
-                    appendLine("    override suspend fun $name(handler: suspend ($type) -> Unit): Unit")
-                }
-                if (wsMethod) wsMethodsForClass.add(name)
-                if (sseMethod) sseMethodsForClass.add(name)
-            }
-            appendLine("}")
-            appendLine()
-            appendLine("object $managerName : RpcServiceManager<$className>($className::class) {")
+            appendLine("object $managerName : RpcServiceManager<$interfaceName>($interfaceName::class) {")
             appendLine("    init {")
             appendLine("        registerRpcServiceExceptions()")
             val wsMethodsForMgr = mutableListOf<String>()
@@ -313,7 +278,7 @@ public class RpcProcessor(
                 appendLine("import kotlinx.coroutines.channels.ReceiveChannel")
             }
             appendLine()
-            appendLine("actual class $className(serializersModules: List<SerializersModule>? = null, requestFilter: (suspend RequestInit.() -> Unit)? = null) : $interfaceName, RpcAgent<$className>($managerName, serializersModules, requestFilter) {")
+            appendLine("class $className(serializersModules: List<SerializersModule>? = null, requestFilter: (suspend RequestInit.() -> Unit)? = null) : $interfaceName, RpcAgent<$interfaceName>($managerName, serializersModules, requestFilter) {")
             val wsMethods = mutableListOf<String>()
             val sseMethods = mutableListOf<String>()
             ksClassDeclaration.getDeclaredFunctions().forEach {
@@ -332,7 +297,7 @@ public class RpcProcessor(
                         if (params.isNotEmpty()) {
                             when {
                                 it.returnType.toString().startsWith("RemoteData") -> appendLine(
-                                    "    actual override suspend fun $name(${
+                                    "    override suspend fun $name(${
                                         getParameterList(
                                             params
                                         )
@@ -340,7 +305,7 @@ public class RpcProcessor(
                                 )
 
                                 else -> appendLine(
-                                    "    actual override suspend fun $name(${getParameterList(params)}) = call($interfaceName::$name, ${
+                                    "    override suspend fun $name(${getParameterList(params)}) = call($interfaceName::$name, ${
                                         getParameterNames(
                                             params
                                         )
@@ -348,18 +313,18 @@ public class RpcProcessor(
                                 )
                             }
                         } else {
-                            appendLine("    actual override suspend fun $name() = call($interfaceName::$name)")
+                            appendLine("    override suspend fun $name() = call($interfaceName::$name)")
                         }
                     }
                 } else if (wsMethod) {
-                    appendLine("    actual override suspend fun $name(${getParameterList(params)}) {}")
+                    appendLine("    override suspend fun $name(${getParameterList(params)}) {}")
                     val type1 = getTypeString(params[0].type.resolve()).replace("ReceiveChannel", "SendChannel")
                     val type2 = getTypeString(params[1].type.resolve()).replace("SendChannel", "ReceiveChannel")
-                    appendLine("    actual override suspend fun $name(handler: suspend ($type1, $type2) -> Unit) = webSocket($interfaceName::$name, handler)")
+                    appendLine("    override suspend fun $name(handler: suspend ($type1, $type2) -> Unit) = webSocket($interfaceName::$name, handler)")
                 } else {
-                    appendLine("    actual override suspend fun $name(${getParameterList(params)}) {}")
+                    appendLine("    override suspend fun $name(${getParameterList(params)}) {}")
                     val type = getTypeString(params[0].type.resolve()).replace("SendChannel", "ReceiveChannel")
-                    appendLine("    actual override suspend fun $name(handler: suspend ($type) -> Unit) = sseConnection($interfaceName::$name, handler)")
+                    appendLine("    override suspend fun $name(handler: suspend ($type) -> Unit) = sseConnection($interfaceName::$name, handler)")
                 }
                 if (wsMethod) wsMethods.add(name)
                 if (sseMethod) sseMethods.add(name)

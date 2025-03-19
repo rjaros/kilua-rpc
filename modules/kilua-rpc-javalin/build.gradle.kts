@@ -16,8 +16,7 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                api(project(":modules:kilua-rpc-core"))
-                api(project(":modules:kilua-rpc-annotations"))
+                api(project(":modules:kilua-rpc-javalin-common"))
                 implementation(libs.kotlinx.serialization.json)
                 implementation(libs.kotlinx.coroutines)
             }
@@ -32,12 +31,6 @@ kotlin {
         }
         val jvmMain by getting {
             dependencies {
-                implementation(kotlin("reflect"))
-                api(libs.kotlinx.coroutines.jdk8)
-                api(libs.javalin)
-                api(libs.guice)
-                api(libs.jackson.module.kotlin)
-                api(libs.logback.classic)
             }
         }
     }

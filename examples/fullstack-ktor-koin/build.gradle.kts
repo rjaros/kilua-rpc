@@ -84,6 +84,10 @@ kotlin {
     }
 }
 
+ksp {
+    arg("KOIN_DEFAULT_MODULE","false")
+}
+
 dependencies {
     add("kspJvm", "io.insert-koin:koin-ksp-compiler:${libs.versions.koin.annotations.get()}")
 }

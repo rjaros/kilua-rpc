@@ -21,12 +21,9 @@
  */
 package dev.kilua.rpc
 
-import com.google.inject.Injector
 import io.vertx.core.Vertx
-import io.vertx.core.http.ServerWebSocket
 import io.vertx.core.json.Json
 import io.vertx.ext.web.Router
-import io.vertx.ext.web.RoutingContext
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,17 +35,12 @@ import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.modules.SerializersModule
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import kotlin.reflect.KClass
-
-public typealias RequestHandler = (RoutingContext) -> Unit
-public typealias WebsocketHandler = (Injector, ServerWebSocket) -> Unit
-public typealias SseHandler = RequestHandler
 
 /**
  * Fullstack service manager for Vert.x.
@@ -82,8 +74,11 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
                 ctx.body().asJsonObject().mapTo(JsonRpcRequest::class.java)
             }
 
-            val injector = ctx.get<Injector>(RPC_INJECTOR_KEY)
-            val service = injector.getInstance(serviceClass.java)
+            @Suppress("UNCHECKED_CAST")
+            val service =
+                ServiceRegistry.services[serviceClass]?.invoke(ctx, ctx.vertx(), DummyServerWebSocket())?.let {
+                    it as? T
+                } ?: throw IllegalStateException("Service ${serviceClass.simpleName} not found")
             applicationScope.launch(ctx.vertx().dispatcher()) {
                 val response = try {
                     val result = function.invoke(service, jsonRpcRequest.params)
@@ -91,7 +86,7 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
                         id = jsonRpcRequest.id,
                         result = deSerializer.serializeNullableToString(result, serializer)
                     )
-                } catch (e: IllegalParameterCountException) {
+                } catch (_: IllegalParameterCountException) {
                     JsonRpcResponse(id = jsonRpcRequest.id, error = "Invalid parameters")
                 } catch (e: Exception) {
                     if (e !is ServiceException && e !is AbstractServiceException) LOG.error(e.message, e)
@@ -116,11 +111,14 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
     ): WebsocketHandler {
         val requestSerializer by lazy { requestSerializerFactory() }
         val responseSerializer by lazy { responseSerializerFactory() }
-        return { injector, ws ->
+        return { vertx, ws ->
             val incoming = Channel<String>()
             val outgoing = Channel<String>()
-            val service = injector.getInstance(serviceClass.java)
-            val vertx = injector.getInstance(Vertx::class.java)
+
+            @Suppress("UNCHECKED_CAST")
+            val service = ServiceRegistry.services[serviceClass]?.invoke(DummyRoutingContext(), vertx, ws)?.let {
+                it as? T
+            } ?: throw IllegalStateException("Service ${serviceClass.simpleName} not found")
             ws.textMessageHandler { message ->
                 applicationScope.launch(vertx.dispatcher()) {
                     incoming.send(message)
@@ -169,13 +167,17 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
         val serializer by lazy { serializerFactory() }
         return { ctx ->
             val response = ctx.response()
-            response.setChunked(true);
-            response.putHeader("Content-Type", "text/event-stream");
-            response.putHeader("Connection", "keep-alive");
-            response.putHeader("Cache-Control", "no-cache");
+            response.isChunked = true
+            response.putHeader("Content-Type", "text/event-stream")
+            response.putHeader("Connection", "keep-alive")
+            response.putHeader("Cache-Control", "no-cache")
             val channel = Channel<String>()
-            val injector = ctx.get<Injector>(RPC_INJECTOR_KEY)
-            val service = injector.getInstance(serviceClass.java)
+
+            @Suppress("UNCHECKED_CAST")
+            val service =
+                ServiceRegistry.services[serviceClass]?.invoke(ctx, ctx.vertx(), DummyServerWebSocket())?.let {
+                    it as? T
+                } ?: throw IllegalStateException("Service ${serviceClass.simpleName} not found")
             response.closeHandler {
                 channel.close()
             }
@@ -205,7 +207,6 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
 /**
  * A function to generate routes based on definitions from the service manager.
  */
-@Suppress("unused")
 public fun <T : Any> Vertx.applyRoutes(
     router: Router, serviceManager: RpcServiceManager<T>, serializersModules: List<SerializersModule>? = null
 ) {
@@ -213,7 +214,7 @@ public fun <T : Any> Vertx.applyRoutes(
     serviceManager.routeMapRegistry.asSequence().forEach { (method, path, handler) ->
         try {
             io.vertx.core.http.HttpMethod.valueOf(method.name)
-        } catch (e: IllegalArgumentException) {
+        } catch (_: IllegalArgumentException) {
             null
         }?.let {
             router.route(it, path).handler(handler)

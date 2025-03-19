@@ -36,7 +36,7 @@ internal object KoinModule {
             threadLocalApplicationCall.get()
         }
         factory<WebSocketServerSession> {
-            threadLocalWebSocketServerSession.get()
+            threadLocalWebSocketServerSession.get() ?: DummyWebSocketServerSession()
         }
     }
 }

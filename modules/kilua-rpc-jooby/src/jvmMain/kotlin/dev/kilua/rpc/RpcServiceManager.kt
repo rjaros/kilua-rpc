@@ -21,12 +21,8 @@
  */
 package dev.kilua.rpc
 
-import com.google.inject.Injector
-import io.jooby.Context
 import io.jooby.ServerSentEmitter
-import io.jooby.WebSocketConfigurer
 import io.jooby.kt.CoroutineRouter
-import io.jooby.kt.HandlerContext
 import io.jooby.kt.Kooby
 import io.jooby.kt.ServerSentHandler
 import kotlinx.coroutines.CoroutineScope
@@ -40,17 +36,12 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.modules.SerializersModule
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import kotlin.reflect.KClass
-
-public typealias RequestHandler = suspend HandlerContext.() -> Any
-public typealias WebsocketHandler = (ctx: Context, configurer: WebSocketConfigurer) -> Unit
-public typealias SseHandler = ServerSentHandler.() -> Unit
 
 /**
  * Fullstack service manager for Jooby.
@@ -83,8 +74,12 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
             } else {
                 ctx.body(JsonRpcRequest::class.java)
             }
-            val injector = ctx.getAttribute<Injector>(RPC_INJECTOR_KEY)!!
-            val service = injector.getInstance(serviceClass.java)
+            val kooby = ctx.getAttribute<Kooby>(RPC_KOOBY_KEY)!!
+
+            @Suppress("UNCHECKED_CAST")
+            val service = ServiceRegistry.services[serviceClass]?.invoke(ctx, kooby)?.let {
+                it as? T
+            } ?: throw IllegalStateException("Service ${serviceClass.simpleName} not found")
             ctx.setResponseType("application/json")
             try {
                 val result = function.invoke(service, jsonRpcRequest.params)
@@ -92,7 +87,7 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
                     id = jsonRpcRequest.id,
                     result = deSerializer.serializeNullableToString(result, serializer)
                 )
-            } catch (e: IllegalParameterCountException) {
+            } catch (_: IllegalParameterCountException) {
                 JsonRpcResponse(id = jsonRpcRequest.id, error = "Invalid parameters")
             } catch (e: Exception) {
                 if (e !is ServiceException && e !is AbstractServiceException) LOG.error(e.message, e)
@@ -116,8 +111,12 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
         val requestSerializer by lazy { requestSerializerFactory() }
         val responseSerializer by lazy { responseSerializerFactory() }
         return { ctx, configurer ->
-            val injector = ctx.require(Injector::class.java).createChildInjector(ContextModule(ctx))
-            val service = injector.getInstance(serviceClass.java)
+            val kooby = ctx.getAttribute<Kooby>(RPC_KOOBY_KEY)!!
+
+            @Suppress("UNCHECKED_CAST")
+            val service = ServiceRegistry.services[serviceClass]?.invoke(ctx, kooby)?.let {
+                it as? T
+            } ?: throw IllegalStateException("Service ${serviceClass.simpleName} not found")
             val incoming = Channel<String>()
             val outgoing = Channel<String>()
             configurer.onConnect { ws ->
@@ -162,8 +161,12 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
         val serializer by lazy { serializerFactory() }
         return {
             val channel = Channel<String>()
-            val injector = ctx.require(Injector::class.java).createChildInjector(ContextModule(ctx))
-            val service = injector.getInstance(serviceClass.java)
+            val kooby = ctx.getAttribute<Kooby>(RPC_KOOBY_KEY)!!
+
+            @Suppress("UNCHECKED_CAST")
+            val service = ServiceRegistry.services[serviceClass]?.invoke(ctx, kooby)?.let {
+                it as? T
+            } ?: throw IllegalStateException("Service ${serviceClass.simpleName} not found")
             sse.onClose {
                 channel.close()
             }

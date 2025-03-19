@@ -23,63 +23,47 @@ package dev.kilua.rpc
 
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
-import io.ktor.server.http.content.*
 import io.ktor.server.plugins.contentnegotiation.*
-import io.ktor.server.routing.*
 import kotlinx.serialization.json.Json
 
-private const val DEFAULT_INIT_SPA = true
+private const val DEFAULT_INIT_RESOURCES = true
 
 /**
  * Initialization function for Ktor server.
  */
 public fun Application.initRpc(serviceRegistration: ServiceRegistryContext.() -> Unit) =
-    initRpc(DEFAULT_INIT_SPA, DefaultJson, serviceRegistration)
+    initRpc(DEFAULT_INIT_RESOURCES, DefaultJson, serviceRegistration)
 
 /**
  * Initialization function for Ktor server with custom JsonSerializer.
  * @param json custom or default JsonSerializer
  */
 public fun Application.initRpc(json: Json, serviceRegistration: ServiceRegistryContext.() -> Unit) =
-    this.initRpc(DEFAULT_INIT_SPA, json, serviceRegistration)
+    this.initRpc(DEFAULT_INIT_RESOURCES, json, serviceRegistration)
 
 /**
  * Initialization function for Ktor server.
- * @param initSinglePageApplication initialize default static resources for SPA
+ * @param initStaticResources initialize default static resources for SPA
  */
 public fun Application.initRpc(
-    initSinglePageApplication: Boolean,
+    initStaticResources: Boolean,
     serviceRegistration: ServiceRegistryContext.() -> Unit
 ) =
-    this.initRpc(initSinglePageApplication, DefaultJson, serviceRegistration)
+    this.initRpc(initStaticResources, DefaultJson, serviceRegistration)
 
 /**
  * Initialization function for Ktor server.
- * @param initSinglePageApplication initialize default static resources for SPA
+ * @param initStaticResources initialize default static resources for SPA
  * @param json custom or default JsonSerializer
  */
 public fun Application.initRpc(
-    initSinglePageApplication: Boolean,
+    initStaticResources: Boolean,
     json: Json,
     serviceRegistration: ServiceRegistryContext.() -> Unit
 ) {
     install(ContentNegotiation) {
         json(json)
     }
-
-    if (initSinglePageApplication) initSinglePageApplication()
+    if (initStaticResources) initStaticResources()
     ServiceRegistry.serviceRegistration()
-}
-
-/**
- * Initialize default static resources for Ktor server.
- */
-public fun Application.initSinglePageApplication() {
-    routing {
-        singlePageApplication {
-            defaultPage = "index.html"
-            filesPath = "/assets"
-            useResources = true
-        }
-    }
 }
