@@ -21,6 +21,8 @@
  */
 package dev.kilua.rpc
 
+import dev.kilua.rpc.js.JSON
+import js.core.JsAny
 import kotlinx.serialization.SerializationStrategy
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule

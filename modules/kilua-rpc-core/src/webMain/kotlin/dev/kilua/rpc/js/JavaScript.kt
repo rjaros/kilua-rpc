@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Robert Jaros
+ * Copyright (c) 2025 Robert Jaros
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,20 +20,13 @@
  * SOFTWARE.
  */
 
-package dev.kilua.rpc
+package dev.kilua.rpc.js
 
-/**
- * JavaScript JSON object.
- */
+import js.core.JsBoolean
+import js.core.JsString
+
 @PublishedApi
-internal external object JSON : JsAny {
-    /**
-     * Convert a given object to a JSON string.
-     */
-    fun stringify(o: JsAny?): String
+internal expect fun Boolean.toJsBoolean(): JsBoolean
 
-    /**
-     * Parse JSON string to an object.
-     */
-    fun <T : JsAny> parse(text: String): T
-}
+@PublishedApi
+internal expect fun String.toJsString(): JsString

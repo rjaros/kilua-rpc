@@ -19,55 +19,19 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package dev.kilua.rpc
+package dev.kilua.rpc.js
 
-import kotlinx.browser.window
-import org.w3c.fetch.RequestInit
-import org.w3c.fetch.Response
-import kotlin.js.Promise
-
-/**
- * JavaScript empty object.
- */
-@PublishedApi
-internal fun obj(): JsAny = js("({})")
-
-/**
- * JavaScript encodeURIComponent function
- */
-internal external fun encodeURIComponent(uri: String): String
-
-/**
- * JavaScript fetch function
- */
-internal external fun fetch(input: String, init: RequestInit): Promise<Response>
-
-/**
- * JavaScript global object
- */
-@PublishedApi
-internal external val globalThis: JsAny
-
-/**
- * Helper function for creating JavaScript objects.
- */
-@PublishedApi
-internal inline fun <T : JsAny> obj(init: T.() -> Unit): T {
-    @Suppress("UNCHECKED_CAST")
-    return (obj() as T).apply(init)
-}
-
-private fun objSet(obj: JsAny, key: String, value: JsAny): Unit = js("{ obj[key] = value }")
-
-@Suppress("RedundantNullableReturnType")
-private fun objGet(obj: JsAny, key: String): JsAny? = js("obj[key]")
+import js.core.JsAny
+import web.window.window
+import js.reflect.Reflect.get as getKt
+import js.reflect.Reflect.set as setKt
 
 /**
  * Operator to set property on JS Object
  */
 @PublishedApi
 internal operator fun JsAny.set(key: String, value: JsAny) {
-    objSet(this, key, value)
+    setKt(this, key.toJsString(), value)
 }
 
 /**
@@ -75,7 +39,7 @@ internal operator fun JsAny.set(key: String, value: JsAny) {
  */
 @PublishedApi
 internal operator fun JsAny.get(key: String): JsAny? {
-    return objGet(this, key)
+    return getKt(this, key.toJsString())
 }
 
 /**
@@ -95,9 +59,10 @@ public fun getWebSocketUrl(url: String): String {
     }
 }
 
-private fun isDom(): Boolean = js("typeof document !== 'undefined' && typeof document.kilua == 'undefined'")
+internal expect fun isDom(): Boolean
 
 /**
  * Whether the DOM is available
  */
-public val isDom: Boolean by lazy { isDom() }
+@PublishedApi
+internal val isDom: Boolean by lazy { isDom() }

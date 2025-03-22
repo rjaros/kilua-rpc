@@ -21,20 +21,22 @@
  */
 package dev.kilua.rpc
 
+import dev.kilua.rpc.js.console
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import org.w3c.dom.CloseEvent
-import org.w3c.dom.ErrorEvent
-import org.w3c.dom.MessageEvent
-import org.w3c.dom.WebSocket
-import org.w3c.dom.WebSocket.Companion.CLOSED
-import org.w3c.dom.WebSocket.Companion.CLOSING
-import org.w3c.dom.WebSocket.Companion.OPEN
-import org.w3c.dom.events.Event
+import web.errors.ErrorEvent
+import web.events.Event
+import web.events.EventHandler
+import web.messaging.MessageEvent
+import web.sockets.CloseEvent
+import web.sockets.WebSocket
+import web.sockets.WebSocket.Companion.CLOSED
+import web.sockets.WebSocket.Companion.CLOSING
+import web.sockets.WebSocket.Companion.OPEN
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -54,7 +56,7 @@ public class Socket {
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private var eventQueue: Channel<Event> = Channel(Channel.UNLIMITED)
     private lateinit var ws: WebSocket
-    public val state: Short
+    public val state: WebSocket.ReadyState
         get() = ws.readyState
 
     private fun onWsEvent(event: Event) {
@@ -70,16 +72,16 @@ public class Socket {
                 while (eventQueue.tryReceive().isSuccess) {/*drain*/
                 }
                 ws = WebSocket(url)
-                ws.onopen = {
-                    ws.onclose = ::onWsEvent
-                    ws.onerror = ::onWsEvent
+                ws.onopen = EventHandler {
+                    ws.onclose = EventHandler { event -> onWsEvent(event) }
+                    ws.onerror = EventHandler { event -> onWsEvent(event) }
                     cont.resume(true)
                 }
-                ws.onmessage = ::onWsEvent
-                ws.onerror = {
-                    logError(it)
+                ws.onmessage = EventHandler { event -> onWsEvent(event) }
+                ws.onerror = EventHandler { event ->
+                    logError(event)
                 }
-                ws.onclose = {
+                ws.onclose = EventHandler {
                     cont.resume(false)
                 }
             }
@@ -96,7 +98,7 @@ public class Socket {
     @Suppress("ThrowsCount", "MagicNumber")
     public suspend fun receive(): String {
         return when (val event = eventQueue.receive()) {
-            is MessageEvent -> {
+            is MessageEvent<*> -> {
                 event.data.toString()
             }
 
@@ -140,8 +142,10 @@ public class Socket {
      */
     @Suppress("MagicNumber")
     public fun close(code: Short = 1000) {
+        @Suppress("REDUNDANT_ELSE_IN_WHEN")
         when (state) {
             OPEN -> ws.close(code, getReason(1000))
+            else -> {}
         }
     }
 
@@ -149,6 +153,7 @@ public class Socket {
      * Returns if a websocket is closed.
      */
     public fun isClosed(): Boolean {
+        @Suppress("REDUNDANT_ELSE_IN_WHEN")
         return when (state) {
             CLOSED, CLOSING -> true
             else -> false

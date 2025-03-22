@@ -28,14 +28,17 @@ kotlin {
                 implementation(kotlin("test-annotations-common"))
             }
         }
-        val jsMain by getting {
+        val webMain by creating {
+            dependsOn(commonMain)
             dependencies {
+                api(libs.wrappers.browser)
             }
         }
+        val jsMain by getting {
+            dependsOn(webMain)
+        }
         val wasmJsMain by getting {
-            dependencies {
-                api(libs.kotlinx.browser)
-            }
+            dependsOn(webMain)
         }
         val jvmMain by getting {
             dependencies {

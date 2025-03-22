@@ -265,7 +265,7 @@ public class RpcProcessor(
             appendLine("//")
             appendLine("package $packageName")
             appendLine()
-            appendLine("import org.w3c.fetch.RequestInit")
+            appendLine("import web.http.RequestInit")
             appendLine("import dev.kilua.rpc.RpcAgent")
             appendLine("import kotlinx.serialization.modules.SerializersModule")
             val types = getTypes(ksClassDeclaration.getDeclaredFunctions())
@@ -385,7 +385,7 @@ public class RpcProcessor(
             if (services.isNotEmpty()) {
                 appendLine("package dev.kilua.rpc")
                 appendLine()
-                appendLine("import org.w3c.fetch.RequestInit")
+                appendLine("import web.http.RequestInit")
                 appendLine("import kotlinx.serialization.modules.SerializersModule")
                 appendLine()
                 appendLine("inline fun <reified T : Any> getService(serializersModules: List<SerializersModule>? = null, noinline requestFilter: (suspend RequestInit.() -> Unit)? = null): T = when (T::class) {")

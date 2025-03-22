@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Robert Jaros
+ * Copyright (c) 2025 Robert Jaros
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,27 +20,14 @@
  * SOFTWARE.
  */
 
-package dev.kilua.rpc
+package dev.kilua.rpc.js
 
-/**
- * JavaScript console class
- */
-@PublishedApi
-internal external class Console : JsAny {
-    @PublishedApi
-    internal fun log(message: String?)
-    @PublishedApi
-    internal fun log(message: JsAny?)
-    @PublishedApi
-    internal fun error(message: String?)
-    @PublishedApi
-    internal fun error(message: JsAny?)
-    @PublishedApi
-    internal fun error(message: String?, vararg args: JsAny)
-}
+import js.core.JsBoolean
+import kotlin.js.toJsBoolean as toJsBooleanKt
+import kotlin.js.toJsString as toJsStringKt
 
-/**
- * JavaScript console object
- */
 @PublishedApi
-internal external val console: Console
+internal actual fun Boolean.toJsBoolean(): JsBoolean = this.toJsBooleanKt()
+
+@PublishedApi
+internal actual fun String.toJsString(): JsString = this.toJsStringKt()

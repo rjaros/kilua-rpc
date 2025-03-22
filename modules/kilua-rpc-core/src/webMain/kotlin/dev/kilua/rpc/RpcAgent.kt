@@ -21,6 +21,15 @@
  */
 package dev.kilua.rpc
 
+import dev.kilua.rpc.js.JSON
+import dev.kilua.rpc.js.console
+import dev.kilua.rpc.js.get
+import dev.kilua.rpc.js.getWebSocketUrl
+import dev.kilua.rpc.js.isDom
+import dev.kilua.rpc.js.set
+import dev.kilua.rpc.js.toJsBoolean
+import js.globals.globalThis
+import js.objects.jso
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Job
@@ -30,12 +39,12 @@ import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.serialization.builtins.ListSerializer
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.serializer
-import org.w3c.dom.EventSource
-import org.w3c.fetch.RequestInit
+import web.events.EventHandler
+import web.http.RequestInit
+import web.sse.EventSource
 
 /**
  * Client side agent for JSON-RPC remote calls.
@@ -490,13 +499,13 @@ public open class RpcAgent<T : Any>(
         val urlPrefix: String = if (rpcUrlPrefix != null) "$rpcUrlPrefix/" else ""
         val (url, _) = serviceManager.requireCall(function)
         val serializerPAR = json.serializersModule.serializer<PAR>()
-        val eventSource = EventSource(urlPrefix + url.drop(1), obj {
-            withCredentials = true
+        val eventSource = EventSource(urlPrefix + url.drop(1), jso {
+            set("withCredentials", true.toJsBoolean())
         })
         val channel = Channel<PAR>()
-        eventSource.onmessage = {
-            if (it.data != null) {
-                val response = json.decodeFromString<JsonRpcResponse>(it.data.toString())
+        eventSource.onmessage = EventHandler { event ->
+            if (event.data != null) {
+                val response = json.decodeFromString<JsonRpcResponse>(event.data.toString())
                 val par = json.decodeFromString(serializerPAR, response.result!!)
                 if (!channel.isClosedForSend) channel.trySend(par)
             }
@@ -530,13 +539,13 @@ public open class RpcAgent<T : Any>(
         val urlPrefix: String = if (rpcUrlPrefix != null) "$rpcUrlPrefix/" else ""
         val (url, _) = serviceManager.requireCall(function)
         val serializerPAR = json.serializersModule.serializer<PAR>()
-        val eventSource = EventSource(urlPrefix + url.drop(1), obj {
-            withCredentials = true
+        val eventSource = EventSource(urlPrefix + url.drop(1), jso {
+            set("withCredentials", true.toJsBoolean())
         })
         val channel = Channel<List<PAR>>()
-        eventSource.onmessage = {
-            if (it.data != null) {
-                val response = json.decodeFromString<JsonRpcResponse>(it.data.toString())
+        eventSource.onmessage = EventHandler { event ->
+            if (event.data != null) {
+                val response = json.decodeFromString<JsonRpcResponse>(event.data.toString())
                 val par = json.decodeFromString(ListSerializer(serializerPAR), response.result!!)
                 if (!channel.isClosedForSend) channel.trySend(par)
             }
