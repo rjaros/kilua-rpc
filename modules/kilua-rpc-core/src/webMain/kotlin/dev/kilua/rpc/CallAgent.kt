@@ -90,7 +90,7 @@ public open class CallAgent {
         method: HttpMethod = HttpMethod.POST,
         requestFilter: (suspend RequestInit.() -> Unit)? = null
     ): String {
-        val rpcUrlPrefix = globalThis["rpc_url_prefix"]
+        val rpcUrlPrefix = globalThis.get("rpc_url_prefix")
         val urlPrefix: String = if (rpcUrlPrefix != undefined) "$rpcUrlPrefix/" else ""
         val jsonRpcRequest = JsonRpcRequest(counter++, url, data)
         val body =
@@ -161,7 +161,7 @@ public open class CallAgent {
         responseBodyType: ResponseBodyType = ResponseBodyType.JSON,
         requestFilter: (suspend RequestInit.() -> Unit)? = null
     ): JsAny? {
-        val rpcUrlPrefix = globalThis["rpc_url_prefix"]
+        val rpcUrlPrefix = globalThis.get("rpc_url_prefix")
         val urlPrefix: String = if (rpcUrlPrefix != undefined) "$rpcUrlPrefix/" else ""
         val body = if (method == HttpMethod.GET || (data == null && stringData == null)) null else when (contentType) {
             "application/json" -> stringData?.toJsString() ?: BodyInit(JSON.stringify(data))

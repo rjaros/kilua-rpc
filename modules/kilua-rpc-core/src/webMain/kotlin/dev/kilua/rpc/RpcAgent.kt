@@ -317,7 +317,7 @@ public open class RpcAgent<T : Any>(
         noinline handler: suspend (SendChannel<PAR1>, ReceiveChannel<PAR2>) -> Unit
     ) {
         if (!isDom) return
-        val rpcUrlPrefix = globalThis["rpc_url_prefix"]
+        val rpcUrlPrefix = globalThis.get("rpc_url_prefix")
         val urlPrefix: String = if (rpcUrlPrefix != null) "$rpcUrlPrefix/" else ""
         val (url, _) = serviceManager.requireCall(function)
         val serializerPAR1 = json.serializersModule.serializer<PAR1>()
@@ -387,7 +387,7 @@ public open class RpcAgent<T : Any>(
         noinline handler: suspend (SendChannel<PAR1>, ReceiveChannel<List<PAR2>>) -> Unit
     ) {
         if (!isDom) return
-        val rpcUrlPrefix = globalThis["rpc_url_prefix"]
+        val rpcUrlPrefix = globalThis.get("rpc_url_prefix")
         val urlPrefix: String = if (rpcUrlPrefix != null) "$rpcUrlPrefix/" else ""
         val (url, _) = serviceManager.requireCall(function)
         val serializerPAR1 = json.serializersModule.serializer<PAR1>()
@@ -495,7 +495,7 @@ public open class RpcAgent<T : Any>(
         noinline handler: suspend (ReceiveChannel<PAR>) -> Unit
     ) {
         if (!isDom) return
-        val rpcUrlPrefix = globalThis["rpc_url_prefix"]
+        val rpcUrlPrefix = globalThis.get("rpc_url_prefix")
         val urlPrefix: String = if (rpcUrlPrefix != null) "$rpcUrlPrefix/" else ""
         val (url, _) = serviceManager.requireCall(function)
         val serializerPAR = json.serializersModule.serializer<PAR>()
@@ -535,7 +535,7 @@ public open class RpcAgent<T : Any>(
         noinline handler: suspend (ReceiveChannel<List<PAR>>) -> Unit
     ) {
         if (!isDom) return
-        val rpcUrlPrefix = globalThis["rpc_url_prefix"]
+        val rpcUrlPrefix = globalThis.get("rpc_url_prefix")
         val urlPrefix: String = if (rpcUrlPrefix != null) "$rpcUrlPrefix/" else ""
         val (url, _) = serviceManager.requireCall(function)
         val serializerPAR = json.serializersModule.serializer<PAR>()

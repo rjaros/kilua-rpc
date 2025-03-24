@@ -27,18 +27,18 @@ import js.reflect.Reflect.get as getKt
 import js.reflect.Reflect.set as setKt
 
 /**
- * Operator to set property on JS Object
+ * Function to set property on JS Object
  */
 @PublishedApi
-internal operator fun JsAny.set(key: String, value: JsAny) {
+internal fun JsAny.set(key: String, value: JsAny) {
     setKt(this, key.toJsString(), value)
 }
 
 /**
- * Operator to get property from JS Object
+ * Function to get property from JS Object
  */
 @PublishedApi
-internal operator fun JsAny.get(key: String): JsAny? {
+internal fun JsAny.get(key: String): JsAny? {
     return getKt(this, key.toJsString())
 }
 
