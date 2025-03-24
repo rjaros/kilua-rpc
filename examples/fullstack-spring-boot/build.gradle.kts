@@ -6,13 +6,8 @@ plugins {
     kotlin("plugin.serialization")
     id("com.google.devtools.ksp")
     kotlin("plugin.spring") version libs.versions.kotlin.get()
-    alias(libs.plugins.spring.dependency.management)
     alias(libs.plugins.kilua.rpc)
 }
-
-extra["kotlin.version"] = libs.versions.kotlin.get()
-extra["kotlin-coroutines.version"] = libs.versions.kotlinx.coroutines.get()
-extra["kotlin-serialization.version"] = libs.versions.kotlinx.serialization.get()
 
 extra["mainClassName"] = "example.MainKt"
 
@@ -78,6 +73,7 @@ kotlin {
         val jvmMain by getting {
             dependencies {
                 implementation(kotlin("reflect"))
+                implementation(project.dependencies.platform(org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES))
                 implementation("org.springframework.boot:spring-boot-starter")
                 implementation("org.springframework.boot:spring-boot-starter-webflux")
                 implementation("org.springframework.boot:spring-boot-starter-security")

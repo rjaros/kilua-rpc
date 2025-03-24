@@ -85,6 +85,5 @@ ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 jooby = { id = "io.jooby.run", version.ref = "jooby" }
 micronaut-application = { id = "io.micronaut.application", version.ref = "micronaut-plugins" }
 micronaut-aot = { id = "io.micronaut.aot", version.ref = "micronaut-plugins" }
-spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
 kilua-rpc = { id = "dev.kilua.rpc", version.ref = "kilua-rpc-published" }
