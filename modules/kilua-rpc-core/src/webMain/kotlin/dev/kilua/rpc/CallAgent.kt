@@ -21,14 +21,10 @@
  */
 package dev.kilua.rpc
 
-import dev.kilua.rpc.js.JSON
-import dev.kilua.rpc.js.get
-import dev.kilua.rpc.js.set
-import dev.kilua.rpc.js.toJsString
+import dev.kilua.rpc.js.jsGet
+import dev.kilua.rpc.js.jsSet
 import js.core.JsAny
-import js.core.JsString
 import js.globals.globalThis
-import js.objects.ReadonlyRecord
 import js.objects.jso
 import js.reflect.unsafeCast
 import js.uri.encodeURIComponent
@@ -90,7 +86,7 @@ public open class CallAgent {
         method: HttpMethod = HttpMethod.POST,
         requestFilter: (suspend RequestInit.() -> Unit)? = null
     ): String {
-        val rpcUrlPrefix = globalThis.get("rpc_url_prefix")
+        val rpcUrlPrefix = globalThis.jsGet("rpc_url_prefix")
         val urlPrefix: String = if (rpcUrlPrefix != undefined) "$rpcUrlPrefix/" else ""
         val jsonRpcRequest = JsonRpcRequest(counter++, url, data)
         val body =
@@ -109,24 +105,23 @@ public open class CallAgent {
         }
         val response = fetch(fetchUrl, requestInit)
         return if (response.ok && response.headers.get("Content-Type") == "application/json") {
-            val data = response.json()
-            val dataAsResponse = unsafeCast<JsonRpcResponseJs>(data!!)
+            val jsonRpcResponse = unsafeCast<JsonRpcResponseJs>(response.json()!!)
             when {
-                method != HttpMethod.GET && dataAsResponse.id != jsonRpcRequest.id ->
+                method != HttpMethod.GET && jsonRpcResponse.id != jsonRpcRequest.id ->
                     throw Exception("Invalid response ID")
 
-                dataAsResponse.error != null -> {
-                    if (dataAsResponse.exceptionType == "dev.kilua.rpc.ServiceException") {
-                        throw ServiceException(dataAsResponse.error)
-                    } else if (dataAsResponse.exceptionJson != null) {
+                jsonRpcResponse.error != null -> {
+                    if (jsonRpcResponse.exceptionType == "dev.kilua.rpc.ServiceException") {
+                        throw ServiceException(jsonRpcResponse.error)
+                    } else if (jsonRpcResponse.exceptionJson != null) {
                         throw RpcSerialization.getJson()
-                            .decodeFromString<AbstractServiceException>(dataAsResponse.exceptionJson)
+                            .decodeFromString<AbstractServiceException>(jsonRpcResponse.exceptionJson)
                     } else {
-                        throw Exception(dataAsResponse.error)
+                        throw Exception(jsonRpcResponse.error)
                     }
                 }
 
-                dataAsResponse.result != null -> dataAsResponse.result
+                jsonRpcResponse.result != null -> jsonRpcResponse.result
                 else -> throw Exception("Invalid response")
             }
         } else if (response.ok) {
@@ -158,10 +153,10 @@ public open class CallAgent {
         headers.append("Content-Type", contentType)
         headers.append("X-Requested-With", "XMLHttpRequest")
         return jso {
-            set("method", requestMethod)
-            if (body != null) set("body", body)
-            set("headers", headers)
-            set("credentials", RequestCredentials.include)
+            jsSet("method", requestMethod)
+            if (body != null) jsSet("body", body)
+            jsSet("headers", headers)
+            jsSet("credentials", RequestCredentials.include)
         }
     }
 }

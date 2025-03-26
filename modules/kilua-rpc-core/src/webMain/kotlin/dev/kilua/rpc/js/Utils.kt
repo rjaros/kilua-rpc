@@ -23,23 +23,22 @@ package dev.kilua.rpc.js
 
 import js.core.JsAny
 import web.window.window
-import js.reflect.Reflect.get as getKt
-import js.reflect.Reflect.set as setKt
+import js.reflect.Reflect
 
 /**
  * Function to set property on JS Object
  */
 @PublishedApi
-internal fun JsAny.set(key: String, value: JsAny) {
-    setKt(this, key.toJsString(), value)
+internal fun JsAny.jsSet(key: String, value: JsAny) {
+    Reflect.set(this, key.toJsString(), value)
 }
 
 /**
  * Function to get property from JS Object
  */
 @PublishedApi
-internal fun JsAny.get(key: String): JsAny? {
-    return getKt(this, key.toJsString())
+internal fun JsAny.jsGet(key: String): JsAny? {
+    return Reflect.get(this, key.toJsString())
 }
 
 /**

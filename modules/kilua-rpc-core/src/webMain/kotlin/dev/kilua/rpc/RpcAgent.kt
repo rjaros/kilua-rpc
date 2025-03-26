@@ -23,10 +23,10 @@ package dev.kilua.rpc
 
 import dev.kilua.rpc.js.JSON
 import dev.kilua.rpc.js.console
-import dev.kilua.rpc.js.get
 import dev.kilua.rpc.js.getWebSocketUrl
 import dev.kilua.rpc.js.isDom
-import dev.kilua.rpc.js.set
+import dev.kilua.rpc.js.jsGet
+import dev.kilua.rpc.js.jsSet
 import dev.kilua.rpc.js.toJsBoolean
 import js.globals.globalThis
 import js.objects.jso
@@ -317,7 +317,7 @@ public open class RpcAgent<T : Any>(
         noinline handler: suspend (SendChannel<PAR1>, ReceiveChannel<PAR2>) -> Unit
     ) {
         if (!isDom) return
-        val rpcUrlPrefix = globalThis.get("rpc_url_prefix")
+        val rpcUrlPrefix = globalThis.jsGet("rpc_url_prefix")
         val urlPrefix: String = if (rpcUrlPrefix != null) "$rpcUrlPrefix/" else ""
         val (url, _) = serviceManager.requireCall(function)
         val serializerPAR1 = json.serializersModule.serializer<PAR1>()
@@ -387,7 +387,7 @@ public open class RpcAgent<T : Any>(
         noinline handler: suspend (SendChannel<PAR1>, ReceiveChannel<List<PAR2>>) -> Unit
     ) {
         if (!isDom) return
-        val rpcUrlPrefix = globalThis.get("rpc_url_prefix")
+        val rpcUrlPrefix = globalThis.jsGet("rpc_url_prefix")
         val urlPrefix: String = if (rpcUrlPrefix != null) "$rpcUrlPrefix/" else ""
         val (url, _) = serviceManager.requireCall(function)
         val serializerPAR1 = json.serializersModule.serializer<PAR1>()
@@ -495,12 +495,12 @@ public open class RpcAgent<T : Any>(
         noinline handler: suspend (ReceiveChannel<PAR>) -> Unit
     ) {
         if (!isDom) return
-        val rpcUrlPrefix = globalThis.get("rpc_url_prefix")
+        val rpcUrlPrefix = globalThis.jsGet("rpc_url_prefix")
         val urlPrefix: String = if (rpcUrlPrefix != null) "$rpcUrlPrefix/" else ""
         val (url, _) = serviceManager.requireCall(function)
         val serializerPAR = json.serializersModule.serializer<PAR>()
         val eventSource = EventSource(urlPrefix + url.drop(1), jso {
-            set("withCredentials", true.toJsBoolean())
+            jsSet("withCredentials", true.toJsBoolean())
         })
         val channel = Channel<PAR>()
         eventSource.onmessage = EventHandler { event ->
@@ -535,12 +535,12 @@ public open class RpcAgent<T : Any>(
         noinline handler: suspend (ReceiveChannel<List<PAR>>) -> Unit
     ) {
         if (!isDom) return
-        val rpcUrlPrefix = globalThis.get("rpc_url_prefix")
+        val rpcUrlPrefix = globalThis.jsGet("rpc_url_prefix")
         val urlPrefix: String = if (rpcUrlPrefix != null) "$rpcUrlPrefix/" else ""
         val (url, _) = serviceManager.requireCall(function)
         val serializerPAR = json.serializersModule.serializer<PAR>()
         val eventSource = EventSource(urlPrefix + url.drop(1), jso {
-            set("withCredentials", true.toJsBoolean())
+            jsSet("withCredentials", true.toJsBoolean())
         })
         val channel = Channel<List<PAR>>()
         eventSource.onmessage = EventHandler { event ->
