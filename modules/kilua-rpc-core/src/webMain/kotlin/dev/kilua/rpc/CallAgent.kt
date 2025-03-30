@@ -21,8 +21,6 @@
  */
 package dev.kilua.rpc
 
-import dev.kilua.rpc.js.jsGet
-import dev.kilua.rpc.js.jsSet
 import js.core.JsAny
 import js.globals.globalThis
 import js.objects.jso

@@ -21,8 +21,8 @@
  */
 package dev.kilua.rpc
 
-import dev.kilua.rpc.js.JSON
 import js.core.JsAny
+import js.json.parse
 import kotlinx.serialization.SerializationStrategy
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
@@ -59,7 +59,7 @@ public actual object RpcSerialization {
      * @param serializer a serializer for T
      */
     public fun <T> T.toObj(serializer: SerializationStrategy<T>): JsAny {
-        return JSON.parse(getJson().encodeToString(serializer, this))
+        return parse(getJson().encodeToString(serializer, this))
     }
 
     /**

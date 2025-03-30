@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Robert Jaros
+ * Copyright (c) 2025 Robert Jaros
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -19,11 +19,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package dev.kilua.rpc.js
+package dev.kilua.rpc
 
 import js.core.JsAny
-import web.window.window
+import js.core.JsPrimitives.toJsString
 import js.reflect.Reflect
+import web.window.window
 
 /**
  * Function to set property on JS Object

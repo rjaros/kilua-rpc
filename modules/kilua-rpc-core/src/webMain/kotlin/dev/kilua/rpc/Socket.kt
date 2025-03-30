@@ -21,13 +21,14 @@
  */
 package dev.kilua.rpc
 
-import dev.kilua.rpc.js.console
+import js.core.JsPrimitives.toJsString
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import web.console.console
 import web.errors.ErrorEvent
 import web.events.Event
 import web.events.EventHandler
@@ -160,7 +161,7 @@ public class Socket {
         }
     }
 
-    private fun logError(event: Event) = console.error("An error %o occurred when connecting to ${ws.url}", event)
+    private fun logError(event: Event) = console.error("An error %o occurred when connecting to ${ws.url}".toJsString(), event)
 
     @Suppress("ComplexMethod", "MagicNumber")
     private fun getReason(code: Short): String {

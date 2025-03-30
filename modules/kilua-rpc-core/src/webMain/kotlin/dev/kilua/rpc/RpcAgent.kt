@@ -21,14 +21,9 @@
  */
 package dev.kilua.rpc
 
-import dev.kilua.rpc.js.JSON
-import dev.kilua.rpc.js.console
-import dev.kilua.rpc.js.getWebSocketUrl
-import dev.kilua.rpc.js.isDom
-import dev.kilua.rpc.js.jsGet
-import dev.kilua.rpc.js.jsSet
-import dev.kilua.rpc.js.toJsBoolean
+import js.core.JsPrimitives.toJsBoolean
 import js.globals.globalThis
+import js.json.parse
 import js.objects.jso
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -42,6 +37,7 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.serializer
+import web.console.console
 import web.events.EventHandler
 import web.http.RequestInit
 import web.sse.EventSource
@@ -350,7 +346,7 @@ public open class RpcAgent<T : Any>(
                 responseJob = launch {
                     while (true) {
                         val str = socket.receiveOrNull() ?: break
-                        val data = JSON.parse<JsonRpcResponseJs>(str).result ?: ""
+                        val data = parse<JsonRpcResponseJs>(str).result ?: ""
                         val par2 = json.decodeFromString(serializerPAR2, data)
                         responseChannel.send(par2)
                     }
@@ -420,7 +416,7 @@ public open class RpcAgent<T : Any>(
                 responseJob = launch {
                     while (true) {
                         val str = socket.receiveOrNull() ?: break
-                        val data = JSON.parse<JsonRpcResponseJs>(str).result ?: ""
+                        val data = parse<JsonRpcResponseJs>(str).result ?: ""
                         val par2 = json.decodeFromString(ListSerializer(serializerPAR2), data)
                         responseChannel.send(par2)
                     }

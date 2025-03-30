@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Robert Jaros
+ * Copyright (c) 2024 Robert Jaros
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -19,15 +19,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+package dev.kilua.rpc
 
-package dev.kilua.rpc.js
-
-import js.core.JsBoolean
-import kotlin.js.toJsBoolean as toJsBooleanKt
-import kotlin.js.toJsString as toJsStringKt
-
-@PublishedApi
-internal actual fun Boolean.toJsBoolean(): JsBoolean = this.toJsBooleanKt()
-
-@PublishedApi
-internal actual fun String.toJsString(): JsString = this.toJsStringKt()
+internal actual fun isDom(): Boolean = js("typeof document !== 'undefined' && typeof document.kilua == 'undefined'")
