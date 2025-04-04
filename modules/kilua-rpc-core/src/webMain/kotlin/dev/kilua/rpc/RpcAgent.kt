@@ -40,6 +40,7 @@ import kotlinx.serialization.serializer
 import web.console.console
 import web.events.EventHandler
 import web.http.RequestInit
+import web.messaging.MessageEvent
 import web.sse.EventSource
 
 /**
@@ -499,7 +500,7 @@ public open class RpcAgent<T : Any>(
             jsSet("withCredentials", true.toJsBoolean())
         })
         val channel = Channel<PAR>()
-        eventSource.onmessage = EventHandler { event ->
+        eventSource.onmessage = EventHandler { event: MessageEvent<*> ->
             if (event.data != null) {
                 val response = json.decodeFromString<JsonRpcResponse>(event.data.toString())
                 val par = json.decodeFromString(serializerPAR, response.result!!)

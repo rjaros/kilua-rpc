@@ -22,16 +22,16 @@
 package dev.kilua.rpc
 
 import js.core.JsAny
+import js.core.JsPrimitives.toJsString
 import js.globals.globalThis
 import js.objects.jso
 import js.reflect.unsafeCast
 import js.uri.encodeURIComponent
 import web.http.BodyInit
 import web.http.Headers
-import web.http.RequestCredentials
 import web.http.RequestInit
 import web.http.RequestMethod
-import web.http.fetch
+import web.http.fetchAsync
 import web.url.URLSearchParams
 import kotlin.js.undefined
 
@@ -101,9 +101,9 @@ public open class CallAgent {
         } else {
             urlAddr
         }
-        val response = fetch(fetchUrl, requestInit)
-        return if (response.ok && response.headers.get("Content-Type") == "application/json") {
-            val jsonRpcResponse = unsafeCast<JsonRpcResponseJs>(response.json()!!)
+        val response = fetchAsync(fetchUrl, requestInit).awaitPromise()
+        return if (response.ok && response.headers.get("content-type") == "application/json") {
+            val jsonRpcResponse = unsafeCast<JsonRpcResponseJs>(response.jsonAsync().awaitPromise()!!)
             when {
                 method != HttpMethod.GET && jsonRpcResponse.id != jsonRpcRequest.id ->
                     throw Exception("Invalid response ID")
@@ -123,7 +123,7 @@ public open class CallAgent {
                 else -> throw Exception("Invalid response")
             }
         } else if (response.ok) {
-            throw ContentTypeException("Invalid response content type: ${response.headers.get("Content-Type")}")
+            throw ContentTypeException("Invalid response content type: ${response.headers.get("content-type")}")
         } else {
             if (response.status.toInt() == HTTP_UNAUTHORIZED) {
                 throw SecurityException(response.statusText)
@@ -134,11 +134,11 @@ public open class CallAgent {
     }
 
     private fun getRequestMethod(httpMethod: HttpMethod): RequestMethod = when (httpMethod) {
-        HttpMethod.GET -> RequestMethod.GET
-        HttpMethod.POST -> RequestMethod.POST
-        HttpMethod.PUT -> RequestMethod.PUT
-        HttpMethod.DELETE -> RequestMethod.DELETE
-        HttpMethod.OPTIONS -> RequestMethod.OPTIONS
+        HttpMethod.GET -> unsafeCast("GET")
+        HttpMethod.POST -> unsafeCast("POST")
+        HttpMethod.PUT -> unsafeCast("PUT")
+        HttpMethod.DELETE -> unsafeCast("DELETE")
+        HttpMethod.OPTIONS -> unsafeCast("OPTIONS")
     }
 
     private fun getRequestInit(
@@ -154,7 +154,7 @@ public open class CallAgent {
             jsSet("method", requestMethod)
             if (body != null) jsSet("body", body)
             jsSet("headers", headers)
-            jsSet("credentials", RequestCredentials.include)
+            jsSet("credentials", "include".toJsString())
         }
     }
 }

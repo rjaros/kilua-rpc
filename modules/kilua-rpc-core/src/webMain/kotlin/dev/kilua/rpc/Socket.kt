@@ -21,7 +21,10 @@
  */
 package dev.kilua.rpc
 
+import js.core.JsInt
+import js.core.JsPrimitives.toInt
 import js.core.JsPrimitives.toJsString
+import js.reflect.unsafeCast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -35,9 +38,6 @@ import web.events.EventHandler
 import web.messaging.MessageEvent
 import web.sockets.CloseEvent
 import web.sockets.WebSocket
-import web.sockets.WebSocket.Companion.CLOSED
-import web.sockets.WebSocket.Companion.CLOSING
-import web.sockets.WebSocket.Companion.OPEN
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -57,8 +57,8 @@ public class Socket {
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private var eventQueue: Channel<Event> = Channel(Channel.UNLIMITED)
     private lateinit var ws: WebSocket
-    public val state: WebSocket.ReadyState
-        get() = ws.readyState
+    public val state: JsInt
+        get() = unsafeCast<JsInt>(ws.readyState)
 
     private fun onWsEvent(event: Event) {
         scope.launch { eventQueue.send(event) }
@@ -143,9 +143,8 @@ public class Socket {
      */
     @Suppress("MagicNumber")
     public fun close(code: Short = 1000) {
-        @Suppress("REDUNDANT_ELSE_IN_WHEN")
-        when (state) {
-            OPEN -> ws.close(code, getReason(1000))
+        when (state.toInt()) {
+            1 /* OPEN */ -> ws.close(code, getReason(1000))
             else -> {}
         }
     }
@@ -154,14 +153,14 @@ public class Socket {
      * Returns if a websocket is closed.
      */
     public fun isClosed(): Boolean {
-        @Suppress("REDUNDANT_ELSE_IN_WHEN")
-        return when (state) {
-            CLOSED, CLOSING -> true
+        return when (state.toInt()) {
+            2, 3 /* CLOSING, CLOSED */ -> true
             else -> false
         }
     }
 
-    private fun logError(event: Event) = console.error("An error %o occurred when connecting to ${ws.url}".toJsString(), event)
+    private fun logError(event: Event) =
+        console.error("An error %o occurred when connecting to ${ws.url}".toJsString(), event)
 
     @Suppress("ComplexMethod", "MagicNumber")
     private fun getReason(code: Short): String {
