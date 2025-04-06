@@ -17,7 +17,7 @@ are fully supported:
 - [Vert.x](https://vertx.io)
 - [Micronaut](https://micronaut.io)
 
-Kilua RPC is an independent project, but it is mostly based on stable and production ready 
+Kilua RPC is a new project, but it is mostly based on stable and production ready 
 fullstack interfaces implemented in the [KVision](https://kvision.io) framework. 
 
 Kilua RPC can be used with all Kotlin/JS and Kotlin/Wasm web frameworks to easily build fullstack 
@@ -162,7 +162,7 @@ is the backend app dependencies list and the main initialization code.
 ## Gradle tasks
 
 Kilua RPC gradle plugin defines custom tasks to run and package fullstack applications. 
-No matter which server is used these tasks are available:
+No matter which server is used these tasks are always available:
 
 - `jsBrowserDevelopmentRun` - run the frontend JS application in the development mode
 - `wasmJsBrowserDevelopmentRun` - run the frontend WASM application in the development mode
