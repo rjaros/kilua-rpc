@@ -101,7 +101,11 @@ public open class CallAgent {
         } else {
             urlAddr
         }
-        val response = fetchAsync(fetchUrl, requestInit).awaitPromise()
+        val response = try {
+            fetchAsync(fetchUrl, requestInit).awaitPromise()
+        } catch (e: Throwable) {
+            throw Exception("Failed to fetch $fetchUrl: ${e.message}")
+        }
         return if (response.ok && response.headers.get("content-type") == "application/json") {
             val jsonRpcResponse = unsafeCast<JsonRpcResponseJs>(response.jsonAsync().awaitPromise()!!)
             when {
