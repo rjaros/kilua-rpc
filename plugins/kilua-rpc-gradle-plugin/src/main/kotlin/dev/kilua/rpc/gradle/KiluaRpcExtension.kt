@@ -39,15 +39,24 @@ public abstract class KiluaRpcExtension @Inject constructor(
     private val providers: ProviderFactory,
 ) {
 
-    public val enableGradleTasks: Property<Boolean> = kiluaRpcGradleProperty("enableGradleTasks")
+    public val enableGradleTasks: Property<Boolean> = kiluaRpcGradleProperty("enableGradleTasks", true)
+
+    public val jarArchiveFileName: Property<String> = kiluaRpcGradleProperty("jarArchiveFileName")
 
     private fun kiluaRpcGradleProperty(
         property: String,
-        default: Boolean = true,
+        default: Boolean,
     ): Property<Boolean> {
         val convention = providers.gradleProperty("dev.kilua.rpc.plugin.$property")
             .map { it.toBoolean() }
             .orElse(default)
         return objects.property<Boolean>().convention(convention)
+    }
+
+    private fun kiluaRpcGradleProperty(
+        property: String,
+    ): Property<String> {
+        val convention = providers.gradleProperty("dev.kilua.rpc.plugin.$property")
+        return objects.property<String>().convention(convention)
     }
 }

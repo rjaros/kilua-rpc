@@ -262,6 +262,9 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
     ) {
         tasks.register<ShadowJar>(name) {
             dependsOn("${webPrefix}Archive", "jvmJar")
+            kiluaRpcExtension.jarArchiveFileName.orNull?.let {
+                archiveFileName.set(kiluaRpcExtension.jarArchiveFileName)
+            }
             group = KILUA_RPC_TASK_GROUP
             description = "Assembles a fat jar archive containing application with $webPrefix frontend."
             manifest {
@@ -291,6 +294,9 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
     ) {
         tasks.register<BootJar>(name) {
             dependsOn("${webPrefix}Archive")
+            kiluaRpcExtension.jarArchiveFileName.orNull?.let {
+                archiveFileName.set(kiluaRpcExtension.jarArchiveFileName)
+            }
             group = KILUA_RPC_TASK_GROUP
             description = "Assembles a fat jar archive containing application with $webPrefix frontend."
             mainClass.set(mainClassName)
