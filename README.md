@@ -115,42 +115,9 @@ fun Application.main() {
 ```
 Everything else happens automatically - a call on the client side will run the code on the server and the result will be sent back to the caller.
 
-## Rules
+## Documentation
 
-Designing the interface is probably the most important step, and during this process you have to stick to some important rules.
-
-#### An interface must be annotated with `@RpcService` annotation.
-
-Kilua RPC compiler plugin will generate common, backend and frontend code based on the interface name.
-
-#### A method must be suspending
-
-Kotlin coroutines allow the framework to translate asynchronous calls into synchronous-like code.
-
-#### A method must have from zero to six parameters
-
-This is the restriction of the current version of the framework. It may change in the future.
-
-#### A method can't return nullable value
-
-`Unit` return type is not supported as well.
-
-#### Method parameters and return value must be of supported types
-
-Supported types are:
-
-* all basic Kotlin types (`String`, `Boolean`, `Int`, `Long`, `Short`, `Char`, `Byte`,  `Float`, `Double`)
-* `Enum` classes defined in common code and annotated with `@Serializable` annotation
-* All date and time types from `kotlinx-datetime` library
-* A `dev.kilua.rpc.types.Decimal` type, which is automatically mapped to `Double` on the frontend side and `java.math.BigDecimal` on the backend side
-* any class defined in common code with a `@Serializable` annotation
-* a `List<T>`, where T is one of the above types
-* a `T?`, where T is one of the above types (allowed only as method parameters - see previous rule)
-* a `Result<T>`, where T is one of the above types, can be used as a method return value.
-
-Note: Default parameters values are supported.
-
-Even with the above restrictions, the set of supported types is quite rich and you should be able to model almost any use case for your applications. With the help of `@Serializable` annotation you can always wrap any data structure into a serializable data class. It's also a simple way to pass around the parameters count limit.
+The comprehensive [Kilua RPC guide](https://kilua.gitbook.io/kilua-rpc-guide) is published on GitBook.
 
 ## Examples
 
@@ -169,12 +136,6 @@ No matter which server is used these tasks are always available:
 - `jvmRun` - run the backend application in the development mode
 - `jarWithJs` - package the fullstack application with JS frontend as a single JAR file
 - `jarWithWasmJs` - package the fullstack application with WASM frontend as a single JAR file
-
-## Additional documentation
-
-If you need more advanced information, until better documentation is ready, you can currently look into
-the [KVision fullstack development guide](https://kvision.gitbook.io/kvision-guide/6.-full-stack-development-guide),
-because the general Kilua RPC rules are the same as KVision.
 
 ## Leave a star
 
