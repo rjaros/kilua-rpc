@@ -78,7 +78,3 @@ extensions.getByType<SigningExtension>().run {
 }
 
 setupDokka(tasks.dokkaGenerate)
-
-nmcp {
-    publishAllPublications {}
-}

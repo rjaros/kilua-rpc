@@ -3,7 +3,8 @@ plugins {
     `kotlin-dsl` apply false
     alias(libs.plugins.kotlinx.serialization) apply false
     alias(libs.plugins.ksp) apply false
-    alias(libs.plugins.nmcp)
+    alias(libs.plugins.nmcp) apply false
+    alias(libs.plugins.nmcp.aggregation)
     id("org.jetbrains.dokka")
     id("maven-publish")
 }
@@ -19,34 +20,34 @@ allprojects {
     }
 }
 
-nmcp {
-    publishAggregation {
-        project(":modules:kilua-rpc-annotations")
-        project(":modules:kilua-rpc-types")
-        project(":modules:kilua-rpc-core")
-        project(":modules:kilua-rpc-javalin-common")
-        project(":modules:kilua-rpc-javalin")
-        project(":modules:kilua-rpc-javalin-koin")
-        project(":modules:kilua-rpc-jooby-common")
-        project(":modules:kilua-rpc-jooby")
-        project(":modules:kilua-rpc-jooby-koin")
-        project(":modules:kilua-rpc-ktor-common")
-        project(":modules:kilua-rpc-ktor")
-        project(":modules:kilua-rpc-ktor-koin")
-//        project(":modules:kilua-rpc-micronaut")
-        project(":modules:kilua-rpc-spring-boot")
-        project(":modules:kilua-rpc-vertx-common")
-        project(":modules:kilua-rpc-vertx")
-        project(":modules:kilua-rpc-vertx-koin")
-        project(":plugins:kilua-rpc-gradle-plugin")
-        project(":plugins:kilua-rpc-ksp-processor")
-        endpoint.set("https://central.sonatype.com/api/v1/publisher/upload")
+nmcpAggregation {
+    centralPortal {
         username = findProperty("mavenCentralUsername")?.toString()
         password = findProperty("mavenCentralPassword")?.toString()
-        publicationType = "USER_MANAGED"
+        publishingType = "USER_MANAGED"
     }
 }
+
 dependencies {
+    nmcpAggregation(project(":modules:kilua-rpc-annotations"))
+    nmcpAggregation(project(":modules:kilua-rpc-types"))
+    nmcpAggregation(project(":modules:kilua-rpc-core"))
+    nmcpAggregation(project(":modules:kilua-rpc-javalin-common"))
+    nmcpAggregation(project(":modules:kilua-rpc-javalin"))
+    nmcpAggregation(project(":modules:kilua-rpc-javalin-koin"))
+    nmcpAggregation(project(":modules:kilua-rpc-jooby-common"))
+    nmcpAggregation(project(":modules:kilua-rpc-jooby"))
+    nmcpAggregation(project(":modules:kilua-rpc-jooby-koin"))
+    nmcpAggregation(project(":modules:kilua-rpc-ktor-common"))
+    nmcpAggregation(project(":modules:kilua-rpc-ktor"))
+    nmcpAggregation(project(":modules:kilua-rpc-ktor-koin"))
+//    nmcpAggregation(project(":modules:kilua-rpc-micronaut"))
+    nmcpAggregation(project(":modules:kilua-rpc-spring-boot"))
+    nmcpAggregation(project(":modules:kilua-rpc-vertx-common"))
+    nmcpAggregation(project(":modules:kilua-rpc-vertx"))
+    nmcpAggregation(project(":modules:kilua-rpc-vertx-koin"))
+    nmcpAggregation(project(":plugins:kilua-rpc-gradle-plugin"))
+    nmcpAggregation(project(":plugins:kilua-rpc-ksp-processor"))
     dokka(project(":modules:kilua-rpc-annotations"))
     dokka(project(":modules:kilua-rpc-core"))
     dokka(project(":modules:kilua-rpc-javalin-common"))

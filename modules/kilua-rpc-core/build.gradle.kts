@@ -55,7 +55,3 @@ tasks.withType<Test> {
 
 setupDokka(tasks.dokkaGenerate)
 setupPublishing()
-
-nmcp {
-    publishAllPublications {}
-}

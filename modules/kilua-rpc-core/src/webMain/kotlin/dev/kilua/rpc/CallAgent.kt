@@ -24,7 +24,7 @@ package dev.kilua.rpc
 import js.core.JsAny
 import js.core.JsPrimitives.toJsString
 import js.globals.globalThis
-import js.objects.jso
+import js.objects.unsafeJso
 import js.reflect.unsafeCast
 import js.uri.encodeURIComponent
 import web.http.BodyInit
@@ -154,7 +154,7 @@ public open class CallAgent {
         val headers = Headers()
         headers.append("Content-Type", contentType)
         headers.append("X-Requested-With", "XMLHttpRequest")
-        return jso {
+        return unsafeJso {
             jsSet("method", requestMethod)
             if (body != null) jsSet("body", body)
             jsSet("headers", headers)

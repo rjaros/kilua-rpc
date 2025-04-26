@@ -1,26 +1,26 @@
 [versions]
 kilua-rpc = "0.0.32"
 kilua-rpc-published = "0.0.32"
-kotlin = "2.1.20"
+kotlin = "2.2.0-Beta1"
 dokka = "2.0.0"
-nmcp = "0.0.8"
-ksp = "2.1.20-2.0.0"
+nmcp = "0.1.2"
+ksp = "2.2.0-Beta1-2.0.0"
 gradle-plugin-publish = "1.3.1"
 kotlinx-coroutines = "1.10.2"
 kotlinx-serialization = "1.8.1"
 kotlinx-datetime = "0.6.2"
-wrappers = "2025.4.10"
+wrappers = "2025.4.16"
 javalin = "6.6.0"
 jooby = "3.7.0"
 ktor = "3.1.2"
 koin = "4.1.0-Beta7"
-koin-annotations = "2.0.0"
-micronaut = "4.7.6"
-micronaut-plugins = "4.5.0"
-spring-boot = "3.4.4"
-vertx = "5.0.0.CR6"
+koin-annotations = "2.0.1-Beta1"
+micronaut = "4.8.2"
+micronaut-plugins = "4.5.3"
+spring-boot = "3.4.5"
+vertx = "5.0.0.CR7"
 tomlj = "1.1.1"
-jackson-module-kotlin = "2.18.3"
+jackson-module-kotlin = "2.19.0"
 logback = "1.5.18"
 shadow = "9.0.0-beta12"
 testng = "7.11.0"
@@ -79,6 +79,7 @@ kilua-rpc-vertx-koin = { module = "dev.kilua:kilua-rpc-vertx-koin", version.ref 
 [plugins]
 kotlinx-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 nmcp = { id = "com.gradleup.nmcp", version.ref = "nmcp" }
+nmcp-aggregation = { id = "com.gradleup.nmcp.aggregation", version.ref = "nmcp" }
 gradle-plugin-publish = { id = "com.gradle.plugin-publish", version.ref = "gradle-plugin-publish" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 jooby = { id = "io.jooby.run", version.ref = "jooby" }

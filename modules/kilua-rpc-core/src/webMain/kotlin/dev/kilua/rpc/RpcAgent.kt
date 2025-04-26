@@ -24,7 +24,7 @@ package dev.kilua.rpc
 import js.core.JsPrimitives.toJsBoolean
 import js.globals.globalThis
 import js.json.parse
-import js.objects.jso
+import js.objects.unsafeJso
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Job
@@ -496,7 +496,7 @@ public open class RpcAgent<T : Any>(
         val urlPrefix: String = if (rpcUrlPrefix != null) "$rpcUrlPrefix/" else ""
         val (url, _) = serviceManager.requireCall(function)
         val serializerPAR = json.serializersModule.serializer<PAR>()
-        val eventSource = EventSource(urlPrefix + url.drop(1), jso {
+        val eventSource = EventSource(urlPrefix + url.drop(1), unsafeJso {
             jsSet("withCredentials", true.toJsBoolean())
         })
         val channel = Channel<PAR>()
@@ -536,7 +536,7 @@ public open class RpcAgent<T : Any>(
         val urlPrefix: String = if (rpcUrlPrefix != null) "$rpcUrlPrefix/" else ""
         val (url, _) = serviceManager.requireCall(function)
         val serializerPAR = json.serializersModule.serializer<PAR>()
-        val eventSource = EventSource(urlPrefix + url.drop(1), jso {
+        val eventSource = EventSource(urlPrefix + url.drop(1), unsafeJso {
             jsSet("withCredentials", true.toJsBoolean())
         })
         val channel = Channel<List<PAR>>()
