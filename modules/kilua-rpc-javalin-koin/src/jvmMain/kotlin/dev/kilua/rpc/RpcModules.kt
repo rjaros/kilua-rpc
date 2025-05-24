@@ -31,7 +31,7 @@ private const val DEFAULT_INIT_RESOURCES = true
 /**
  * Initialization function for Javalin server.
  */
-public fun Javalin.initRpc(vararg modules: Module) = initRpc(DEFAULT_INIT_RESOURCES, *modules)
+public fun Javalin.initRpc(vararg modules: Module): Unit = initRpc(DEFAULT_INIT_RESOURCES, *modules)
 
 /**
  * Initialization function for Javalin server.

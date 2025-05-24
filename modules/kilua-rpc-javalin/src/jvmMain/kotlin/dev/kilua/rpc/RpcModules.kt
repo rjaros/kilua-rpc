@@ -30,7 +30,7 @@ internal const val RPC_JAVALIN_KEY: String = "dev.kilua.rpc.javalin.key"
 /**
  * Initialization function for Javalin server.
  */
-public fun Javalin.initRpc(serviceRegistration: ServiceRegistryContext.() -> Unit) =
+public fun Javalin.initRpc(serviceRegistration: ServiceRegistryContext.() -> Unit): Unit =
     initRpc(DEFAULT_INIT_RESOURCES, serviceRegistration)
 
 /**

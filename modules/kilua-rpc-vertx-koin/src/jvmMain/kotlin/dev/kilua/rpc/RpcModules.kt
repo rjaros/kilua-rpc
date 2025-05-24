@@ -35,7 +35,8 @@ private const val DEFAULT_INIT_RESOURCES = true
 /**
  * Initialization function for Vert.x server.
  */
-public fun Vertx.initRpc(router: Router, vararg modules: Module) = initRpc(DEFAULT_INIT_RESOURCES, router, *modules)
+public fun Vertx.initRpc(router: Router, vararg modules: Module): Unit =
+    initRpc(DEFAULT_INIT_RESOURCES, router, *modules)
 
 /**
  * Initialization function for Vert.x server.
@@ -64,7 +65,7 @@ public fun Vertx.initRpc(
     wsServiceManagers: List<RpcServiceManager<*>> = emptyList(),
     serializersModules: List<SerializersModule>? = null,
     vararg modules: Module
-) = initRpc(DEFAULT_INIT_RESOURCES, router, server, wsServiceManagers, serializersModules, *modules)
+): Unit = initRpc(DEFAULT_INIT_RESOURCES, router, server, wsServiceManagers, serializersModules, *modules)
 
 /**
  * Initialization function for Vert.x server with support for WebSockets.

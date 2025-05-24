@@ -32,7 +32,7 @@ internal const val RPC_KOOBY_KEY: String = "dev.kilua.rpc.kooby.key"
 /**
  * Initialization function for Jooby server.
  */
-public fun Kooby.initRpc(serviceRegistration: ServiceRegistryContext.() -> Unit) =
+public fun Kooby.initRpc(serviceRegistration: ServiceRegistryContext.() -> Unit): Unit =
     initRpc(DEFAULT_INIT_RESOURCES, serviceRegistration)
 
 /**

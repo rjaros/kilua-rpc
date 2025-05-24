@@ -31,14 +31,14 @@ private const val DEFAULT_INIT_RESOURCES = true
 /**
  * Initialization function for Ktor server.
  */
-public fun Application.initRpc(serviceRegistration: ServiceRegistryContext.() -> Unit) =
+public fun Application.initRpc(serviceRegistration: ServiceRegistryContext.() -> Unit): Unit =
     initRpc(DEFAULT_INIT_RESOURCES, DefaultJson, serviceRegistration)
 
 /**
  * Initialization function for Ktor server with custom JsonSerializer.
  * @param json custom or default JsonSerializer
  */
-public fun Application.initRpc(json: Json, serviceRegistration: ServiceRegistryContext.() -> Unit) =
+public fun Application.initRpc(json: Json, serviceRegistration: ServiceRegistryContext.() -> Unit): Unit =
     this.initRpc(DEFAULT_INIT_RESOURCES, json, serviceRegistration)
 
 /**
@@ -48,8 +48,7 @@ public fun Application.initRpc(json: Json, serviceRegistration: ServiceRegistryC
 public fun Application.initRpc(
     initStaticResources: Boolean,
     serviceRegistration: ServiceRegistryContext.() -> Unit
-) =
-    this.initRpc(initStaticResources, DefaultJson, serviceRegistration)
+): Unit = this.initRpc(initStaticResources, DefaultJson, serviceRegistration)
 
 /**
  * Initialization function for Ktor server.

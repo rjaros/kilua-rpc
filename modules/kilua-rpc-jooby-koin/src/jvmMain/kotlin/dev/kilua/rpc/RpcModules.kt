@@ -33,7 +33,7 @@ private const val DEFAULT_INIT_RESOURCES = true
 /**
  * Initialization function for Jooby server.
  */
-public fun Kooby.initRpc(vararg modules: Module) = initRpc(DEFAULT_INIT_RESOURCES, *modules)
+public fun Kooby.initRpc(vararg modules: Module): Unit = initRpc(DEFAULT_INIT_RESOURCES, *modules)
 
 /**
  * Initialization function for Jooby server.

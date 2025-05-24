@@ -34,21 +34,21 @@ private const val DEFAULT_INIT_RESOURCES = true
 /**
  * Initialization function for Ktor server.
  */
-public fun Application.initRpc(vararg modules: Module) =
+public fun Application.initRpc(vararg modules: Module): Unit =
     initRpc(DEFAULT_INIT_RESOURCES, DefaultJson, *modules)
 
 /**
  * Initialization function for Ktor server with custom JsonSerializer.
  * @param json custom or default JsonSerializer
  */
-public fun Application.initRpc(json: Json, vararg modules: Module) =
+public fun Application.initRpc(json: Json, vararg modules: Module): Unit =
     this.initRpc(DEFAULT_INIT_RESOURCES, json, *modules)
 
 /**
  * Initialization function for Ktor server.
  * @param initStaticResources initialize default static resources for SPA
  */
-public fun Application.initRpc(initStaticResources: Boolean, vararg modules: Module) =
+public fun Application.initRpc(initStaticResources: Boolean, vararg modules: Module): Unit =
     this.initRpc(initStaticResources, DefaultJson, *modules)
 
 /**

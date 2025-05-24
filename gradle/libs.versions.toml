@@ -1,28 +1,28 @@
 [versions]
 kilua-rpc = "0.0.33"
 kilua-rpc-published = "0.0.33"
-kotlin = "2.2.0-Beta1"
+kotlin = "2.2.0-RC"
 dokka = "2.0.0"
-nmcp = "0.1.2"
-ksp = "2.2.0-Beta1-2.0.0"
+nmcp = "0.1.4"
+ksp = "2.2.0-RC-2.0.1"
 gradle-plugin-publish = "1.3.1"
 kotlinx-coroutines = "1.10.2"
 kotlinx-serialization = "1.8.1"
 kotlinx-datetime = "0.6.2"
-wrappers = "2025.4.16"
+wrappers = "2025.5.8"
 javalin = "6.6.0"
-jooby = "3.7.0"
-ktor = "3.1.2"
-koin = "4.1.0-Beta7"
-koin-annotations = "2.0.1-Beta1"
+jooby = "3.8.1"
+ktor = "3.1.3"
+koin = "4.1.0-Beta11"
+koin-annotations = "2.0.1-RC1"
 micronaut = "4.8.2"
 micronaut-plugins = "4.5.3"
-spring-boot = "3.4.5"
-vertx = "5.0.0.CR7"
+spring-boot = "3.5.0"
+vertx = "5.0.0"
 tomlj = "1.1.1"
 jackson-module-kotlin = "2.19.0"
 logback = "1.5.18"
-shadow = "9.0.0-beta12"
+shadow = "9.0.0-beta13"
 testng = "7.11.0"
 hamcrest = "3.0"
 
@@ -47,7 +47,7 @@ ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx
 ktor-server-netty = { module = "io.ktor:ktor-server-netty", version.ref = "ktor" }
 ktor-server-compression = { module = "io.ktor:ktor-server-compression", version.ref = "ktor" }
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
-koin-ktor = { module = "io.insert-koin:koin-ktor3", version.ref = "koin" }
+koin-ktor = { module = "io.insert-koin:koin-ktor", version.ref = "koin" }
 koin-logger-slf4j = { module = "io.insert-koin:koin-logger-slf4j", version.ref = "koin" }
 koin-annotations = { module = "io.insert-koin:koin-annotations", version.ref = "koin-annotations" }
 micronaut-platform = { module = "io.micronaut.platform:micronaut-platform", version.ref = "micronaut" }
