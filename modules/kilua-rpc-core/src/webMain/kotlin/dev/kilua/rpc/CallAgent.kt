@@ -25,6 +25,7 @@ import js.core.JsAny
 import js.core.JsPrimitives.toJsString
 import js.globals.globalThis
 import js.objects.unsafeJso
+import js.promise.await
 import js.reflect.unsafeCast
 import js.uri.encodeURIComponent
 import web.http.BodyInit
@@ -102,12 +103,12 @@ public open class CallAgent {
             urlAddr
         }
         val response = try {
-            fetchAsync(fetchUrl, requestInit).awaitPromise()
+            fetchAsync(fetchUrl, requestInit).await()
         } catch (e: Throwable) {
             throw Exception("Failed to fetch $fetchUrl: ${e.message}")
         }
         return if (response.ok && response.headers.get("content-type") == "application/json") {
-            val jsonRpcResponse = unsafeCast<JsonRpcResponseJs>(response.jsonAsync().awaitPromise()!!)
+            val jsonRpcResponse = unsafeCast<JsonRpcResponseJs>(response.jsonAsync().await()!!)
             when {
                 method != HttpMethod.GET && jsonRpcResponse.id != jsonRpcRequest.id ->
                     throw Exception("Invalid response ID")

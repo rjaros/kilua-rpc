@@ -58,7 +58,7 @@ public class Socket {
     private var eventQueue: Channel<Event> = Channel(Channel.UNLIMITED)
     private lateinit var ws: WebSocket
     public val state: JsInt
-        get() = unsafeCast<JsInt>(ws.readyState)
+        get() = unsafeCast(ws.readyState)
 
     private fun onWsEvent(event: Event) {
         scope.launch { eventQueue.send(event) }
@@ -164,7 +164,7 @@ public class Socket {
 
     @Suppress("ComplexMethod", "MagicNumber")
     private fun getReason(code: Short): String {
-        return when (code.toInt()) { // See http://tools.ietf.org/html/rfc6455#section-7.4.1
+        return when (code.toInt()) { // See https://tools.ietf.org/html/rfc6455#section-7.4.1
             1000 -> "Normal closure"
             1001 -> "An endpoint is \"going away\", such as a server going down or " +
                     "a browser having navigated away from a page."
@@ -179,7 +179,7 @@ public class Socket {
             1006 -> "The connection was closed abnormally, e.g., without sending or receiving a Close control frame"
             1007 -> "An endpoint is terminating the connection because it has received data within a message that " +
                     "was not consistent with the type of the message (e.g., non-UTF-8 " +
-                    "[http://tools.ietf.org/html/rfc3629] data within a text message)."
+                    "[https://tools.ietf.org/html/rfc3629] data within a text message)."
 
             1008 -> "An endpoint is terminating the connection because it has received a message that " +
                     "\"violates its policy\". This reason is given either if there is no other sutible reason, or " +

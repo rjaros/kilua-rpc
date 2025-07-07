@@ -21,13 +21,4 @@
  */
 package dev.kilua.rpc
 
-import js.core.JsAny
-import js.promise.Promise
-import kotlinx.coroutines.await
-import kotlin.js.Promise as PromiseJs
-
 internal actual fun isDom(): Boolean = js("typeof document !== 'undefined' && typeof document.kilua == 'undefined'")
-
-internal actual suspend fun <T : JsAny?> Promise<T>.awaitPromise(): T {
-    return this.unsafeCast<PromiseJs<T>>().await()
-}

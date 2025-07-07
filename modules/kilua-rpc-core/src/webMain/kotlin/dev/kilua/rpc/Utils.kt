@@ -23,7 +23,6 @@ package dev.kilua.rpc
 
 import js.core.JsAny
 import js.core.JsPrimitives.toJsString
-import js.promise.Promise
 import js.reflect.Reflect
 import web.window.window
 
@@ -67,8 +66,3 @@ internal expect fun isDom(): Boolean
  */
 @PublishedApi
 internal val isDom: Boolean by lazy { isDom() }
-
-/**
- * Suspend function to await a JS Promise.
- */
-internal expect suspend fun <T: JsAny?> Promise<T>.awaitPromise(): T
