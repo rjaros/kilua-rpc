@@ -77,17 +77,17 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
     }
 
     private data class KiluaRpcPluginContext(
-        private val project: Project,
+        val project: Project,
         val kiluaRpcExtension: KiluaRpcExtension,
         val kiluaRpcVersion: String
-    ) : Project by project
+    )
 
     private fun KiluaRpcPluginContext.configureProject() {
-        logger.debug("Configuring Kotlin/MPP plugin")
+        project.logger.debug("Configuring Kotlin/MPP plugin")
 
-        val enableKsp = pluginManager.hasPlugin("com.google.devtools.ksp")
+        val enableKsp = project.pluginManager.hasPlugin("com.google.devtools.ksp")
 
-        val kotlinMppExtension = extensions.getByType<KotlinMultiplatformExtension>()
+        val kotlinMppExtension = project.extensions.getByType<KotlinMultiplatformExtension>()
 
         kotlinMppExtension.targets.configureEach {
             compilations.configureEach {
@@ -100,16 +100,16 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
         }
 
         if (enableKsp) {
-            tasks.all.compileKotlinJs.configureEach {
+            project.tasks.all.compileKotlinJs.configureEach {
                 dependsOn("kspCommonMainKotlinMetadata")
             }
-            tasks.all.compileKotlinWasmJs.configureEach {
+            project.tasks.all.compileKotlinWasmJs.configureEach {
                 dependsOn("kspCommonMainKotlinMetadata")
             }
-            tasks.all.compileKotlinJvm.configureEach {
+            project.tasks.all.compileKotlinJvm.configureEach {
                 dependsOn("kspCommonMainKotlinMetadata")
             }
-            dependencies {
+            project.dependencies {
                 add("kspCommonMainMetadata", "dev.kilua:kilua-rpc-ksp-processor:${kiluaRpcVersion}")
             }
             kotlinMppExtension.targets
@@ -138,18 +138,18 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
                     "jvmMain" -> kotlin.srcDir("build/generated/ksp/jvm/jvmMain/kotlin")
                 }
             }
-            tasks.all.kspKotlinJs.configureEach {
+            project.tasks.all.kspKotlinJs.configureEach {
                 dependsOn("kspCommonMainKotlinMetadata")
             }
-            tasks.all.kspKotlinWasmJs.configureEach {
+            project.tasks.all.kspKotlinWasmJs.configureEach {
                 dependsOn("kspCommonMainKotlinMetadata")
             }
-            tasks.all.kspKotlinJvm.configureEach {
+            project.tasks.all.kspKotlinJvm.configureEach {
                 dependsOn("kspCommonMainKotlinMetadata")
             }
 
             if (kiluaRpcExtension.enableGradleTasks.get()) {
-                tasks.register("generateKiluaRpcSources") {
+                project.tasks.register("generateKiluaRpcSources") {
                     group = KILUA_RPC_TASK_GROUP
                     description = "Generates Kilua RPC sources"
                     dependsOn("kspCommonMainKotlinMetadata")
@@ -158,7 +158,7 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
         }
 
         if (kiluaRpcExtension.enableGradleTasks.get()) {
-            afterEvaluate {
+            project.afterEvaluate {
                 afterEvaluate {
                     val serverType = getServerType(project)
                     val assetsPath = when (serverType) {
@@ -231,7 +231,7 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
     }
 
     private fun KiluaRpcPluginContext.createWebArchiveTask(prefix: String, appendix: String, assetsPath: String) {
-        tasks.register<Jar>("${prefix}Archive") {
+        project.tasks.register<Jar>("${prefix}Archive") {
             dependsOn("${prefix}BrowserDistribution")
             group = KILUA_RPC_TASK_GROUP
             description = "Assembles a jar archive containing $prefix web application."
@@ -245,9 +245,9 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
             manifest {
                 attributes(
                     mapOf(
-                        "Implementation-Title" to rootProject.name,
-                        "Implementation-Group" to rootProject.group,
-                        "Implementation-Version" to rootProject.version,
+                        "Implementation-Title" to project.rootProject.name,
+                        "Implementation-Group" to project.rootProject.group,
+                        "Implementation-Version" to project.rootProject.version,
                         "Timestamp" to System.currentTimeMillis()
                     )
                 )
@@ -260,7 +260,7 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
         webPrefix: String,
         manifestAttributes: Map<String, String> = emptyMap()
     ) {
-        tasks.register<ShadowJar>(name) {
+        project.tasks.register<ShadowJar>(name) {
             dependsOn("${webPrefix}Archive", "jvmJar")
             kiluaRpcExtension.jarArchiveFileName.orNull?.let {
                 archiveFileName.set(kiluaRpcExtension.jarArchiveFileName)
@@ -270,16 +270,16 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
             manifest {
                 attributes(
                     mapOf(
-                        "Implementation-Title" to rootProject.name,
-                        "Implementation-Group" to rootProject.group,
-                        "Implementation-Version" to rootProject.version,
+                        "Implementation-Title" to project.rootProject.name,
+                        "Implementation-Group" to project.rootProject.group,
+                        "Implementation-Version" to project.rootProject.version,
                         "Timestamp" to System.currentTimeMillis(),
-                        "Main-Class" to tasks.getByName<JavaExec>("jvmRun").mainClass.get()
+                        "Main-Class" to project.tasks.getByName<JavaExec>("jvmRun").mainClass.get()
                     ) + manifestAttributes
                 )
             }
             configurations.convention(listOf(project.configurations.getByName("jvmRuntimeClasspath")))
-            includedDependencies.from(tasks["${webPrefix}Archive"].outputs.files, tasks["jvmJar"].outputs.files)
+            includedDependencies.from(project.tasks["${webPrefix}Archive"].outputs.files, project.tasks["jvmJar"].outputs.files)
             outputs.file(archiveFile)
             duplicatesStrategy = DuplicatesStrategy.EXCLUDE
             mergeServiceFiles()
@@ -292,7 +292,7 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
         mainClassName: String,
         kotlinMppExtension: KotlinMultiplatformExtension
     ) {
-        tasks.register<BootJar>(name) {
+        project.tasks.register<BootJar>(name) {
             dependsOn("${webPrefix}Archive")
             kiluaRpcExtension.jarArchiveFileName.orNull?.let {
                 archiveFileName.set(kiluaRpcExtension.jarArchiveFileName)
@@ -301,7 +301,7 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
             description = "Assembles a fat jar archive containing application with $webPrefix frontend."
             mainClass.set(mainClassName)
             targetJavaVersion.set(JavaVersion.VERSION_21)
-            classpath = files(
+            classpath = project.files(
                 kotlinMppExtension.targets["jvm"].compilations["main"].output.allOutputs,
                 project.configurations["jvmRuntimeClasspath"],
                 (project.tasks["${webPrefix}Archive"] as Jar).archiveFile
