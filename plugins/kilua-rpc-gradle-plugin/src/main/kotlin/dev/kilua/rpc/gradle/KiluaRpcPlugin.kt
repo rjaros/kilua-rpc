@@ -200,11 +200,6 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
                             if (isJsTarget) createShadowJarTask("jarWithJs", "js")
                             if (isWasmJsTarget) createShadowJarTask("jarWithWasmJs", "wasmJs")
                             tasks.findByName("jar")?.enabled = false
-                            if (enableKsp) {
-                                tasks.getByName("kaptGenerateStubsKotlinJvm").apply {
-                                    dependsOn("kspCommonMainKotlinMetadata")
-                                }
-                            }
                             tasks.getByName("jvmRun").apply {
                                 subprojects.forEach {
                                     if (it.name == "application") {
@@ -279,10 +274,14 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
                 )
             }
             configurations.convention(listOf(project.configurations.getByName("jvmRuntimeClasspath")))
-            includedDependencies.from(project.tasks["${webPrefix}Archive"].outputs.files, project.tasks["jvmJar"].outputs.files)
+            includedDependencies.from(
+                project.tasks["${webPrefix}Archive"].outputs.files,
+                project.tasks["jvmJar"].outputs.files
+            )
             outputs.file(archiveFile)
-            duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+            duplicatesStrategy = DuplicatesStrategy.INCLUDE
             mergeServiceFiles()
+            append("META-INF/http/mime.types")
         }
     }
 

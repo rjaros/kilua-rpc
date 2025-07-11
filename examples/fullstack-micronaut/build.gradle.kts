@@ -6,16 +6,10 @@ plugins {
     kotlin("plugin.serialization")
     id("com.google.devtools.ksp")
     kotlin("plugin.allopen") version libs.versions.kotlin.get()
-    kotlin("kapt")
-    alias(libs.plugins.shadow)
     alias(libs.plugins.kilua.rpc)
 }
 
 extra["mainClassName"] = "example.MainKt"
-
-allOpen {
-    annotation("io.micronaut.aop.Around")
-}
 
 @OptIn(ExperimentalWasmDsl::class)
 kotlin {
@@ -24,7 +18,6 @@ kotlin {
         @OptIn(ExperimentalKotlinGradlePluginApi::class)
         compilerOptions {
             freeCompilerArgs = listOf("-Xjsr305=strict")
-            javaParameters = true
         }
         @OptIn(ExperimentalKotlinGradlePluginApi::class)
         mainRun {
@@ -107,15 +100,7 @@ kotlin {
     }
 }
 
-kapt {
-    arguments {
-        arg("micronaut.processing.incremental", "true")
-        arg("micronaut.processing.annotations", "example.*")
-    }
-}
-
 dependencies {
-    "kapt"(platform(libs.micronaut.platform))
-    "kapt"("io.micronaut:micronaut-inject-java")
-    "kapt"("io.micronaut.validation:micronaut-validation")
+    add("kspJvm", platform(libs.micronaut.platform))
+    add("kspJvm", "io.micronaut:micronaut-inject-kotlin")
 }
