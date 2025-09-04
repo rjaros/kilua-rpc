@@ -505,8 +505,6 @@ public class RpcProcessor(
             m.parameters.flatMap { p ->
                 getTypes(p.type.resolve())
             }.toSet() + (m.returnType?.let { getTypes(it.resolve()) } ?: setOf())
-        }.filterNot {
-            it.startsWith("kotlin.collections.") || it.startsWith("kotlin.")
         }.toSet()
     }
 }
