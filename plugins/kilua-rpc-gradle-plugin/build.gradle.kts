@@ -13,7 +13,6 @@ repositories {
     gradlePluginPortal()
 }
 
-@Suppress("UnstableApiUsage")
 gradlePlugin {
     website.set(kiluaRpcUrl)
     vcsUrl.set(kiluaRpcVcsUrl)

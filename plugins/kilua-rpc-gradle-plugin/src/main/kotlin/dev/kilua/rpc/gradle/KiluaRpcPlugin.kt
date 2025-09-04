@@ -90,10 +90,15 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
         val kotlinMppExtension = project.extensions.getByType<KotlinMultiplatformExtension>()
 
         kotlinMppExtension.targets.configureEach {
+            val targetName = name
             compilations.configureEach {
                 compileTaskProvider.configure {
                     compilerOptions {
                         freeCompilerArgs.add("-Xexpect-actual-classes")
+                        optIn.add("kotlin.time.ExperimentalTime")
+                        if (targetName == "metadata" || targetName == "js" || targetName == "wasmJs") {
+                            optIn.add("kotlin.js.ExperimentalWasmJsInterop")
+                        }
                     }
                 }
             }

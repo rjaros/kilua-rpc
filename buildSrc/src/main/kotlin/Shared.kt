@@ -22,11 +22,15 @@ import java.net.URI
 
 fun KotlinMultiplatformExtension.compilerOptions() {
     targets.configureEach {
+        val targetName = name
         compilations.configureEach {
             compileTaskProvider.configure {
                 compilerOptions {
                     freeCompilerArgs.add("-Xexpect-actual-classes")
                     freeCompilerArgs.add("-Xdont-warn-on-error-suppression")
+                    if (targetName == "js" || targetName == "wasmJs") {
+                        optIn.add("kotlin.js.ExperimentalWasmJsInterop")
+                    }
                 }
             }
         }

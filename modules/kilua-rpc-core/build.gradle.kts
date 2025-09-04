@@ -13,6 +13,7 @@ kotlin {
     kotlinJsTargets()
     kotlinWasmTargets()
     kotlinJvmTargets()
+    applyDefaultHierarchyTemplate()
     sourceSets {
         val commonMain by getting {
             dependencies {
@@ -28,17 +29,10 @@ kotlin {
                 implementation(kotlin("test-annotations-common"))
             }
         }
-        val webMain by creating {
-            dependsOn(commonMain)
+        val webMain by getting {
             dependencies {
                 api(libs.wrappers.browser)
             }
-        }
-        val jsMain by getting {
-            dependsOn(webMain)
-        }
-        val wasmJsMain by getting {
-            dependsOn(webMain)
         }
         val jvmMain by getting {
             dependencies {
