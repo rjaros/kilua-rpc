@@ -4,7 +4,7 @@
 build
 refresh.sh
 refreshW.sh
-
+node_modules
 /bsrefresh.sh
 /bsrefreshW.sh
 /upload.sh
@@ -13,3 +13,5 @@ refreshW.sh
 /examples/fullstack-ktor-guice/logs/
 /examples/fullstack-ktor-koin/logs/
 /examples.sh
+/examples/typescript-ktor/ktor-server/logs/
+/examples/typescript-ktor/generated-packages/ktor-server

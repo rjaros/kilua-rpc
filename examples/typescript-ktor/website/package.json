@@ -1,0 +1,14 @@
+{
+  "name": "website",
+  "main": "src/index.ts",
+  "version": "0.0.0",
+  "dependencies": {
+    "kilua-rpc-examples-typescript-ktor-ktor-server": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "tsc": "^2.0.4",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.4"
+  }
+}

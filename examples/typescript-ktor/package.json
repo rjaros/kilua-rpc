@@ -1,0 +1,9 @@
+{
+  "name": "typescript-ktor",
+  "version": "0.0.1",
+  "private": true,
+  "workspaces": [
+    "website",
+    "generated-packages/ktor-server"
+  ]
+}

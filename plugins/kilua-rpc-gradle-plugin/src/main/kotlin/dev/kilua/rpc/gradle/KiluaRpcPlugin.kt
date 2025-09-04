@@ -232,16 +232,18 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
 
     private fun KiluaRpcPluginContext.createWebArchiveTask(prefix: String, appendix: String, assetsPath: String) {
         project.tasks.register<Jar>("${prefix}Archive") {
-            dependsOn("${prefix}BrowserDistribution")
             group = KILUA_RPC_TASK_GROUP
             description = "Assembles a jar archive containing $prefix web application."
             archiveAppendix.set(appendix)
-            val distribution = project.tasks.getByName("${prefix}BrowserDistribution").outputs
-            from(distribution)
             duplicatesStrategy = DuplicatesStrategy.EXCLUDE
             into(assetsPath)
-            inputs.files(distribution)
             outputs.file(archiveFile)
+            project.tasks.findByName("${prefix}BrowserDistribution")?.let {
+                dependsOn(it)
+                val distribution = it.outputs
+                from(distribution)
+                inputs.files(distribution)
+            }
             manifest {
                 attributes(
                     mapOf(
