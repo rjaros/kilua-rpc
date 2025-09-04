@@ -15,6 +15,7 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory
 import org.springframework.context.annotation.Scope
 import org.springframework.stereotype.Service
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Instant
 
 @Service
 @Scope(value = ConfigurableBeanFactory.SCOPE_PROTOTYPE)
@@ -48,12 +49,14 @@ class PingService : IPingService {
         localDate: LocalDate,
         localTime: LocalTime,
         localDateTime: LocalDateTime,
+        instant: Instant,
         decimal: Decimal
     ): Result<List<LocalDate>> {
         println(files)
         println(localDate)
         println(localTime)
         println(localDateTime)
+        println(instant)
         println(decimal)
         return Result.success(listOf(localDate))
     }

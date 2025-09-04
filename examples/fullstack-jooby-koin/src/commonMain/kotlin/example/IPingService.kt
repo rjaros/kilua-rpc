@@ -35,6 +35,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.serialization.Serializable
+import kotlin.time.Instant
 
 @RpcServiceException
 class MyFirstException(override val message: String) : AbstractServiceException()
@@ -56,6 +57,7 @@ interface IPingService {
         localDate: LocalDate,
         localTime: LocalTime,
         localDateTime: LocalDateTime,
+        instant: Instant,
         decimal: Decimal
     ): Result<List<LocalDate>>
 

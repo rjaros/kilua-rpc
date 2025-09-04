@@ -31,6 +31,8 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 
 fun main() {
 
@@ -66,6 +68,7 @@ fun main() {
             LocalDate(2023, 1, 1),
             LocalTime(12, 0),
             LocalDateTime(2023, 1, 1, 12, 0),
+            LocalDateTime(2023, 1, 1, 12, 0).toInstant(TimeZone.UTC),
             1.0.toDecimal()
         )
         println("KiluaTypes: $kiluaTypes")

@@ -13,6 +13,7 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import org.koin.core.annotation.Factory
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Instant
 
 @Factory
 class PingService : IPingService {
@@ -45,12 +46,14 @@ class PingService : IPingService {
         localDate: LocalDate,
         localTime: LocalTime,
         localDateTime: LocalDateTime,
+        instant: Instant,
         decimal: Decimal
     ): Result<List<LocalDate>> {
         println(files)
         println(localDate)
         println(localTime)
         println(localDateTime)
+        println(instant)
         println(decimal)
         return Result.success(listOf(localDate))
     }
