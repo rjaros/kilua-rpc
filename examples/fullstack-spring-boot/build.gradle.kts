@@ -15,7 +15,6 @@ extra["mainClassName"] = "example.MainKt"
 kotlin {
     jvmToolchain(21)
     jvm {
-        @OptIn(ExperimentalKotlinGradlePluginApi::class)
         compilerOptions {
             freeCompilerArgs = listOf("-Xjsr305=strict")
         }
@@ -25,14 +24,6 @@ kotlin {
         browser {
             commonWebpackConfig {
                 outputFileName = "main.bundle.js"
-            }
-            runTask {
-                sourceMaps = false
-            }
-            testTask {
-                useKarma {
-                    useChromeHeadless()
-                }
             }
         }
         binaries.executable()
@@ -46,14 +37,6 @@ kotlin {
             commonWebpackConfig {
                 outputFileName = "main.bundle.js"
             }
-            runTask {
-                sourceMaps = false
-            }
-            testTask {
-                useKarma {
-                    useChromeHeadless()
-                }
-            }
         }
         binaries.executable()
         compilerOptions {
@@ -66,15 +49,6 @@ kotlin {
                 implementation(libs.kilua.rpc.spring.boot)
                 implementation(libs.kotlinx.datetime)
             }
-        }
-        val webMain by creating {
-            dependsOn(commonMain)
-        }
-        val jsMain by getting {
-            dependsOn(webMain)
-        }
-        val wasmJsMain by getting {
-            dependsOn(webMain)
         }
         val jvmMain by getting {
             dependencies {
