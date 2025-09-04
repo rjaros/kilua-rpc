@@ -19,18 +19,6 @@ kotlin {
                 implementation(libs.kotlinx.serialization.json)
             }
         }
-        val jsMain by getting {
-            dependencies {
-            }
-        }
-        val wasmJsMain by getting {
-            dependencies {
-            }
-        }
-        val jvmMain by getting {
-            dependencies {
-            }
-        }
     }
 }
 

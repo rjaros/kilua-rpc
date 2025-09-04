@@ -23,14 +23,6 @@ kotlin {
                 implementation(libs.kotlinx.coroutines)
             }
         }
-        val jsMain by getting {
-            dependencies {
-            }
-        }
-        val wasmJsMain by getting {
-            dependencies {
-            }
-        }
         val jvmMain by getting {
             dependencies {
                 implementation(kotlin("reflect"))
