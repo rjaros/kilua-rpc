@@ -25,6 +25,7 @@ nmcpAggregation {
         username = findProperty("mavenCentralUsername")?.toString()
         password = findProperty("mavenCentralPassword")?.toString()
         publishingType = "USER_MANAGED"
+        publicationName = "Kilua RPC $version"
     }
 }
 
