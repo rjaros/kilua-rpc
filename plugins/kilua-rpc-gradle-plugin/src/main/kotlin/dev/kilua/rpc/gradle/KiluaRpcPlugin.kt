@@ -173,8 +173,8 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
                     }
                     val isJsTarget = kotlinMppExtension.targets.any { it.platformType == KotlinPlatformType.js }
                     val isWasmJsTarget = kotlinMppExtension.targets.any { it.platformType == KotlinPlatformType.wasm }
-                    if (isJsTarget) createWebArchiveTask("js", "js", assetsPath)
-                    if (isWasmJsTarget) createWebArchiveTask("wasmJs", "wasm-js", assetsPath)
+                    if (isJsTarget) createWebArchiveTask("js", "js", assetsPath, false)
+                    if (isWasmJsTarget) createWebArchiveTask("wasmJs", "wasm-js", assetsPath, isJsTarget)
                     tasks.getByName<Copy>("jvmProcessResources") {
                         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
                     }
@@ -230,7 +230,12 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
         }
     }
 
-    private fun KiluaRpcPluginContext.createWebArchiveTask(prefix: String, appendix: String, assetsPath: String) {
+    private fun KiluaRpcPluginContext.createWebArchiveTask(
+        prefix: String,
+        appendix: String,
+        assetsPath: String,
+        useCompat: Boolean
+    ) {
         project.tasks.register<Jar>("${prefix}Archive") {
             group = KILUA_RPC_TASK_GROUP
             description = "Assembles a jar archive containing $prefix web application."
@@ -238,7 +243,11 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
             duplicatesStrategy = DuplicatesStrategy.EXCLUDE
             into(assetsPath)
             outputs.file(archiveFile)
-            project.tasks.findByName("${prefix}BrowserDistribution")?.let {
+            val distributionTaskName =
+                if (useCompat && project.tasks.findByName("composeCompatibilityBrowserDistribution") != null) {
+                    "composeCompatibilityBrowserDistribution"
+                } else "${prefix}BrowserDistribution"
+            project.tasks.findByName(distributionTaskName)?.let {
                 dependsOn(it)
                 val distribution = it.outputs
                 from(distribution)
