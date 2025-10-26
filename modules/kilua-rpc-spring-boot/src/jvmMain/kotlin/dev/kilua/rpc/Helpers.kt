@@ -33,6 +33,7 @@ import org.springframework.http.codec.multipart.Part
 import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.util.MultiValueMap
 import org.springframework.web.bind.WebDataBinder
+import org.springframework.web.reactive.accept.ApiVersionStrategy
 import org.springframework.web.reactive.function.BodyExtractor
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.socket.CloseStatus
@@ -63,6 +64,29 @@ internal class DummyServerRequest : ServerRequest {
         throw IllegalStateException("Empty implementation")
     }
 
+    override fun <T : Any> bodyToMono(elementClass: Class<out T>): Mono<T> {
+        throw IllegalStateException("Empty implementation")
+    }
+
+    override fun <T : Any> bodyToMono(typeReference: ParameterizedTypeReference<T>): Mono<T> {
+        throw IllegalStateException("Empty implementation")
+    }
+
+    override fun <T : Any> bodyToFlux(elementClass: Class<out T>): Flux<T> {
+        throw IllegalStateException("Empty implementation")
+    }
+
+    override fun <T : Any> bodyToFlux(typeReference: ParameterizedTypeReference<T>): Flux<T> {
+        throw IllegalStateException("Empty implementation")
+    }
+
+    override fun <T : Any> bind(
+        bindType: Class<T>,
+        dataBinderCustomizer: Consumer<WebDataBinder>
+    ): Mono<T> {
+        throw IllegalStateException("Empty implementation")
+    }
+
     override fun remoteAddress(): Optional<InetSocketAddress> {
         throw IllegalStateException("Empty implementation")
     }
@@ -87,23 +111,15 @@ internal class DummyServerRequest : ServerRequest {
         throw IllegalStateException("Empty implementation")
     }
 
+    override fun apiVersionStrategy(): ApiVersionStrategy {
+        throw IllegalStateException("Empty implementation")
+    }
+
     override fun uri(): URI {
         throw IllegalStateException("Empty implementation")
     }
 
     override fun exchange(): ServerWebExchange {
-        throw IllegalStateException("Empty implementation")
-    }
-
-    override fun <T : Any?> bodyToFlux(elementClass: Class<out T>): Flux<T> {
-        throw IllegalStateException("Empty implementation")
-    }
-
-    override fun <T : Any?> bodyToFlux(typeReference: ParameterizedTypeReference<T>): Flux<T> {
-        throw IllegalStateException("Empty implementation")
-    }
-
-    override fun <T : Any?> bind(bindType: Class<T>, dataBinderCustomizer: Consumer<WebDataBinder>): Mono<T> {
         throw IllegalStateException("Empty implementation")
     }
 
@@ -128,19 +144,6 @@ internal class DummyServerRequest : ServerRequest {
     }
 
     override fun method(): HttpMethod {
-        throw IllegalStateException("Empty implementation")
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun methodName(): String {
-        throw IllegalStateException("Empty implementation")
-    }
-
-    override fun <T : Any?> bodyToMono(elementClass: Class<out T>): Mono<T> {
-        throw IllegalStateException("Empty implementation")
-    }
-
-    override fun <T : Any?> bodyToMono(typeReference: ParameterizedTypeReference<T>): Mono<T> {
         throw IllegalStateException("Empty implementation")
     }
 

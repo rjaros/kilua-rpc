@@ -29,7 +29,8 @@ kotlin {
                 api(libs.vertx.lang.kotlin)
                 api(libs.vertx.lang.kotlin.coroutines)
                 api(libs.vertx.launcher.application)
-                api(libs.jackson.module.kotlin)
+                api(libs.vertx.codegen.api)
+                api(libs.jackson.module.kotlin2)
                 api(libs.logback.classic)
             }
         }

@@ -27,7 +27,7 @@ kotlin {
                 implementation(kotlin("reflect"))
                 api(libs.kotlinx.coroutines.jdk8)
                 api(libs.javalin)
-                api(libs.jackson.module.kotlin)
+                api(libs.jackson.module.kotlin2)
                 api(libs.logback.classic)
             }
         }

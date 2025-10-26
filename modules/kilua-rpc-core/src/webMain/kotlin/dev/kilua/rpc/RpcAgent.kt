@@ -21,7 +21,6 @@
  */
 package dev.kilua.rpc
 
-import js.core.JsPrimitives.toJsBoolean
 import js.globals.globalThis
 import js.json.parse
 import js.objects.unsafeJso
@@ -42,6 +41,7 @@ import web.events.EventHandler
 import web.http.RequestInit
 import web.messaging.MessageEvent
 import web.sse.EventSource
+import kotlin.js.toJsBoolean
 
 /**
  * Client side agent for JSON-RPC remote calls.

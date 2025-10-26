@@ -23,7 +23,6 @@ package dev.kilua.rpc
 
 import js.core.JsInt
 import js.core.JsPrimitives.toInt
-import js.core.JsPrimitives.toJsString
 import js.reflect.unsafeCast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -40,6 +39,7 @@ import web.sockets.CloseEvent
 import web.sockets.WebSocket
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
+import kotlin.js.toJsString
 
 //
 // Code taken from: https://discuss.kotlinlang.org/t/js-coroutines-experiements/8245/2

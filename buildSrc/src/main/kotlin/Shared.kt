@@ -20,7 +20,7 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import java.net.URI
 
-fun KotlinMultiplatformExtension.compilerOptions() {
+fun KotlinMultiplatformExtension.compilerOptions(withWasmMetadata: Boolean = false) {
     targets.configureEach {
         val targetName = name
         compilations.configureEach {
@@ -28,7 +28,7 @@ fun KotlinMultiplatformExtension.compilerOptions() {
                 compilerOptions {
                     freeCompilerArgs.add("-Xexpect-actual-classes")
                     freeCompilerArgs.add("-Xdont-warn-on-error-suppression")
-                    if (targetName == "js" || targetName == "wasmJs") {
+                    if (targetName == "wasmJs" || targetName == "js" || (withWasmMetadata && targetName == "metadata")) {
                         optIn.add("kotlin.js.ExperimentalWasmJsInterop")
                     }
                 }

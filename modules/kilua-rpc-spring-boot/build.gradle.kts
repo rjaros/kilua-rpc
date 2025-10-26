@@ -29,6 +29,7 @@ kotlin {
                 api(libs.spring.boot.starter)
                 api(libs.spring.boot.starter.webflux)
                 api(libs.spring.boot.starter.security)
+                api(libs.jackson.module.kotlin3)
                 api(libs.logback.classic)
             }
         }

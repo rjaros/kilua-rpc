@@ -21,12 +21,12 @@
  */
 package dev.kilua.rpc
 
-import js.core.JsAny
 import js.json.parse
 import kotlinx.serialization.SerializationStrategy
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.overwriteWith
+import kotlin.js.JsAny
 
 /**
  * JSON utility functions

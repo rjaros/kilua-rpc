@@ -21,8 +21,6 @@
  */
 package dev.kilua.rpc
 
-import js.core.JsAny
-import js.core.JsPrimitives.toJsString
 import js.globals.globalThis
 import js.objects.unsafeJso
 import js.promise.await
@@ -34,6 +32,8 @@ import web.http.RequestInit
 import web.http.RequestMethod
 import web.http.fetchAsync
 import web.url.URLSearchParams
+import kotlin.js.JsAny
+import kotlin.js.toJsString
 import kotlin.js.undefined
 
 public external class JsonRpcResponseJs : JsAny {

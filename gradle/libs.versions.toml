@@ -1,28 +1,29 @@
 [versions]
 kilua-rpc = "0.0.37"
 kilua-rpc-published = "0.0.37"
-kotlin = "2.2.20-RC2"
-dokka = "2.1.0-Beta"
-nmcp = "1.1.0"
-ksp = "2.2.20-RC2-2.0.2"
+kotlin = "2.3.0-Beta1"
+dokka = "2.1.0"
+nmcp = "1.2.0"
+ksp = "2.3.0"
 gradle-plugin-publish = "2.0.0"
 kotlinx-coroutines = "1.10.2"
 kotlinx-serialization = "1.9.0"
 kotlinx-datetime = "0.7.1"
-wrappers = "2025.9.3"
+wrappers = "2025.10.12"
 javalin = "6.7.0"
-jooby = "4.0.6"
-ktor = "3.2.3"
+jooby = "4.0.7"
+ktor = "3.3.1"
 koin = "4.1.1"
-koin-annotations = "2.1.0"
-micronaut = "4.9.3"
-micronaut-plugins = "4.5.4"
-spring-boot = "3.5.5"
-vertx = "5.0.4"
+koin-annotations = "2.3.0"
+micronaut = "4.10.0"
+micronaut-plugins = "4.6.0"
+spring-boot = "4.0.0-RC1"
+vertx = "5.0.5"
 tomlj = "1.1.1"
-jackson-module-kotlin = "2.20.0"
-logback = "1.5.18"
-shadow = "9.1.0"
+jackson-module-kotlin2 = "2.20.0"
+jackson-module-kotlin3 = "3.0.1"
+logback = "1.5.20"
+shadow = "9.2.2"
 testng = "7.11.0"
 hamcrest = "3.0"
 
@@ -59,8 +60,10 @@ vertx-web = { module = "io.vertx:vertx-web", version.ref = "vertx" }
 vertx-lang-kotlin = { module = "io.vertx:vertx-lang-kotlin", version.ref = "vertx" }
 vertx-lang-kotlin-coroutines = { module = "io.vertx:vertx-lang-kotlin-coroutines", version.ref = "vertx" }
 vertx-launcher-application = { module = "io.vertx:vertx-launcher-application", version.ref = "vertx" }
+vertx-codegen-api = { module = "io.vertx:vertx-codegen-api", version.ref = "vertx" }
 tomlj = { module = "org.tomlj:tomlj", version.ref = "tomlj" }
-jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson-module-kotlin" }
+jackson-module-kotlin2 = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson-module-kotlin2" }
+jackson-module-kotlin3 = { module = "tools.jackson.module:jackson-module-kotlin", version.ref = "jackson-module-kotlin3" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 shadow-gradle-plugin = { module = "com.gradleup.shadow:shadow-gradle-plugin", version.ref = "shadow" }
 testng = { module = "org.testng:testng", version.ref = "testng" }

@@ -316,11 +316,11 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
             description = "Assembles a fat jar archive containing application with $webPrefix frontend."
             mainClass.set(mainClassName)
             targetJavaVersion.set(JavaVersion.VERSION_21)
-            classpath = project.files(
+            setClasspath(project.files(
                 kotlinMppExtension.targets["jvm"].compilations["main"].output.allOutputs,
                 project.configurations["jvmRuntimeClasspath"],
                 (project.tasks["${webPrefix}Archive"] as Jar).archiveFile
-            )
+            ))
         }
     }
 

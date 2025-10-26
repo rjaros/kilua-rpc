@@ -9,7 +9,7 @@ plugins {
 
 kotlin {
     explicitApi()
-    compilerOptions()
+    compilerOptions(withWasmMetadata = true)
     kotlinJsTargets()
     kotlinWasmTargets()
     kotlinJvmTargets()

@@ -21,17 +21,16 @@
  */
 package dev.kilua.rpc
 
-import js.core.JsAny
-import js.core.JsPrimitives.toJsString
 import js.reflect.Reflect
 import web.window.window
+import kotlin.js.JsAny
 
 /**
  * Function to set property on JS Object
  */
 @PublishedApi
 internal fun JsAny.jsSet(key: String, value: JsAny) {
-    Reflect.set(this, key.toJsString(), value)
+    Reflect.set(this, key, value)
 }
 
 /**
@@ -39,7 +38,7 @@ internal fun JsAny.jsSet(key: String, value: JsAny) {
  */
 @PublishedApi
 internal fun JsAny.jsGet(key: String): JsAny? {
-    return Reflect.get(this, key.toJsString())
+    return Reflect.get(this, key)
 }
 
 /**
