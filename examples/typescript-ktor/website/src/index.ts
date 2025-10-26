@@ -1,6 +1,6 @@
-import { PingServiceTs } from "kilua-rpc-examples-typescript-ktor-ktor-server";
+import { getPingService } from "kilua-rpc-examples-typescript-ktor-ktor-server";
 
-var pingService = new PingServiceTs();
+var pingService = getPingService();
 pingService.ping("Hello from TypeScript!").then((response: any) => {
     console.log("Response from server:", response);
 }).catch((error: any) => {

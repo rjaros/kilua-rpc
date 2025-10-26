@@ -1,5 +1,6 @@
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalDistributionDsl
 
 plugins {
@@ -33,6 +34,9 @@ kotlin {
                 val generatedDir = "generated-packages/${project.name}"
                 outputDirectory = mainDir.dir(generatedDir)
             }
+        }
+        compilerOptions {
+            languageVersion.set(KotlinVersion.KOTLIN_2_4)
         }
         binaries.library()
         generateTypeScriptDefinitions()

@@ -23,8 +23,12 @@
 package example
 
 import dev.kilua.rpc.annotations.RpcService
+import kotlin.js.ExperimentalJsExport
+import kotlin.js.JsExport
 
 @RpcService
+@OptIn(ExperimentalJsExport::class)
+@JsExport
 interface IPingService {
     suspend fun ping(message: String? = null): String
 }

@@ -23,21 +23,7 @@
 package example
 
 import dev.kilua.rpc.getService
-import js.coroutines.promise
-import js.promise.Promise
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 
 @OptIn(ExperimentalJsExport::class)
 @JsExport
-class PingServiceTs {
-    private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
-    private val pingService = getService<IPingService>()
-
-    fun ping(message: String?): Promise<String> {
-        return scope.promise {
-            pingService.ping(message)
-        }
-    }
-}
+fun getPingService(): IPingService = getService()

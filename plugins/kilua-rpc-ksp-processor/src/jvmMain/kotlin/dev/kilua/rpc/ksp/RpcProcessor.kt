@@ -75,6 +75,9 @@ public class RpcProcessor(
                 val packageName = classDeclaration.packageName.asString()
                 val className = if (isOldConvention) interfaceName.drop(1) else "${interfaceName}Impl"
                 val managerName = if (isOldConvention) "${className}Manager" else "${interfaceName}Manager"
+                val isExported = classDeclaration.annotations.any {
+                    it.annotationType.resolve().declaration.qualifiedName?.asString() == "kotlin.js.JsExport"
+                }
                 val dependencies = classDeclaration.containingFile?.let { Dependencies(true, it) } ?: Dependencies(true)
                 codeGenerator.createNewFile(dependencies, packageName, className).writer().use {
                     when (codeGenerator.generatedFile.first().toString().sourceSetBelowKsp()) {
@@ -96,6 +99,7 @@ public class RpcProcessor(
                                     className,
                                     interfaceName,
                                     managerName,
+                                    isExported,
                                     classDeclaration
                                 )
                             )
@@ -108,6 +112,7 @@ public class RpcProcessor(
                                     className,
                                     interfaceName,
                                     managerName,
+                                    isExported,
                                     classDeclaration
                                 )
                             )
@@ -257,6 +262,7 @@ public class RpcProcessor(
         className: String,
         interfaceName: String,
         managerName: String,
+        isExported: Boolean,
         ksClassDeclaration: KSClassDeclaration
     ): String {
         return StringBuilder().apply {
@@ -267,6 +273,10 @@ public class RpcProcessor(
             appendLine()
             appendLine("import web.http.RequestInit")
             appendLine("import dev.kilua.rpc.RpcAgent")
+            if (isExported) {
+                appendLine("import kotlin.js.ExperimentalJsExport")
+                appendLine("import kotlin.js.JsExport")
+            }
             appendLine("import kotlinx.serialization.modules.SerializersModule")
             val types = getTypes(ksClassDeclaration.getDeclaredFunctions())
             types.sorted().forEach {
@@ -278,6 +288,10 @@ public class RpcProcessor(
                 appendLine("import kotlinx.coroutines.channels.ReceiveChannel")
             }
             appendLine()
+            if (isExported) {
+                appendLine("@OptIn(ExperimentalJsExport::class)")
+                appendLine("@JsExport")
+            }
             appendLine("class $className(serializersModules: List<SerializersModule>? = null, requestFilter: (suspend RequestInit.() -> Unit)? = null) : $interfaceName, RpcAgent<$interfaceName>($managerName, serializersModules, requestFilter) {")
             val wsMethods = mutableListOf<String>()
             val sseMethods = mutableListOf<String>()
