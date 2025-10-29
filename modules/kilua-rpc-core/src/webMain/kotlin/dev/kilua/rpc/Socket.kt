@@ -22,7 +22,7 @@
 package dev.kilua.rpc
 
 import js.core.JsInt
-import js.core.JsPrimitives.toInt
+import js.core.JsPrimitives.toKotlinInt
 import js.reflect.unsafeCast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -143,7 +143,7 @@ public class Socket {
      */
     @Suppress("MagicNumber")
     public fun close(code: Short = 1000) {
-        when (state.toInt()) {
+        when (state.toKotlinInt()) {
             1 /* OPEN */ -> ws.close(code, getReason(1000))
             else -> {}
         }
@@ -153,7 +153,7 @@ public class Socket {
      * Returns if a websocket is closed.
      */
     public fun isClosed(): Boolean {
-        return when (state.toInt()) {
+        return when (state.toKotlinInt()) {
             2, 3 /* CLOSING, CLOSED */ -> true
             else -> false
         }
