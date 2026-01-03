@@ -27,6 +27,7 @@ nmcpAggregation {
         publishingType = "USER_MANAGED"
         publicationName = "Kilua RPC $version"
     }
+    allowDuplicateProjectNames.set(true)
 }
 
 dependencies {
