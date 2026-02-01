@@ -6,11 +6,6 @@ import org.gradle.api.publish.maven.tasks.AbstractPublishToMaven
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.jvm.toolchain.JavaLanguageVersion
-import org.gradle.kotlin.dsl.get
-import org.gradle.kotlin.dsl.getByType
-import org.gradle.kotlin.dsl.invoke
-import org.gradle.kotlin.dsl.register
-import org.gradle.kotlin.dsl.withType
 import org.gradle.plugins.signing.Sign
 import org.gradle.plugins.signing.SigningExtension
 import org.jetbrains.dokka.gradle.DokkaExtension
@@ -21,10 +16,10 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import java.net.URI
 
 fun KotlinMultiplatformExtension.compilerOptions(withWasmMetadata: Boolean = false) {
-    targets.configureEach {
-        val targetName = name
-        compilations.configureEach {
-            compileTaskProvider.configure {
+    targets.configureEach { target ->
+        val targetName = target.name
+        target.compilations.configureEach { compilation ->
+            compilation.compileTaskProvider.configure {
                 compilerOptions {
                     freeCompilerArgs.add("-Xexpect-actual-classes")
                     freeCompilerArgs.add("-Xdont-warn-on-error-suppression")
@@ -42,7 +37,7 @@ fun KotlinMultiplatformExtension.kotlinJsTargets(withNode: Boolean = true) {
         useEsModules()
         browser {
             testTask {
-                useKarma {
+                it.useKarma {
                     useChromeHeadless()
                 }
             }
@@ -63,7 +58,7 @@ fun KotlinMultiplatformExtension.kotlinWasmTargets(withNode: Boolean = true) {
         useEsModules()
         browser {
             testTask {
-                useKarma {
+                it.useKarma {
                     useChromeHeadless()
                 }
             }
@@ -80,11 +75,11 @@ fun KotlinMultiplatformExtension.kotlinWasmTargets(withNode: Boolean = true) {
 
 fun KotlinMultiplatformExtension.kotlinJvmTargets(target: String = "21") {
     jvmToolchain {
-        languageVersion.set(JavaLanguageVersion.of(target))
+        it.languageVersion.set(JavaLanguageVersion.of(target))
     }
     jvm {
         compilations.configureEach {
-            compileTaskProvider.configure {
+            it.compileTaskProvider.configure {
                 compilerOptions {
                     freeCompilerArgs.add("-Xjsr305=strict")
                 }
@@ -95,7 +90,7 @@ fun KotlinMultiplatformExtension.kotlinJvmTargets(target: String = "21") {
 
 fun KotlinJvmProjectExtension.kotlinJvmTargets(target: String = "21") {
     jvmToolchain {
-        languageVersion.set(JavaLanguageVersion.of(target))
+        it.languageVersion.set(JavaLanguageVersion.of(target))
     }
 }
 
@@ -110,63 +105,61 @@ fun MavenPom.defaultPom() {
     inceptionYear.set("2024")
     url.set(kiluaRpcUrl)
     licenses {
-        license {
-            name.set("MIT")
-            url.set("https://opensource.org/licenses/MIT")
-            distribution.set("https://opensource.org/licenses/MIT")
+        it.license {
+            it.name.set("MIT")
+            it.url.set("https://opensource.org/licenses/MIT")
+            it.distribution.set("https://opensource.org/licenses/MIT")
         }
     }
     developers {
-        developer {
-            id.set("rjaros")
-            name.set("Robert Jaros")
-            url.set("https://github.com/rjaros/")
+        it.developer {
+            it.id.set("rjaros")
+            it.name.set("Robert Jaros")
+            it.url.set("https://github.com/rjaros/")
         }
     }
     scm {
-        url.set(kiluaRpcUrl)
-        connection.set(kiluaRpcVcsUrl)
-        developerConnection.set(kiluaRpcVcsUrl)
+        it.url.set(kiluaRpcUrl)
+        it.connection.set(kiluaRpcVcsUrl)
+        it.developerConnection.set(kiluaRpcVcsUrl)
     }
 }
 
 fun Project.setupPublishing() {
     val isSnapshot = hasProperty("SNAPSHOT")
-    extensions.getByType<PublishingExtension>().run {
-        publications.withType<MavenPublication>().all {
-            if (!isSnapshot) artifact(tasks["javadocJar"])
-            pom {
-                defaultPom()
+    extensions.getByType(PublishingExtension::class.java).run {
+        publications.withType(MavenPublication::class.java).all {
+            if (!isSnapshot) it.artifact(this@setupPublishing.tasks.getByName("javadocJar"))
+            it.pom {
+                it.defaultPom()
             }
         }
     }
-    extensions.getByType<SigningExtension>().run {
+    extensions.getByType(SigningExtension::class.java).run {
         if (!isSnapshot) {
-            sign(extensions.getByType<PublishingExtension>().publications)
+            sign(extensions.getByType(PublishingExtension::class.java).publications)
         }
     }
     // Workaround https://github.com/gradle/gradle/issues/26091
-    tasks.withType<AbstractPublishToMaven>().configureEach {
-        val signingTasks = tasks.withType<Sign>()
-        mustRunAfter(signingTasks)
+    tasks.withType(AbstractPublishToMaven::class.java).configureEach {
+        val signingTasks = tasks.withType(Sign::class.java)
+        it.mustRunAfter(signingTasks)
     }
 }
 
 fun Project.setupDokka(provider: TaskProvider<DokkaBaseTask>) {
-    tasks.register<Jar>("javadocJar") {
-        dependsOn(provider)
-        from(provider.map { it.outputs })
-        archiveClassifier.set("javadoc")
+    tasks.register("javadocJar", Jar::class.java) {
+        it.dependsOn(provider)
+        it.from(provider.map { it.outputs })
+        it.archiveClassifier.set("javadoc")
     }
 
-    extensions.getByType<DokkaExtension>().run {
-        dokkaSourceSets.invoke {
-            configureEach {
-                sourceLink {
-                    localDirectory.set(projectDir.resolve("src"))
-                    remoteUrl.set(URI("https://github.com/rjaros/kilua-rpc/tree/main/modules/${project.name}/src"))
-                    remoteLineSuffix.set("#L")
-                }
+    extensions.getByType(DokkaExtension::class.java).run {
+        dokkaSourceSets.configureEach {
+            it.sourceLink {
+                it.localDirectory.set(projectDir.resolve("src"))
+                it.remoteUrl.set(URI("https://github.com/rjaros/kilua-rpc/tree/main/modules/${project.name}/src"))
+                it.remoteLineSuffix.set("#L")
             }
         }
     }

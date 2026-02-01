@@ -25,7 +25,6 @@ package dev.kilua.rpc.gradle
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.ProviderFactory
-import org.gradle.kotlin.dsl.property
 import javax.inject.Inject
 
 
@@ -50,13 +49,13 @@ public abstract class KiluaRpcExtension @Inject constructor(
         val convention = providers.gradleProperty("dev.kilua.rpc.plugin.$property")
             .map { it.toBoolean() }
             .orElse(default)
-        return objects.property<Boolean>().convention(convention)
+        return objects.property(Boolean::class.java).convention(convention)
     }
 
     private fun kiluaRpcGradleProperty(
         property: String,
     ): Property<String> {
         val convention = providers.gradleProperty("dev.kilua.rpc.plugin.$property")
-        return objects.property<String>().convention(convention)
+        return objects.property(String::class.java).convention(convention)
     }
 }

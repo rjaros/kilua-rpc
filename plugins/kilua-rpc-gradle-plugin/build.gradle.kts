@@ -1,5 +1,4 @@
 plugins {
-    `kotlin-dsl`
     kotlin("jvm")
     id("java-gradle-plugin")
     alias(libs.plugins.nmcp)
