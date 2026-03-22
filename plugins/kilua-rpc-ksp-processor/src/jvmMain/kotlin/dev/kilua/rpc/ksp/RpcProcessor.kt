@@ -225,7 +225,8 @@ public class RpcProcessor(
                     "HttpMethod.$method" to "\"$route\""
                 } else if (rpcBindingMethod != null) {
                     val method = rpcBindingMethod.method.name
-                    "HttpMethod.$method" to null
+                    val autoRoute = if (namedRoutes) "\"$interfaceName.${it.simpleName.asString()}\"" else null
+                    "HttpMethod.$method" to autoRoute
                 } else if (rpcBindingRoute != null) {
                     val route = rpcBindingRoute.route
                     "HttpMethod.POST" to "\"$route\""
