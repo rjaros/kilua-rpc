@@ -85,8 +85,7 @@ public open class CallAgent {
         method: HttpMethod = HttpMethod.POST,
         requestFilter: (suspend RequestInit.() -> Unit)? = null
     ): String {
-        val rpcUrlPrefix = globalThis.jsGet("rpc_url_prefix")
-        val urlPrefix: String = if (rpcUrlPrefix != undefined) "$rpcUrlPrefix/" else ""
+        val urlPrefix = getRpcUrlPrefix()
         val jsonRpcRequest = JsonRpcRequest(counter++, url, data)
         val body =
             if (method == HttpMethod.GET) null else BodyInit(RpcSerialization.plain.encodeToString(jsonRpcRequest))

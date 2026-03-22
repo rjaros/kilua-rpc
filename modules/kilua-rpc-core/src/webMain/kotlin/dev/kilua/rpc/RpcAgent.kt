@@ -314,8 +314,7 @@ public open class RpcAgent<T : Any>(
         noinline handler: suspend (SendChannel<PAR1>, ReceiveChannel<PAR2>) -> Unit
     ) {
         if (!isDom) return
-        val rpcUrlPrefix = globalThis.jsGet("rpc_url_prefix")
-        val urlPrefix: String = if (rpcUrlPrefix != null) "$rpcUrlPrefix/" else ""
+        val urlPrefix = getRpcUrlPrefix()
         val (url, _) = serviceManager.requireCall(function)
         val serializerPAR1 = json.serializersModule.serializer<PAR1>()
         val serializerPAR2 = json.serializersModule.serializer<PAR2>()
@@ -384,8 +383,7 @@ public open class RpcAgent<T : Any>(
         noinline handler: suspend (SendChannel<PAR1>, ReceiveChannel<List<PAR2>>) -> Unit
     ) {
         if (!isDom) return
-        val rpcUrlPrefix = globalThis.jsGet("rpc_url_prefix")
-        val urlPrefix: String = if (rpcUrlPrefix != null) "$rpcUrlPrefix/" else ""
+        val urlPrefix = getRpcUrlPrefix()
         val (url, _) = serviceManager.requireCall(function)
         val serializerPAR1 = json.serializersModule.serializer<PAR1>()
         val serializerPAR2 = json.serializersModule.serializer<PAR2>()
@@ -492,8 +490,7 @@ public open class RpcAgent<T : Any>(
         noinline handler: suspend (ReceiveChannel<PAR>) -> Unit
     ) {
         if (!isDom) return
-        val rpcUrlPrefix = globalThis.jsGet("rpc_url_prefix")
-        val urlPrefix: String = if (rpcUrlPrefix != null) "$rpcUrlPrefix/" else ""
+        val urlPrefix = getRpcUrlPrefix()
         val (url, _) = serviceManager.requireCall(function)
         val serializerPAR = json.serializersModule.serializer<PAR>()
         val eventSource = EventSource(urlPrefix + url.drop(1), unsafeJso {
@@ -532,8 +529,7 @@ public open class RpcAgent<T : Any>(
         noinline handler: suspend (ReceiveChannel<List<PAR>>) -> Unit
     ) {
         if (!isDom) return
-        val rpcUrlPrefix = globalThis.jsGet("rpc_url_prefix")
-        val urlPrefix: String = if (rpcUrlPrefix != null) "$rpcUrlPrefix/" else ""
+        val urlPrefix = getRpcUrlPrefix()
         val (url, _) = serviceManager.requireCall(function)
         val serializerPAR = json.serializersModule.serializer<PAR>()
         val eventSource = EventSource(urlPrefix + url.drop(1), unsafeJso {
