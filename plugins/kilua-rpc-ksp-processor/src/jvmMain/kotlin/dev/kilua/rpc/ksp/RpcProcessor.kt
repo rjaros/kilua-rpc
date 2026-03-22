@@ -202,6 +202,8 @@ public class RpcProcessor(
             appendLine("object $managerName : RpcServiceManager<$interfaceName>($interfaceName::class) {")
             appendLine("    init {")
             appendLine("        registerRpcServiceExceptions()")
+            val namedRoutes = ksClassDeclaration.getAnnotationsByType(RpcService::class)
+                .firstOrNull()?.namedRoutes ?: false
             val wsMethodsForMgr = mutableListOf<String>()
             val sseMethodsForMgr = mutableListOf<String>()
             ksClassDeclaration.getDeclaredFunctions().forEach {
@@ -228,7 +230,8 @@ public class RpcProcessor(
                     val route = rpcBindingRoute.route
                     "HttpMethod.POST" to "\"$route\""
                 } else {
-                    "HttpMethod.POST" to null
+                    val autoRoute = if (namedRoutes) "\"$interfaceName.${it.simpleName.asString()}\"" else null
+                    "HttpMethod.POST" to autoRoute
                 }
                 when {
                     it.returnType.toString().startsWith("RemoteData") ->

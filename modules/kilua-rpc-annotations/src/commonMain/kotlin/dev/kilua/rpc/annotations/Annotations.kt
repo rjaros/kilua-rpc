@@ -34,7 +34,7 @@ public enum class Method {
 }
 
 @Target(AnnotationTarget.CLASS)
-public annotation class RpcService
+public annotation class RpcService(val namedRoutes: Boolean = false)
 
 @Target(AnnotationTarget.FUNCTION)
 public annotation class RpcBinding(val method: Method, val route: String)
