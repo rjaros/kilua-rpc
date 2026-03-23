@@ -4,6 +4,7 @@ import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
+    alias(libs.plugins.koin.compiler)
     id("com.google.devtools.ksp")
     alias(libs.plugins.jooby)
     alias(libs.plugins.kilua.rpc)
@@ -62,14 +63,6 @@ kotlin {
             }
         }
     }
-}
-
-ksp {
-    arg("KOIN_DEFAULT_MODULE","false")
-}
-
-dependencies {
-    add("kspJvm", "io.insert-koin:koin-ksp-compiler:${libs.versions.koin.annotations.get()}")
 }
 
 tasks {

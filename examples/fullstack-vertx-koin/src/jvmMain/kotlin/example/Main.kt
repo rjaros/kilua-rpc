@@ -7,7 +7,6 @@ import io.vertx.core.AbstractVerticle
 import io.vertx.ext.web.Router
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Module
-import org.koin.ksp.generated.module
 
 @Module
 @ComponentScan
@@ -17,7 +16,9 @@ class MainVerticle : AbstractVerticle() {
     override fun start() {
         val router = Router.router(vertx)
         val server = vertx.createHttpServer()
-        vertx.initRpc(router, server, getAllServiceManagers(), null, PingModule().module)
+        vertx.initRpc(router, server, getAllServiceManagers(), null) {
+            modules(PingModule().module())
+        }
         getAllServiceManagers().forEach {
             vertx.applyRoutes(router, it)
         }

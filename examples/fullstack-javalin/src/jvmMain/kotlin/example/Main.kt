@@ -7,10 +7,10 @@ import dev.kilua.rpc.registerService
 import io.javalin.Javalin
 
 fun main() {
-    Javalin.create().start(8080).apply {
-        initRpc {
+    Javalin.create { config ->
+        config.initRpc {
             registerService<IPingService> { PingService() }
         }
-        getAllServiceManagers().forEach { applyRoutes(it) }
-    }
+        getAllServiceManagers().forEach { config.applyRoutes(it) }
+    }.start(8080)
 }

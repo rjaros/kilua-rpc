@@ -6,15 +6,16 @@ import dev.kilua.rpc.initRpc
 import io.javalin.Javalin
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Module
-import org.koin.ksp.generated.module
 
 @Module
 @ComponentScan
 class PingModule
 
 fun main() {
-    Javalin.create().start(8080).apply {
-        initRpc(PingModule().module)
-        getAllServiceManagers().forEach { applyRoutes(it) }
-    }
+    Javalin.create { config ->
+        config.initRpc {
+            modules(PingModule().module())
+        }
+        getAllServiceManagers().forEach { config.applyRoutes(it) }
+    }.start(8080)
 }
