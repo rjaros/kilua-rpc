@@ -202,8 +202,12 @@ public class RpcProcessor(
             appendLine("object $managerName : RpcServiceManager<$interfaceName>($interfaceName::class) {")
             appendLine("    init {")
             appendLine("        registerRpcServiceExceptions()")
-            val namedRoutes = ksClassDeclaration.getAnnotationsByType(RpcService::class)
-                .firstOrNull()?.namedRoutes ?: false
+            // workaround KSP2 issue with annotations default parameter values
+            val namedRoutes = try {
+                ksClassDeclaration.getAnnotationsByType(RpcService::class).firstOrNull()?.namedRoutes ?: false
+            } catch (_: Exception) {
+                false
+            }
             val wsMethodsForMgr = mutableListOf<String>()
             val sseMethodsForMgr = mutableListOf<String>()
             ksClassDeclaration.getDeclaredFunctions().forEach {
