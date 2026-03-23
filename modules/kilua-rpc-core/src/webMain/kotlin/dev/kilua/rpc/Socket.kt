@@ -21,8 +21,8 @@
  */
 package dev.kilua.rpc
 
-import js.core.JsInt
-import js.core.JsPrimitives.toKotlinInt
+import js.numbers.JsInt
+import js.numbers.JsNumbers.toKotlinInt
 import js.reflect.unsafeCast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

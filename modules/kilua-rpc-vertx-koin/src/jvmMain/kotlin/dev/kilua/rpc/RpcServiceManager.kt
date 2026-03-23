@@ -72,7 +72,8 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
                 }
                 JsonRpcRequest(0, "", parameters)
             } else {
-                ctx.body().asJsonObject().mapTo(JsonRpcRequest::class.java)
+                ctx.body().asJsonObject()?.mapTo(JsonRpcRequest::class.java)
+                    ?: throw IllegalArgumentException("Invalid request")
             }
             KoinModule.threadLocalRoutingContext.set(ctx)
             val service = GlobalContext.get().get<T>(serviceClass)
