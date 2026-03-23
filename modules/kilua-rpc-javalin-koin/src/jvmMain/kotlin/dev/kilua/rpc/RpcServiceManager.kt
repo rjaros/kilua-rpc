@@ -21,7 +21,7 @@
  */
 package dev.kilua.rpc
 
-import io.javalin.Javalin
+import io.javalin.config.JavalinConfig
 import io.javalin.http.bodyAsClass
 import io.javalin.security.RouteRole
 import kotlinx.coroutines.CoroutineScope
@@ -198,7 +198,7 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
 /**
  * A function to generate routes based on definitions from the service manager.
  */
-public fun <T : Any> Javalin.applyRoutes(
+public fun <T : Any> JavalinConfig.applyRoutes(
     serviceManager: RpcServiceManager<T>,
     roles: Set<RouteRole> = setOf(),
     serializersModules: List<SerializersModule>? = null
@@ -206,17 +206,17 @@ public fun <T : Any> Javalin.applyRoutes(
     serviceManager.deSerializer = kotlinxObjectDeSerializer(serializersModules)
     serviceManager.routeMapRegistry.asSequence().forEach { (method, path, handler) ->
         when (method) {
-            HttpMethod.GET -> get(path, handler, *roles.toTypedArray())
-            HttpMethod.POST -> post(path, handler, *roles.toTypedArray())
-            HttpMethod.PUT -> put(path, handler, *roles.toTypedArray())
-            HttpMethod.DELETE -> delete(path, handler, *roles.toTypedArray())
-            HttpMethod.OPTIONS -> options(path, handler, *roles.toTypedArray())
+            HttpMethod.GET -> routes.get(path, handler, *roles.toTypedArray())
+            HttpMethod.POST -> routes.post(path, handler, *roles.toTypedArray())
+            HttpMethod.PUT -> routes.put(path, handler, *roles.toTypedArray())
+            HttpMethod.DELETE -> routes.delete(path, handler, *roles.toTypedArray())
+            HttpMethod.OPTIONS -> routes.options(path, handler, *roles.toTypedArray())
         }
     }
     serviceManager.webSocketRequests.forEach { (path, handler) ->
-        ws(path, handler, *roles.toTypedArray())
+        routes.ws(path, handler, *roles.toTypedArray())
     }
     serviceManager.sseRequests.forEach { (path, handler) ->
-        sse(path, handler, *roles.toTypedArray())
+        routes.sse(path, handler, *roles.toTypedArray())
     }
 }

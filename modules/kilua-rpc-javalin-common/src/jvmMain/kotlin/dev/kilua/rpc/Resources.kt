@@ -21,12 +21,12 @@
  */
 package dev.kilua.rpc
 
-import io.javalin.Javalin
+import io.javalin.config.JavalinConfig
 import io.javalin.http.staticfiles.Location
 
 /**
  * Initialize default static resources for Javalin server.
  */
-public fun Javalin.initStaticResources() {
-    unsafeConfig().staticFiles.add("/assets", Location.CLASSPATH)
+public fun JavalinConfig.initStaticResources() {
+    staticFiles.add("/assets", Location.CLASSPATH)
 }

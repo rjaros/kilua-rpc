@@ -22,7 +22,7 @@
 
 package dev.kilua.rpc
 
-import io.javalin.Javalin
+import io.javalin.config.JavalinState
 import io.javalin.http.Context
 import io.javalin.websocket.WsContext
 import kotlin.reflect.KClass
@@ -44,7 +44,7 @@ public interface ServiceRegistryContext {
      */
     public fun <Service : Any> registerService(
         serviceKClass: KClass<Service>,
-        serviceFactory: (Context, Javalin) -> Service,
+        serviceFactory: (Context, JavalinState) -> Service,
     )
 
     /**
@@ -52,7 +52,7 @@ public interface ServiceRegistryContext {
      */
     public fun <Service : Any> registerService(
         serviceKClass: KClass<Service>,
-        serviceFactory: (Context, Javalin, WsContext) -> Service,
+        serviceFactory: (Context, JavalinState, WsContext) -> Service,
     )
 }
 
@@ -69,7 +69,7 @@ public inline fun <reified Service : Any> ServiceRegistryContext.registerService
  * Register RPC service class using Javalin's Context and/or Javalin instance.
  */
 public inline fun <reified Service : Any> ServiceRegistryContext.registerService(
-    noinline serviceFactory: (Context, Javalin) -> Service,
+    noinline serviceFactory: (Context, JavalinState) -> Service,
 ) {
     registerService(Service::class, serviceFactory)
 }
@@ -78,7 +78,7 @@ public inline fun <reified Service : Any> ServiceRegistryContext.registerService
  * Register RPC service class using Javalin's Context, Javalin instance and/or WsContext.
  */
 public inline fun <reified Service : Any> ServiceRegistryContext.registerService(
-    noinline serviceFactory: (Context, Javalin, WsContext) -> Service,
+    noinline serviceFactory: (Context, JavalinState, WsContext) -> Service,
 ) {
     registerService(Service::class, serviceFactory)
 }
@@ -87,7 +87,7 @@ public inline fun <reified Service : Any> ServiceRegistryContext.registerService
  * Keeps registered services in a map.
  */
 internal object ServiceRegistry : ServiceRegistryContext {
-    val services = mutableMapOf<KClass<*>, (Context, Javalin, WsContext) -> Any>()
+    val services = mutableMapOf<KClass<*>, (Context, JavalinState, WsContext) -> Any>()
 
     override fun <Service : Any> registerService(
         serviceKClass: KClass<Service>,
@@ -98,14 +98,14 @@ internal object ServiceRegistry : ServiceRegistryContext {
 
     override fun <Service : Any> registerService(
         serviceKClass: KClass<Service>,
-        serviceFactory: (Context, Javalin) -> Service,
+        serviceFactory: (Context, JavalinState) -> Service,
     ) {
-        services[serviceKClass] = { context, javalin, _ -> serviceFactory(context, javalin) }
+        services[serviceKClass] = { context, javalinState, _ -> serviceFactory(context, javalinState) }
     }
 
     override fun <Service : Any> registerService(
         serviceKClass: KClass<Service>,
-        serviceFactory: (Context, Javalin, WsContext) -> Service,
+        serviceFactory: (Context, JavalinState, WsContext) -> Service,
     ) {
         services[serviceKClass] = serviceFactory
     }

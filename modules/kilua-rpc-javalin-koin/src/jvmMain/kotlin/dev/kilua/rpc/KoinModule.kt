@@ -22,7 +22,7 @@
 
 package dev.kilua.rpc
 
-import io.javalin.Javalin
+import io.javalin.config.JavalinState
 import io.javalin.http.Context
 import io.javalin.websocket.WsContext
 import org.koin.dsl.module
@@ -31,13 +31,13 @@ internal object KoinModule {
     internal val threadLocalContext = ThreadLocal<Context>()
     internal val threadLocalWsContext = ThreadLocal<WsContext>()
 
-    internal fun javalinModule(javalin: Javalin) = module {
-        single { javalin }
+    internal fun javalinModule(javalinState: JavalinState) = module {
+        single { javalinState }
         factory<Context> {
             threadLocalContext.get() ?: DummyContext()
         }
         factory<WsContext> {
-            threadLocalWsContext.get() ?: DummyWsContext()
+            threadLocalWsContext.get() ?: DummyWsContext(javalinState)
         }
     }
 }
