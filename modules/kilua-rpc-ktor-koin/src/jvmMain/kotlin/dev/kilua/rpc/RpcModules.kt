@@ -25,7 +25,7 @@ import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 import io.ktor.server.plugins.contentnegotiation.*
 import kotlinx.serialization.json.Json
-import org.koin.core.module.Module
+import org.koin.core.KoinApplication
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 
@@ -34,35 +34,36 @@ private const val DEFAULT_INIT_RESOURCES = true
 /**
  * Initialization function for Ktor server.
  */
-public fun Application.initRpc(vararg modules: Module): Unit =
-    initRpc(DEFAULT_INIT_RESOURCES, DefaultJson, *modules)
+public fun Application.initRpc(appDeclaration: KoinApplication.() -> Unit): Unit =
+    initRpc(DEFAULT_INIT_RESOURCES, DefaultJson, appDeclaration)
 
 /**
  * Initialization function for Ktor server with custom JsonSerializer.
  * @param json custom or default JsonSerializer
  */
-public fun Application.initRpc(json: Json, vararg modules: Module): Unit =
-    this.initRpc(DEFAULT_INIT_RESOURCES, json, *modules)
+public fun Application.initRpc(json: Json, appDeclaration: KoinApplication.() -> Unit): Unit =
+    this.initRpc(DEFAULT_INIT_RESOURCES, json, appDeclaration)
 
 /**
  * Initialization function for Ktor server.
  * @param initStaticResources initialize default static resources for SPA
  */
-public fun Application.initRpc(initStaticResources: Boolean, vararg modules: Module): Unit =
-    this.initRpc(initStaticResources, DefaultJson, *modules)
+public fun Application.initRpc(initStaticResources: Boolean, appDeclaration: KoinApplication.() -> Unit): Unit =
+    this.initRpc(initStaticResources, DefaultJson, appDeclaration)
 
 /**
  * Initialization function for Ktor server.
  * @param initStaticResources initialize default static resources for SPA
  * @param json custom or default JsonSerializer
  */
-public fun Application.initRpc(initStaticResources: Boolean, json: Json, vararg modules: Module) {
+public fun Application.initRpc(initStaticResources: Boolean, json: Json, appDeclaration: KoinApplication.() -> Unit) {
     install(ContentNegotiation) {
         json(json)
     }
     if (initStaticResources) initStaticResources()
     install(Koin) {
         slf4jLogger()
-        modules(KoinModule.applicationModule(this@initRpc), *modules)
+        modules(KoinModule.applicationModule(this@initRpc))
+        appDeclaration()
     }
 }

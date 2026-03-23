@@ -26,8 +26,8 @@ import io.vertx.core.http.HttpServer
 import io.vertx.ext.web.Router
 import io.vertx.ext.web.handler.BodyHandler
 import kotlinx.serialization.modules.SerializersModule
+import org.koin.core.KoinApplication
 import org.koin.core.context.startKoin
-import org.koin.core.module.Module
 import org.koin.logger.slf4jLogger
 
 private const val DEFAULT_INIT_RESOURCES = true
@@ -35,8 +35,8 @@ private const val DEFAULT_INIT_RESOURCES = true
 /**
  * Initialization function for Vert.x server.
  */
-public fun Vertx.initRpc(router: Router, vararg modules: Module): Unit =
-    initRpc(DEFAULT_INIT_RESOURCES, router, *modules)
+public fun Vertx.initRpc(router: Router, appDeclaration: KoinApplication.() -> Unit): Unit =
+    initRpc(DEFAULT_INIT_RESOURCES, router, appDeclaration)
 
 /**
  * Initialization function for Vert.x server.
@@ -45,14 +45,15 @@ public fun Vertx.initRpc(router: Router, vararg modules: Module): Unit =
 public fun Vertx.initRpc(
     initStaticResources: Boolean,
     router: Router,
-    vararg modules: Module
+    appDeclaration: KoinApplication.() -> Unit
 ) {
     if (initStaticResources) router.initStaticResources()
     router.route("/rpc/*").handler(BodyHandler.create(false))
     router.route("/rpcsse/*").handler(BodyHandler.create(false))
     startKoin {
         slf4jLogger()
-        modules(KoinModule.vertxModule(this@initRpc), *modules)
+        modules(KoinModule.vertxModule(this@initRpc))
+        appDeclaration()
     }
 }
 
@@ -64,8 +65,8 @@ public fun Vertx.initRpc(
     server: HttpServer,
     wsServiceManagers: List<RpcServiceManager<*>> = emptyList(),
     serializersModules: List<SerializersModule>? = null,
-    vararg modules: Module
-): Unit = initRpc(DEFAULT_INIT_RESOURCES, router, server, wsServiceManagers, serializersModules, *modules)
+    appDeclaration: KoinApplication.() -> Unit
+): Unit = initRpc(DEFAULT_INIT_RESOURCES, router, server, wsServiceManagers, serializersModules, appDeclaration)
 
 /**
  * Initialization function for Vert.x server with support for WebSockets.
@@ -77,14 +78,15 @@ public fun Vertx.initRpc(
     server: HttpServer,
     wsServiceManagers: List<RpcServiceManager<*>> = emptyList(),
     serializersModules: List<SerializersModule>? = null,
-    vararg modules: Module
+    appDeclaration: KoinApplication.() -> Unit
 ) {
     if (initStaticResources) router.initStaticResources()
     router.route("/rpc/*").handler(BodyHandler.create(false))
     router.route("/rpcsse/*").handler(BodyHandler.create(false))
     startKoin {
         slf4jLogger()
-        modules(KoinModule.vertxModule(this@initRpc), *modules)
+        modules(KoinModule.vertxModule(this@initRpc))
+        appDeclaration()
     }
     wsServiceManagers.forEach { serviceManager ->
         if (serviceManager.webSocketRequests.isNotEmpty()) {

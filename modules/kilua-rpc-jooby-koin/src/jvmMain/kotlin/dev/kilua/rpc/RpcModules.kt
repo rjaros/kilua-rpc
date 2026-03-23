@@ -24,8 +24,8 @@ package dev.kilua.rpc
 import io.jooby.MediaType
 import io.jooby.jackson.JacksonModule
 import io.jooby.kt.Kooby
+import org.koin.core.KoinApplication
 import org.koin.core.context.startKoin
-import org.koin.core.module.Module
 import org.koin.logger.slf4jLogger
 
 private const val DEFAULT_INIT_RESOURCES = true
@@ -33,18 +33,20 @@ private const val DEFAULT_INIT_RESOURCES = true
 /**
  * Initialization function for Jooby server.
  */
-public fun Kooby.initRpc(vararg modules: Module): Unit = initRpc(DEFAULT_INIT_RESOURCES, *modules)
+public fun Kooby.initRpc(appDeclaration: KoinApplication.() -> Unit): Unit =
+    initRpc(DEFAULT_INIT_RESOURCES, appDeclaration)
 
 /**
  * Initialization function for Jooby server.
  * @param initStaticResources initialize default static resources
  */
-public fun Kooby.initRpc(initStaticResources: Boolean, vararg modules: Module) {
+public fun Kooby.initRpc(initStaticResources: Boolean, appDeclaration: KoinApplication.() -> Unit) {
     if (initStaticResources) initStaticResources()
     install(JacksonModule())
     startKoin {
         slf4jLogger()
-        modules(KoinModule.joobyModule(this@initRpc), *modules)
+        modules(KoinModule.joobyModule(this@initRpc))
+        appDeclaration()
     }
     use {
         val response = next.apply(ctx)
