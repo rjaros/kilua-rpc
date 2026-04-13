@@ -289,6 +289,7 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
             jar.duplicatesStrategy = DuplicatesStrategy.INCLUDE
             jar.mergeServiceFiles()
             jar.append("META-INF/http/mime.types")
+            jar.exclude(*SIGNATURE_FILE_EXCLUSIONS)
         }
     }
 
@@ -392,5 +393,10 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
         public const val KILUA_RPC_TASK_GROUP: String = "Kilua RPC"
         public const val PACKAGE_TASK_GROUP: String = "package"
 
+        private val SIGNATURE_FILE_EXCLUSIONS = arrayOf(
+            "META-INF/*.SF",
+            "META-INF/*.DSA",
+            "META-INF/*.RSA"
+        )
     }
 }
