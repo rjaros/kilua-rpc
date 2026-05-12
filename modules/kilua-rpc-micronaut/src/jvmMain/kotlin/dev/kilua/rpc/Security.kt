@@ -24,7 +24,7 @@ package dev.kilua.rpc
 
 import io.micronaut.http.HttpRequest
 
-public fun <T> HttpRequest<T>.matches(vararg services: RpcServiceManager<*>): Boolean {
+public fun <T : Any> HttpRequest<T>.matches(vararg services: RpcServiceManager<*>): Boolean {
     val httpMethod = HttpMethod.fromStringOrNull(this.method.name) ?: return false
     return services.asSequence().flatMap { service ->
         service.routeMapRegistry.asSequence(httpMethod).map(RouteMapEntry<*>::path)

@@ -23,7 +23,7 @@ kotlin {
             mainClass.set(mainClassName)
         }
     }
-    js(IR) {
+    js {
         useEsModules()
         browser {
             commonWebpackConfig {

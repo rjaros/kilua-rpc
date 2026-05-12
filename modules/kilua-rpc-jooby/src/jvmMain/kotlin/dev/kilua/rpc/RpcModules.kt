@@ -22,7 +22,7 @@
 package dev.kilua.rpc
 
 import io.jooby.MediaType
-import io.jooby.jackson.JacksonModule
+import io.jooby.jackson.Jackson2Module
 import io.jooby.kt.Kooby
 
 private const val DEFAULT_INIT_RESOURCES = true
@@ -41,7 +41,7 @@ public fun Kooby.initRpc(serviceRegistration: ServiceRegistryContext.() -> Unit)
  */
 public fun Kooby.initRpc(initStaticResources: Boolean, serviceRegistration: ServiceRegistryContext.() -> Unit) {
     if (initStaticResources) initStaticResources()
-    install(JacksonModule())
+    install(Jackson2Module())
     ServiceRegistry.serviceRegistration()
     before { ctx ->
         ctx.setAttribute(RPC_KOOBY_KEY, this)

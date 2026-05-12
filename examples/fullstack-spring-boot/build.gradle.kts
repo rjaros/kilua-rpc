@@ -18,7 +18,7 @@ kotlin {
             freeCompilerArgs = listOf("-Xjsr305=strict")
         }
     }
-    js(IR) {
+    js {
         useEsModules()
         browser {
             commonWebpackConfig {

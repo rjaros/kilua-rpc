@@ -23,9 +23,9 @@ package dev.kilua.rpc
 
 import js.globals.globalThis
 import js.reflect.Reflect
+import js.undefined.undefinedOrNull
 import web.window.window
 import kotlin.js.JsAny
-import kotlin.js.undefined
 
 /**
  * Function to set property on JS Object
@@ -48,7 +48,7 @@ internal fun JsAny.jsGet(key: String): JsAny? {
  */
 public fun getRpcUrlPrefix(): String {
     val rpcUrlPrefix = globalThis.jsGet("rpc_url_prefix")
-    return if (rpcUrlPrefix != undefined) "$rpcUrlPrefix/" else ""
+    return if (rpcUrlPrefix != undefinedOrNull) "$rpcUrlPrefix/" else ""
 }
 
 /**

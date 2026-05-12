@@ -22,7 +22,7 @@
 package dev.kilua.rpc
 
 import io.jooby.MediaType
-import io.jooby.jackson.JacksonModule
+import io.jooby.jackson.Jackson2Module
 import io.jooby.kt.Kooby
 import org.koin.core.KoinApplication
 import org.koin.core.context.startKoin
@@ -42,7 +42,7 @@ public fun Kooby.initRpc(appDeclaration: KoinApplication.() -> Unit): Unit =
  */
 public fun Kooby.initRpc(initStaticResources: Boolean, appDeclaration: KoinApplication.() -> Unit) {
     if (initStaticResources) initStaticResources()
-    install(JacksonModule())
+    install(Jackson2Module())
     startKoin {
         slf4jLogger()
         modules(KoinModule.joobyModule(this@initRpc))

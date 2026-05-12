@@ -23,7 +23,7 @@ kotlin {
             args(project.extra["mainClassName"]!!)
         }
     }
-    js(IR) {
+    js {
         useEsModules()
         browser {
             commonWebpackConfig {

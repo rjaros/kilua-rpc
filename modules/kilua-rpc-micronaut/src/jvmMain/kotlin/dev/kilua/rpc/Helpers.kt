@@ -36,9 +36,6 @@ import java.util.concurrent.CompletableFuture
  * Empty implementation of the WebSocketSession interface
  */
 internal class DummyWebSocketSession : WebSocketSession {
-    override fun <T : Any?> get(name: CharSequence?, conversionContext: ArgumentConversionContext<T>?): Optional<T> {
-        throw IllegalStateException("Empty implementation")
-    }
 
     override fun names(): MutableSet<String> {
         throw IllegalStateException("Empty implementation")
@@ -48,11 +45,14 @@ internal class DummyWebSocketSession : WebSocketSession {
         throw IllegalStateException("Empty implementation")
     }
 
-    override fun put(key: CharSequence?, value: Any?): MutableConvertibleValues<Any> {
+    override fun put(
+        key: CharSequence,
+        value: Any?
+    ): MutableConvertibleValues<Any> {
         throw IllegalStateException("Empty implementation")
     }
 
-    override fun remove(key: CharSequence?): MutableConvertibleValues<Any> {
+    override fun remove(key: CharSequence): MutableConvertibleValues<Any> {
         throw IllegalStateException("Empty implementation")
     }
 
@@ -64,7 +64,7 @@ internal class DummyWebSocketSession : WebSocketSession {
         throw IllegalStateException("Empty implementation")
     }
 
-    override fun close(closeReason: CloseReason?) {
+    override fun close(closeReason: CloseReason) {
         throw IllegalStateException("Empty implementation")
     }
 
@@ -100,11 +100,24 @@ internal class DummyWebSocketSession : WebSocketSession {
         throw IllegalStateException("Empty implementation")
     }
 
-    override fun <T : Any?> send(message: T, mediaType: MediaType?): Publisher<T> {
+    override fun <T : Any> send(
+        message: T,
+        mediaType: MediaType
+    ): Publisher<T> {
         throw IllegalStateException("Empty implementation")
     }
 
-    override fun <T : Any?> sendAsync(message: T, mediaType: MediaType?): CompletableFuture<T> {
+    override fun <T : Any> sendAsync(
+        message: T,
+        mediaType: MediaType
+    ): CompletableFuture<T> {
+        throw IllegalStateException("Empty implementation")
+    }
+
+    override fun <T : Any> get(
+        name: CharSequence,
+        conversionContext: ArgumentConversionContext<T>
+    ): Optional<T> {
         throw IllegalStateException("Empty implementation")
     }
 

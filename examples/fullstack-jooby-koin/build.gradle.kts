@@ -24,7 +24,7 @@ kotlin {
             mainClass.set(mainClassNameVal)
         }
     }
-    js(IR) {
+    js {
         useEsModules()
         browser {
             commonWebpackConfig {

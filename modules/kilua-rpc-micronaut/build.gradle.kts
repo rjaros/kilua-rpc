@@ -34,7 +34,6 @@ kotlin {
                 api("io.micronaut:micronaut-http")
                 api("io.micronaut:micronaut-router")
                 api("io.micronaut:micronaut-websocket")
-                api("io.micronaut.reactor:micronaut-reactor")
                 api(libs.logback.classic)
             }
         }

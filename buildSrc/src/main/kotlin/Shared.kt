@@ -33,7 +33,7 @@ fun KotlinMultiplatformExtension.compilerOptions(withWasmMetadata: Boolean = fal
 }
 
 fun KotlinMultiplatformExtension.kotlinJsTargets(withNode: Boolean = true) {
-    js(IR) {
+    js {
         useEsModules()
         browser {
             testTask {
@@ -73,7 +73,7 @@ fun KotlinMultiplatformExtension.kotlinWasmTargets(withNode: Boolean = true) {
     }
 }
 
-fun KotlinMultiplatformExtension.kotlinJvmTargets(target: String = "21") {
+fun KotlinMultiplatformExtension.kotlinJvmTargets(target: String = "25") {
     jvmToolchain {
         it.languageVersion.set(JavaLanguageVersion.of(target))
     }
@@ -88,7 +88,7 @@ fun KotlinMultiplatformExtension.kotlinJvmTargets(target: String = "21") {
     }
 }
 
-fun KotlinJvmProjectExtension.kotlinJvmTargets(target: String = "21") {
+fun KotlinJvmProjectExtension.kotlinJvmTargets(target: String = "25") {
     jvmToolchain {
         it.languageVersion.set(JavaLanguageVersion.of(target))
     }
