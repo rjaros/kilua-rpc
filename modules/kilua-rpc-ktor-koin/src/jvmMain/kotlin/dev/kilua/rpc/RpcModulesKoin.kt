@@ -21,38 +21,36 @@
  */
 package dev.kilua.rpc
 
-import io.jooby.MediaType
-import io.jooby.jackson.Jackson2Module
-import io.jooby.kt.Kooby
+import io.ktor.server.application.*
 import org.koin.core.KoinApplication
-import org.koin.core.context.startKoin
+import org.koin.ktor.ext.getKoin
+import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 
-private const val DEFAULT_INIT_RESOURCES = true
-
 /**
- * Initialization function for Jooby server.
+ * Initialization function for Ktor server with Koin.
+ * @param initStaticResources initialize default static resources for SPA
+ * @param initContentNegotiation install ContentNegotiation plugin with default JSON support
+ * @param appDeclaration Koin modules declarations
  */
-public fun Kooby.initRpc(appDeclaration: KoinApplication.() -> Unit): Unit =
-    initRpc(DEFAULT_INIT_RESOURCES, appDeclaration)
-
-/**
- * Initialization function for Jooby server.
- * @param initStaticResources initialize default static resources
- */
-public fun Kooby.initRpc(initStaticResources: Boolean, appDeclaration: KoinApplication.() -> Unit) {
-    if (initStaticResources) initStaticResources()
-    install(Jackson2Module())
-    startKoin {
+public fun Application.initRpcKoin(
+    initStaticResources: Boolean = true,
+    initContentNegotiation: Boolean = true,
+    appDeclaration: KoinApplication.() -> Unit
+) {
+    install(Koin) {
         slf4jLogger()
-        modules(KoinModule.joobyModule(this@initRpc))
+        modules(KoinModule.applicationModule(this@initRpcKoin))
         appDeclaration()
     }
-    use {
-        val response = next.apply(ctx)
-        if (ctx.requestPath.endsWith(".wasm")) {
-            ctx.responseType = MediaType.valueOf("application/wasm")
+    initRpc(initStaticResources, initContentNegotiation) {
+        registerServiceFactory { kClass, call, wssSession ->
+            KoinModule.threadLocalApplicationCall.set(call)
+            KoinModule.threadLocalWebSocketServerSession.set(wssSession)
+            val service = this@initRpcKoin.getKoin().get<Any>(kClass)
+            KoinModule.threadLocalApplicationCall.remove()
+            KoinModule.threadLocalWebSocketServerSession.remove()
+            service
         }
-        response
     }
 }

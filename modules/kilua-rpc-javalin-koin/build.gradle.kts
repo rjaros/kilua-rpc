@@ -16,7 +16,7 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                api(project(":modules:kilua-rpc-javalin-common"))
+                api(project(":modules:kilua-rpc-javalin"))
                 implementation(libs.kotlinx.serialization.json)
                 implementation(libs.kotlinx.coroutines)
             }

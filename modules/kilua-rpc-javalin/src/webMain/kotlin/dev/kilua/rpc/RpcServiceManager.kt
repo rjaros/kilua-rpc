@@ -26,6 +26,6 @@ import kotlin.reflect.KClass
 /**
  * Fullstack RPC service manager.
  */
-public actual open class RpcServiceManager<out T : Any> actual constructor(serviceClass: KClass<T>) :
-    RpcServiceManagerJs<T>(),
-    RpcServiceMgr<T>
+public actual open class RpcServiceManager<out T : Any> actual constructor(
+    serviceClass: KClass<T>
+) : RpcServiceManagerJs<T>(), RpcServiceMgr<T>

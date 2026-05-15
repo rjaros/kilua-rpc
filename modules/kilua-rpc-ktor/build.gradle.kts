@@ -16,9 +16,19 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                api(project(":modules:kilua-rpc-ktor-common"))
+                api(project(":modules:kilua-rpc-core"))
+                api(project(":modules:kilua-rpc-annotations"))
                 implementation(libs.kotlinx.serialization.json)
                 implementation(libs.kotlinx.coroutines)
+            }
+        }
+        val jvmMain by getting {
+            dependencies {
+                api(libs.ktor.server.core)
+                api(libs.ktor.server.content.negotiation)
+                api(libs.ktor.server.websockets)
+                api(libs.ktor.serialization.kotlinx.json)
+                api(libs.logback.classic)
             }
         }
     }

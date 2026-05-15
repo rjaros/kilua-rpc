@@ -47,9 +47,9 @@ import kotlin.reflect.KClass
 /**
  * Fullstack service manager for Javalin.
  */
-public actual open class RpcServiceManager<out T : Any> actual constructor(private val serviceClass: KClass<T>) :
-    RpcServiceMgr<T>,
-    RpcServiceBinder<T, RequestHandler, WebsocketHandler, SseHandler>() {
+public actual open class RpcServiceManager<out T : Any> actual constructor(
+    private val serviceClass: KClass<T>
+) : RpcServiceMgr<T>, RpcServiceBinder<T, RequestHandler, WebsocketHandler, SseHandler>() {
 
     public companion object {
         public val LOG: Logger = LoggerFactory.getLogger(RpcServiceManager::class.java.name)
@@ -80,11 +80,10 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
             val javalinState = ctx.attribute<JavalinState>(RPC_JAVALIN_KEY)!!
 
             @Suppress("UNCHECKED_CAST")
-            val service = ServiceRegistry.services[serviceClass]?.invoke(
-                ctx, javalinState, DummyWsContext(javalinState)
-            )?.let {
-                it as? T
-            } ?: throw IllegalStateException("Service ${serviceClass.simpleName} not found")
+            val service =
+                ServiceRegistry.getService(serviceClass, ctx, javalinState, DummyWsContext(javalinState))?.let {
+                    it as? T
+                } ?: throw IllegalStateException("Service ${serviceClass.simpleName} not found")
             val future = applicationScope.future {
                 try {
                     val result = function.invoke(service, jsonRpcRequest.params)
@@ -126,7 +125,7 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
                 val javalinState = ctx.attribute<JavalinState>(RPC_JAVALIN_KEY)!!
 
                 @Suppress("UNCHECKED_CAST")
-                val service = ServiceRegistry.services[serviceClass]?.invoke(DummyContext(), javalinState, ctx)?.let {
+                val service = ServiceRegistry.getService(serviceClass, DummyContext(), javalinState, ctx)?.let {
                     it as? T
                 } ?: throw IllegalStateException("Service ${serviceClass.simpleName} not found")
                 applicationScope.launch {
@@ -177,12 +176,14 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
             val javalinState = sseClient.ctx().attribute<JavalinState>(RPC_JAVALIN_KEY)!!
 
             @Suppress("UNCHECKED_CAST")
-            val service =
-                ServiceRegistry.services[serviceClass]?.invoke(
-                    sseClient.ctx(), javalinState, DummyWsContext(javalinState)
-                )?.let {
-                    it as? T
-                } ?: throw IllegalStateException("Service ${serviceClass.simpleName} not found")
+            val service = ServiceRegistry.getService(
+                serviceClass,
+                sseClient.ctx(),
+                javalinState,
+                DummyWsContext(javalinState)
+            )?.let {
+                it as? T
+            } ?: throw IllegalStateException("Service ${serviceClass.simpleName} not found")
             sseClient.onClose {
                 channel.close()
             }

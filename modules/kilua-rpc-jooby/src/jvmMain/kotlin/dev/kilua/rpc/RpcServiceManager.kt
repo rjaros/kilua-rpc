@@ -46,9 +46,9 @@ import kotlin.reflect.KClass
 /**
  * Fullstack service manager for Jooby.
  */
-public actual open class RpcServiceManager<out T : Any> actual constructor(private val serviceClass: KClass<T>) :
-    RpcServiceMgr<T>,
-    RpcServiceBinder<T, RequestHandler, WebsocketHandler, SseHandler>() {
+public actual open class RpcServiceManager<out T : Any> actual constructor(
+    private val serviceClass: KClass<T>,
+) : RpcServiceMgr<T>, RpcServiceBinder<T, RequestHandler, WebsocketHandler, SseHandler>() {
 
     public companion object {
         public val LOG: Logger = LoggerFactory.getLogger(RpcServiceManager::class.java.name)
@@ -77,7 +77,7 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
             val kooby = ctx.getAttribute<Kooby>(RPC_KOOBY_KEY)!!
 
             @Suppress("UNCHECKED_CAST")
-            val service = ServiceRegistry.services[serviceClass]?.invoke(ctx, kooby)?.let {
+            val service = ServiceRegistry.getService(serviceClass, ctx, kooby)?.let {
                 it as? T
             } ?: throw IllegalStateException("Service ${serviceClass.simpleName} not found")
             ctx.setResponseType("application/json")
@@ -114,7 +114,7 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
             val kooby = ctx.getAttribute<Kooby>(RPC_KOOBY_KEY)!!
 
             @Suppress("UNCHECKED_CAST")
-            val service = ServiceRegistry.services[serviceClass]?.invoke(ctx, kooby)?.let {
+            val service = ServiceRegistry.getService(serviceClass, ctx, kooby)?.let {
                 it as? T
             } ?: throw IllegalStateException("Service ${serviceClass.simpleName} not found")
             val incoming = Channel<String>()
@@ -164,7 +164,7 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
             val kooby = ctx.getAttribute<Kooby>(RPC_KOOBY_KEY)!!
 
             @Suppress("UNCHECKED_CAST")
-            val service = ServiceRegistry.services[serviceClass]?.invoke(ctx, kooby)?.let {
+            val service = ServiceRegistry.getService(serviceClass, ctx, kooby)?.let {
                 it as? T
             } ?: throw IllegalStateException("Service ${serviceClass.simpleName} not found")
             sse.onClose {

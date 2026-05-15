@@ -21,36 +21,26 @@
  */
 package dev.kilua.rpc
 
-import io.jooby.MediaType
 import io.jooby.jackson.Jackson2Module
 import io.jooby.kt.Kooby
-
-private const val DEFAULT_INIT_RESOURCES = true
 
 internal const val RPC_KOOBY_KEY: String = "dev.kilua.rpc.kooby.key"
 
 /**
  * Initialization function for Jooby server.
+ * @param initStaticResources initialize default static resources for SPA
+ * @param initContentNegotiation install Jackson2 module extension
+ * @param serviceRegistrations service registrations
  */
-public fun Kooby.initRpc(serviceRegistration: ServiceRegistryContext.() -> Unit): Unit =
-    initRpc(DEFAULT_INIT_RESOURCES, serviceRegistration)
-
-/**
- * Initialization function for Jooby server.
- * @param initStaticResources initialize default static resources
- */
-public fun Kooby.initRpc(initStaticResources: Boolean, serviceRegistration: ServiceRegistryContext.() -> Unit) {
+public fun Kooby.initRpc(
+    initStaticResources: Boolean = true,
+    initContentNegotiation: Boolean = true,
+    serviceRegistrations: ServiceRegistryContext.() -> Unit
+) {
     if (initStaticResources) initStaticResources()
-    install(Jackson2Module())
-    ServiceRegistry.serviceRegistration()
+    if (initContentNegotiation) install(Jackson2Module())
+    ServiceRegistry.serviceRegistrations()
     before { ctx ->
         ctx.setAttribute(RPC_KOOBY_KEY, this)
-    }
-    use {
-        val response = next.apply(ctx)
-        if (ctx.requestPath.endsWith(".wasm")) {
-            ctx.responseType = MediaType.valueOf("application/wasm")
-        }
-        response
     }
 }

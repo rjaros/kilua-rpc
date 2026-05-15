@@ -16,9 +16,18 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                api(project(":modules:kilua-rpc-jooby-common"))
+                api(project(":modules:kilua-rpc-core"))
+                api(project(":modules:kilua-rpc-annotations"))
                 implementation(libs.kotlinx.serialization.json)
                 implementation(libs.kotlinx.coroutines)
+            }
+        }
+        val jvmMain by getting {
+            dependencies {
+                implementation(kotlin("reflect"))
+                api(libs.jooby.kotlin)
+                api(libs.jooby.jackson)
+                api(libs.logback.classic)
             }
         }
     }

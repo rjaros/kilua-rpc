@@ -13,7 +13,7 @@ val mainClassName = "example.MainKt"
 
 @OptIn(ExperimentalWasmDsl::class)
 kotlin {
-    jvmToolchain(21)
+    jvmToolchain(25)
     jvm {
         compilerOptions {
             freeCompilerArgs = listOf("-Xjsr305=strict")

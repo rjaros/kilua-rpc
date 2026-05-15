@@ -60,9 +60,9 @@ public typealias SseHandler = RequestHandler
 /**
  * Multiplatform service manager for Spring Boot.
  */
-public actual open class RpcServiceManager<out T : Any> actual constructor(private val serviceClass: KClass<T>) :
-    RpcServiceMgr<T>,
-    RpcServiceBinder<T, RequestHandler, WebsocketHandler, SseHandler>() {
+public actual open class RpcServiceManager<out T : Any> actual constructor(
+    private val serviceClass: KClass<T>
+) : RpcServiceMgr<T>, RpcServiceBinder<T, RequestHandler, WebsocketHandler, SseHandler>() {
 
     public companion object {
         public val LOG: Logger = LoggerFactory.getLogger(RpcServiceManager::class.java.name)

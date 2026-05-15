@@ -45,9 +45,9 @@ import kotlin.reflect.KClass
 /**
  * Fullstack service manager for Vert.x.
  */
-public actual open class RpcServiceManager<out T : Any> actual constructor(private val serviceClass: KClass<T>) :
-    RpcServiceMgr<T>,
-    RpcServiceBinder<T, RequestHandler, WebsocketHandler, SseHandler>() {
+public actual open class RpcServiceManager<out T : Any> actual constructor(
+    private val serviceClass: KClass<T>
+) : RpcServiceMgr<T>, RpcServiceBinder<T, RequestHandler, WebsocketHandler, SseHandler>() {
 
     public companion object {
         public val LOG: Logger = LoggerFactory.getLogger(RpcServiceManager::class.java.name)
@@ -76,10 +76,9 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
             }
 
             @Suppress("UNCHECKED_CAST")
-            val service =
-                ServiceRegistry.services[serviceClass]?.invoke(ctx, ctx.vertx(), DummyServerWebSocket())?.let {
-                    it as? T
-                } ?: throw IllegalStateException("Service ${serviceClass.simpleName} not found")
+            val service = ServiceRegistry.getService(serviceClass, ctx, ctx.vertx(), DummyServerWebSocket())?.let {
+                it as? T
+            } ?: throw IllegalStateException("Service ${serviceClass.simpleName} not found")
             applicationScope.launch(ctx.vertx().dispatcher()) {
                 val response = try {
                     val result = function.invoke(service, jsonRpcRequest.params)
@@ -117,7 +116,7 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
             val outgoing = Channel<String>()
 
             @Suppress("UNCHECKED_CAST")
-            val service = ServiceRegistry.services[serviceClass]?.invoke(DummyRoutingContext(), vertx, ws)?.let {
+            val service = ServiceRegistry.getService(serviceClass, DummyRoutingContext(), vertx, ws)?.let {
                 it as? T
             } ?: throw IllegalStateException("Service ${serviceClass.simpleName} not found")
             ws.textMessageHandler { message ->
@@ -175,10 +174,9 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
             val channel = Channel<String>()
 
             @Suppress("UNCHECKED_CAST")
-            val service =
-                ServiceRegistry.services[serviceClass]?.invoke(ctx, ctx.vertx(), DummyServerWebSocket())?.let {
-                    it as? T
-                } ?: throw IllegalStateException("Service ${serviceClass.simpleName} not found")
+            val service = ServiceRegistry.getService(serviceClass, ctx, ctx.vertx(), DummyServerWebSocket())?.let {
+                it as? T
+            } ?: throw IllegalStateException("Service ${serviceClass.simpleName} not found")
             response.closeHandler {
                 channel.close()
             }

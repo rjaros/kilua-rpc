@@ -23,23 +23,19 @@ package dev.kilua.rpc
 
 import io.javalin.config.JavalinConfig
 
-private const val DEFAULT_INIT_RESOURCES = true
-
 internal const val RPC_JAVALIN_KEY: String = "dev.kilua.rpc.javalin.key"
 
 /**
  * Initialization function for Javalin server.
- */
-public fun JavalinConfig.initRpc(serviceRegistration: ServiceRegistryContext.() -> Unit): Unit =
-    initRpc(DEFAULT_INIT_RESOURCES, serviceRegistration)
-
-/**
- * Initialization function for Javalin server.
  * @param initStaticResources initialize default static resources
+ * @param serviceRegistrations service registrations
  */
-public fun JavalinConfig.initRpc(initStaticResources: Boolean, serviceRegistration: ServiceRegistryContext.() -> Unit) {
+public fun JavalinConfig.initRpc(
+    initStaticResources: Boolean = true,
+    serviceRegistrations: ServiceRegistryContext.() -> Unit
+) {
     if (initStaticResources) initStaticResources()
-    ServiceRegistry.serviceRegistration()
+    ServiceRegistry.serviceRegistrations()
     routes.before { ctx ->
         ctx.attribute(RPC_JAVALIN_KEY, this.unsafe)
     }

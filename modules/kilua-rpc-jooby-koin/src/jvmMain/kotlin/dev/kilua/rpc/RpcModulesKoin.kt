@@ -19,22 +19,30 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-
 package dev.kilua.rpc
 
-import io.vertx.core.Handler
-import io.vertx.core.http.HttpMethod
-import io.vertx.ext.web.Router
-import io.vertx.ext.web.RoutingContext
+import io.jooby.kt.Kooby
+import org.koin.core.KoinApplication
+import org.koin.core.context.startKoin
+import org.koin.logger.slf4jLogger
 
-public fun Router.serviceRoute(service: RpcServiceManager<*>, handler: Handler<RoutingContext>) {
-    service.routeMapRegistry.asSequence().forEach { (method, path, _) ->
-        try {
-            HttpMethod.valueOf(method.name)
-        } catch (_: IllegalArgumentException) {
-            null
-        }?.let {
-            this.route(it, path).handler(handler)
+/**
+ * Initialization function for Jooby server.
+ * @param initStaticResources initialize default static resources for SPA
+ * @param appDeclaration Koin modules declarations
+ */
+public fun Kooby.initRpcKoin(initStaticResources: Boolean = true, appDeclaration: KoinApplication.() -> Unit) {
+    val koinApplication = startKoin {
+        slf4jLogger()
+        modules(KoinModule.joobyModule(this@initRpcKoin))
+        appDeclaration()
+    }
+    initRpc(initStaticResources) {
+        registerServiceFactory { kClass, context, _ ->
+            KoinModule.threadLocalContext.set(context)
+            val service = koinApplication.koin.get<Any>(kClass)
+            KoinModule.threadLocalContext.remove()
+            service
         }
     }
 }

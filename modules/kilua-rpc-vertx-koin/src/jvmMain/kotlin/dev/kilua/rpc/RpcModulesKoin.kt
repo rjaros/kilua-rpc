@@ -24,60 +24,69 @@ package dev.kilua.rpc
 import io.vertx.core.Vertx
 import io.vertx.core.http.HttpServer
 import io.vertx.ext.web.Router
-import io.vertx.ext.web.handler.BodyHandler
 import kotlinx.serialization.modules.SerializersModule
+import org.koin.core.KoinApplication
+import org.koin.core.context.startKoin
+import org.koin.logger.slf4jLogger
 
 /**
- * Initialization function for Vert.x server.
+ * Initialization function for Vert.x server with Koin.
  * @param router Vert.x router
  * @param initStaticResources initialize default static resources for SPA
- * @param serviceRegistrations service registrations
+ * @param appDeclaration Koin modules declarations
  */
-public fun Vertx.initRpc(
+public fun Vertx.initRpcKoin(
     router: Router,
     initStaticResources: Boolean = true,
-    serviceRegistrations: ServiceRegistryContext.() -> Unit
+    appDeclaration: KoinApplication.() -> Unit
 ) {
-    if (initStaticResources) router.initStaticResources()
-    ServiceRegistry.serviceRegistrations()
-    router.route("/rpc/*").handler(BodyHandler.create(false))
-    router.route("/rpcsse/*").handler(BodyHandler.create(false))
+    val koinApplication = startKoin {
+        slf4jLogger()
+        modules(KoinModule.vertxModule(this@initRpcKoin))
+        appDeclaration()
+    }
+    initRpc(router, initStaticResources) {
+        registerServiceFactory { kClass, routingContext, _, serverWebSocket ->
+            KoinModule.threadLocalRoutingContext.set(routingContext)
+            KoinModule.threadLocalServerWebSocket.set(serverWebSocket)
+            val service = koinApplication.koin.get<Any>(kClass)
+            KoinModule.threadLocalRoutingContext.remove()
+            KoinModule.threadLocalServerWebSocket.remove()
+            service
+        }
+    }
 }
 
 /**
- * Initialization function for Vert.x server with support for WebSockets.
+ * Initialization function for Vert.x server with Koin and support for WebSockets.
  * @param router Vert.x router
  * @param server Vert.x HTTP server
  * @param wsServiceManagers list of WebSocket service managers
  * @param serializersModules list of serializers modules for WebSocket services
  * @param initStaticResources initialize default static resources for SPA
- * @param serviceRegistrations service registrations
+ * @param appDeclaration Koin modules declarations
  */
-public fun Vertx.initRpc(
+public fun Vertx.initRpcKoin(
     router: Router,
     server: HttpServer,
     wsServiceManagers: List<RpcServiceManager<*>>,
     serializersModules: List<SerializersModule>? = null,
     initStaticResources: Boolean = true,
-    serviceRegistrations: ServiceRegistryContext.() -> Unit
+    appDeclaration: KoinApplication.() -> Unit
 ) {
-    if (initStaticResources) router.initStaticResources()
-    router.route("/rpc/*").handler(BodyHandler.create(false))
-    router.route("/rpcsse/*").handler(BodyHandler.create(false))
-    ServiceRegistry.serviceRegistrations()
-    wsServiceManagers.forEach { serviceManager ->
-        if (serviceManager.webSocketRequests.isNotEmpty()) {
-            serviceManager.deSerializer = kotlinxObjectDeSerializer(serializersModules)
-            server.webSocketHandler { webSocket ->
-                serviceManager.webSocketRequests[webSocket.path()]?.let {
-                    it(this, webSocket)
-                }
-            }
-            server.webSocketHandshakeHandler { serverWebSocketHandshake ->
-                serviceManager.webSocketRequests[serverWebSocketHandshake.path()]?.let {
-                    serverWebSocketHandshake.accept()
-                } ?: serverWebSocketHandshake.reject()
-            }
+    val koinApplication = startKoin {
+        slf4jLogger()
+        modules(KoinModule.vertxModule(this@initRpcKoin))
+        appDeclaration()
+    }
+    initRpc(router, server, wsServiceManagers, serializersModules, initStaticResources) {
+        registerServiceFactory { kClass, routingContext, _, serverWebSocket ->
+            KoinModule.threadLocalRoutingContext.set(routingContext)
+            KoinModule.threadLocalServerWebSocket.set(serverWebSocket)
+            val service = koinApplication.koin.get<Any>(kClass)
+            KoinModule.threadLocalRoutingContext.remove()
+            KoinModule.threadLocalServerWebSocket.remove()
+            service
         }
     }
 }

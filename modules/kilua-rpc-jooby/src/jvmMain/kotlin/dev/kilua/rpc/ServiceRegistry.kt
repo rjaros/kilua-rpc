@@ -45,6 +45,16 @@ public interface ServiceRegistryContext {
         serviceKClass: KClass<Service>,
         serviceFactory: (Context, Kooby) -> Service,
     )
+
+    /**
+     * Unregister RPC service class.
+     */
+    public fun <Service : Any> unregisterService(service: KClass<Service>)
+
+    /**
+     * Register RPC service factory.
+     */
+    public fun registerServiceFactory(serviceFactory: (KClass<*>, Context, Kooby) -> Any)
 }
 
 /**
@@ -66,10 +76,27 @@ public inline fun <reified Service : Any> ServiceRegistryContext.registerService
 }
 
 /**
- * Keeps registered services in a map.
+ * Unregister RPC service class.
+ */
+public inline fun <reified Service : Any> ServiceRegistryContext.unregisterService() {
+    unregisterService(Service::class)
+}
+
+/**
+ * Keeps registered services and/or service factory.
  */
 internal object ServiceRegistry : ServiceRegistryContext {
-    val services = mutableMapOf<KClass<*>, (Context, Kooby) -> Any>()
+    private val services = mutableMapOf<KClass<*>, (Context, Kooby) -> Any>()
+    private var serviceFactory: ((KClass<*>, Context, Kooby) -> Any)? = null
+
+    internal fun getService(
+        serviceClass: KClass<*>,
+        context: Context,
+        kooby: Kooby
+    ): Any? {
+        return services[serviceClass]?.invoke(context, kooby)
+            ?: serviceFactory?.invoke(serviceClass, context, kooby)
+    }
 
     override fun <Service : Any> registerService(
         serviceKClass: KClass<Service>,
@@ -83,5 +110,13 @@ internal object ServiceRegistry : ServiceRegistryContext {
         serviceFactory: (Context, Kooby) -> Service,
     ) {
         services[serviceKClass] = serviceFactory
+    }
+
+    override fun <Service : Any> unregisterService(service: KClass<Service>) {
+        services.remove(service)
+    }
+
+    override fun registerServiceFactory(serviceFactory: (KClass<*>, Context, Kooby) -> Any) {
+        this.serviceFactory = serviceFactory
     }
 }

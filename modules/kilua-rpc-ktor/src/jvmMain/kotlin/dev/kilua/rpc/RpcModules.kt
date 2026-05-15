@@ -24,45 +24,23 @@ package dev.kilua.rpc
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 import io.ktor.server.plugins.contentnegotiation.*
-import kotlinx.serialization.json.Json
-
-private const val DEFAULT_INIT_RESOURCES = true
-
-/**
- * Initialization function for Ktor server.
- */
-public fun Application.initRpc(serviceRegistration: ServiceRegistryContext.() -> Unit): Unit =
-    initRpc(DEFAULT_INIT_RESOURCES, DefaultJson, serviceRegistration)
-
-/**
- * Initialization function for Ktor server with custom JsonSerializer.
- * @param json custom or default JsonSerializer
- */
-public fun Application.initRpc(json: Json, serviceRegistration: ServiceRegistryContext.() -> Unit): Unit =
-    this.initRpc(DEFAULT_INIT_RESOURCES, json, serviceRegistration)
 
 /**
  * Initialization function for Ktor server.
  * @param initStaticResources initialize default static resources for SPA
+ * @param initContentNegotiation install ContentNegotiation plugin with default JSON support
+ * @param serviceRegistrations service registrations
  */
 public fun Application.initRpc(
-    initStaticResources: Boolean,
-    serviceRegistration: ServiceRegistryContext.() -> Unit
-): Unit = this.initRpc(initStaticResources, DefaultJson, serviceRegistration)
-
-/**
- * Initialization function for Ktor server.
- * @param initStaticResources initialize default static resources for SPA
- * @param json custom or default JsonSerializer
- */
-public fun Application.initRpc(
-    initStaticResources: Boolean,
-    json: Json,
-    serviceRegistration: ServiceRegistryContext.() -> Unit
+    initStaticResources: Boolean = true,
+    initContentNegotiation: Boolean = true,
+    serviceRegistrations: ServiceRegistryContext.() -> Unit
 ) {
-    install(ContentNegotiation) {
-        json(json)
-    }
     if (initStaticResources) initStaticResources()
-    ServiceRegistry.serviceRegistration()
+    if (initContentNegotiation) {
+        install(ContentNegotiation) {
+            json()
+        }
+    }
+    ServiceRegistry.serviceRegistrations()
 }

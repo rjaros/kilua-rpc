@@ -44,9 +44,9 @@ import kotlin.reflect.KClass
 /**
  * Fullstack service manager for Ktor.
  */
-public actual open class RpcServiceManager<out T : Any> actual constructor(private val serviceClass: KClass<T>) :
-    RpcServiceMgr<T>,
-    RpcServiceBinder<T, RequestHandler, WebsocketHandler, SseHandler>() {
+public actual open class RpcServiceManager<out T : Any> actual constructor(
+    private val serviceClass: KClass<T>
+) : RpcServiceMgr<T>, RpcServiceBinder<T, RequestHandler, WebsocketHandler, SseHandler>() {
 
     public companion object {
         public val LOG: Logger = LoggerFactory.getLogger(RpcServiceManager::class.java.name)
@@ -61,7 +61,7 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
         val serializer by lazy { serializerFactory() }
         return {
             @Suppress("UNCHECKED_CAST")
-            val service = ServiceRegistry.services[serviceClass]?.invoke(call, DummyWebSocketServerSession())?.let {
+            val service = ServiceRegistry.getService(serviceClass, call, DummyWebSocketServerSession())?.let {
                 it as? T
             } ?: throw IllegalStateException("Service ${serviceClass.simpleName} not found")
             val jsonRpcRequest = if (method == HttpMethod.GET) {
@@ -115,7 +115,7 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
         val responseSerializer by lazy { responseSerializerFactory() }
         return {
             @Suppress("UNCHECKED_CAST")
-            val service = ServiceRegistry.services[serviceClass]?.invoke(call, this)?.let {
+            val service = ServiceRegistry.getService(serviceClass, call, this)?.let {
                 it as? T
             } ?: throw IllegalStateException("Service ${serviceClass.simpleName} not found")
             handleWebsocketConnection(
@@ -141,7 +141,7 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(priva
             val channel = Channel<String>()
 
             @Suppress("UNCHECKED_CAST")
-            val service = ServiceRegistry.services[serviceClass]?.invoke(call, DummyWebSocketServerSession())?.let {
+            val service = ServiceRegistry.getService(serviceClass, call, DummyWebSocketServerSession())?.let {
                 it as? T
             } ?: throw IllegalStateException("Service ${serviceClass.simpleName} not found")
             call.response.cacheControl(CacheControl.NoCache(null))

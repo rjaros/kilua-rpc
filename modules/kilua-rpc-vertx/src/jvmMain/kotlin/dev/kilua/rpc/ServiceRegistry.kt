@@ -54,6 +54,16 @@ public interface ServiceRegistryContext {
         serviceKClass: KClass<Service>,
         serviceFactory: (RoutingContext, Vertx, ServerWebSocket) -> Service,
     )
+
+    /**
+     * Unregister RPC service class.
+     */
+    public fun <Service : Any> unregisterService(service: KClass<Service>)
+
+    /**
+     * Register RPC service factory.
+     */
+    public fun registerServiceFactory(serviceFactory: (KClass<*>, RoutingContext, Vertx, ServerWebSocket) -> Any)
 }
 
 /**
@@ -84,10 +94,28 @@ public inline fun <reified Service : Any> ServiceRegistryContext.registerService
 }
 
 /**
- * Keeps registered services in a map.
+ * Unregister RPC service class.
+ */
+public inline fun <reified Service : Any> ServiceRegistryContext.unregisterService() {
+    unregisterService(Service::class)
+}
+
+/**
+ * Keeps registered services and/or service factory.
  */
 internal object ServiceRegistry : ServiceRegistryContext {
-    val services = mutableMapOf<KClass<*>, (RoutingContext, Vertx, ServerWebSocket) -> Any>()
+    private val services = mutableMapOf<KClass<*>, (RoutingContext, Vertx, ServerWebSocket) -> Any>()
+    private var serviceFactory: ((KClass<*>, RoutingContext, Vertx, ServerWebSocket) -> Any)? = null
+
+    internal fun getService(
+        serviceClass: KClass<*>,
+        context: RoutingContext,
+        vertx: Vertx,
+        serverWebSocket: ServerWebSocket
+    ): Any? {
+        return services[serviceClass]?.invoke(context, vertx, serverWebSocket)
+            ?: serviceFactory?.invoke(serviceClass, context, vertx, serverWebSocket)
+    }
 
     override fun <Service : Any> registerService(
         serviceKClass: KClass<Service>,
@@ -108,5 +136,13 @@ internal object ServiceRegistry : ServiceRegistryContext {
         serviceFactory: (RoutingContext, Vertx, ServerWebSocket) -> Service,
     ) {
         services[serviceKClass] = serviceFactory
+    }
+
+    override fun <Service : Any> unregisterService(service: KClass<Service>) {
+        services.remove(service)
+    }
+
+    override fun registerServiceFactory(serviceFactory: (KClass<*>, RoutingContext, Vertx, ServerWebSocket) -> Any) {
+        this.serviceFactory = serviceFactory
     }
 }

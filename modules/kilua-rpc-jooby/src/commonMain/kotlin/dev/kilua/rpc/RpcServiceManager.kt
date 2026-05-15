@@ -29,7 +29,8 @@ import kotlin.reflect.KClass
 /**
  * Fullstack RPC service manager.
  */
-public expect open class RpcServiceManager<out T : Any>(serviceClass: KClass<T>) : RpcServiceMgr<T> {
+public expect open class RpcServiceManager<out T : Any>(serviceClass: KClass<T>) :
+    RpcServiceMgr<T> {
 
     /**
      * Binds a given route with a function of the receiver.

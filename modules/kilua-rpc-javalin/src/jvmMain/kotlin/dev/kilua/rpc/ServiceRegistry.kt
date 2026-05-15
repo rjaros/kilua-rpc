@@ -40,7 +40,7 @@ public interface ServiceRegistryContext {
     )
 
     /**
-     * Register RPC service class using Javalin's Context and/or Javalin instance.
+     * Register RPC service class using Javalin's Context and/or Javalin state.
      */
     public fun <Service : Any> registerService(
         serviceKClass: KClass<Service>,
@@ -48,12 +48,22 @@ public interface ServiceRegistryContext {
     )
 
     /**
-     * Register RPC service class using Javalin's Context, Javalin instance and/or WsContext.
+     * Register RPC service class using Javalin's Context, Javalin state and/or WsContext.
      */
     public fun <Service : Any> registerService(
         serviceKClass: KClass<Service>,
         serviceFactory: (Context, JavalinState, WsContext) -> Service,
     )
+
+    /**
+     * Unregister RPC service class.
+     */
+    public fun <Service : Any> unregisterService(service: KClass<Service>)
+
+    /**
+     * Register RPC service factory.
+     */
+    public fun registerServiceFactory(serviceFactory: (KClass<*>, Context, JavalinState, WsContext) -> Any)
 }
 
 /**
@@ -84,10 +94,28 @@ public inline fun <reified Service : Any> ServiceRegistryContext.registerService
 }
 
 /**
- * Keeps registered services in a map.
+ * Unregister RPC service class.
+ */
+public inline fun <reified Service : Any> ServiceRegistryContext.unregisterService() {
+    unregisterService(Service::class)
+}
+
+/**
+ * Keeps registered services and/or service factory.
  */
 internal object ServiceRegistry : ServiceRegistryContext {
-    val services = mutableMapOf<KClass<*>, (Context, JavalinState, WsContext) -> Any>()
+    private val services = mutableMapOf<KClass<*>, (Context, JavalinState, WsContext) -> Any>()
+    private var serviceFactory: ((KClass<*>, Context, JavalinState, WsContext) -> Any)? = null
+
+    internal fun getService(
+        serviceClass: KClass<*>,
+        context: Context,
+        javalinState: JavalinState,
+        wsContext: WsContext
+    ): Any? {
+        return services[serviceClass]?.invoke(context, javalinState, wsContext)
+            ?: serviceFactory?.invoke(serviceClass, context, javalinState, wsContext)
+    }
 
     override fun <Service : Any> registerService(
         serviceKClass: KClass<Service>,
@@ -108,5 +136,13 @@ internal object ServiceRegistry : ServiceRegistryContext {
         serviceFactory: (Context, JavalinState, WsContext) -> Service,
     ) {
         services[serviceKClass] = serviceFactory
+    }
+
+    override fun <Service : Any> unregisterService(service: KClass<Service>) {
+        services.remove(service)
+    }
+
+    override fun registerServiceFactory(serviceFactory: (KClass<*>, Context, JavalinState, WsContext) -> Any) {
+        this.serviceFactory = serviceFactory
     }
 }
