@@ -16,6 +16,7 @@ ktor = "3.4.3"
 koin = "4.2.1"
 koin-annotations = "4.2.1"
 koin-plugin = "1.0.0-RC2"
+metro = "1.1.1"
 micronaut = "5.0.0-RC1"
 micronaut-plugins = "5.0.0-M1"
 spring-boot = "4.1.0-RC1"
@@ -52,6 +53,7 @@ koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 koin-ktor = { module = "io.insert-koin:koin-ktor", version.ref = "koin" }
 koin-logger-slf4j = { module = "io.insert-koin:koin-logger-slf4j", version.ref = "koin" }
 koin-annotations = { module = "io.insert-koin:koin-annotations", version.ref = "koin-annotations" }
+metro-runtime = { module = "dev.zacsweers.metro:runtime", version.ref = "metro" }
 micronaut-platform = { module = "io.micronaut.platform:micronaut-platform", version.ref = "micronaut" }
 spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter", version.ref = "spring-boot" }
 spring-boot-starter-webflux = { module = "org.springframework.boot:spring-boot-starter-webflux", version.ref = "spring-boot" }
@@ -71,14 +73,18 @@ testng = { module = "org.testng:testng", version.ref = "testng" }
 hamcrest = { module = "org.hamcrest:hamcrest", version.ref = "hamcrest" }
 kilua-rpc-javalin = { module = "dev.kilua:kilua-rpc-javalin", version.ref = "kilua-rpc-published" }
 kilua-rpc-javalin-koin = { module = "dev.kilua:kilua-rpc-javalin-koin", version.ref = "kilua-rpc-published" }
+kilua-rpc-javalin-metro = { module = "dev.kilua:kilua-rpc-javalin-metro", version.ref = "kilua-rpc-published" }
 kilua-rpc-jooby = { module = "dev.kilua:kilua-rpc-jooby", version.ref = "kilua-rpc-published" }
 kilua-rpc-jooby-koin = { module = "dev.kilua:kilua-rpc-jooby-koin", version.ref = "kilua-rpc-published" }
+kilua-rpc-jooby-metro = { module = "dev.kilua:kilua-rpc-jooby-metro", version.ref = "kilua-rpc-published" }
 kilua-rpc-ktor = { module = "dev.kilua:kilua-rpc-ktor", version.ref = "kilua-rpc-published" }
 kilua-rpc-ktor-koin = { module = "dev.kilua:kilua-rpc-ktor-koin", version.ref = "kilua-rpc-published" }
+kilua-rpc-ktor-metro = { module = "dev.kilua:kilua-rpc-ktor-metro", version.ref = "kilua-rpc-published" }
 kilua-rpc-spring-boot = { module = "dev.kilua:kilua-rpc-spring-boot", version.ref = "kilua-rpc-published" }
 kilua-rpc-micronaut = { module = "dev.kilua:kilua-rpc-micronaut", version.ref = "kilua-rpc-published" }
 kilua-rpc-vertx = { module = "dev.kilua:kilua-rpc-vertx", version.ref = "kilua-rpc-published" }
 kilua-rpc-vertx-koin = { module = "dev.kilua:kilua-rpc-vertx-koin", version.ref = "kilua-rpc-published" }
+kilua-rpc-vertx-metro = { module = "dev.kilua:kilua-rpc-vertx-metro", version.ref = "kilua-rpc-published" }
 
 [plugins]
 kotlinx-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
@@ -87,6 +93,7 @@ nmcp-aggregation = { id = "com.gradleup.nmcp.aggregation", version.ref = "nmcp" 
 gradle-plugin-publish = { id = "com.gradle.plugin-publish", version.ref = "gradle-plugin-publish" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 koin-compiler = { id = "io.insert-koin.compiler.plugin", version.ref = "koin-plugin" }
+metro = { id = "dev.zacsweers.metro", version.ref = "metro" }
 jooby = { id = "io.jooby.run", version.ref = "jooby" }
 micronaut-application = { id = "io.micronaut.application", version.ref = "micronaut-plugins" }
 micronaut-aot = { id = "io.micronaut.aot", version.ref = "micronaut-plugins" }

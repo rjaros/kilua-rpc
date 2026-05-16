@@ -349,12 +349,12 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
             project.configurations.getByName("commonMainImplementation").dependencies.map { it.name }
         val kiluaRpcDependency = commonMainDependencies.firstOrNull { it.startsWith("kilua-rpc-") }
         when (kiluaRpcDependency) {
-            "kilua-rpc-javalin", "kilua-rpc-javalin-koin" -> return RpcServerType.Javalin
-            "kilua-rpc-jooby", "kilua-rpc-jooby-koin" -> return RpcServerType.Jooby
-            "kilua-rpc-ktor", "kilua-rpc-ktor-koin" -> return RpcServerType.Ktor
+            "kilua-rpc-javalin", "kilua-rpc-javalin-koin", "kilua-rpc-javalin-metro" -> return RpcServerType.Javalin
+            "kilua-rpc-jooby", "kilua-rpc-jooby-koin", "kilua-rpc-jooby-metro" -> return RpcServerType.Jooby
+            "kilua-rpc-ktor", "kilua-rpc-ktor-koin", "kilua-rpc-ktor-metro" -> return RpcServerType.Ktor
             "kilua-rpc-micronaut" -> return RpcServerType.Micronaut
             "kilua-rpc-spring-boot" -> return RpcServerType.SpringBoot
-            "kilua-rpc-vertx", "kilua-rpc-vertx-koin" -> return RpcServerType.VertX
+            "kilua-rpc-vertx", "kilua-rpc-vertx-koin", "kilua-rpc-vertx-metro" -> return RpcServerType.VertX
         }
         val jvmMainDependencies = project.configurations.getByName("jvmMainImplementation").dependencies.map { it.name }
         val kiluaSsrDependency = jvmMainDependencies.firstOrNull { it.startsWith("kilua-ssr-server-") }
