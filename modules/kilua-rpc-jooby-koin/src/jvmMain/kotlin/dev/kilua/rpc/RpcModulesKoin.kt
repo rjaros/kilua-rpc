@@ -29,15 +29,20 @@ import org.koin.logger.slf4jLogger
 /**
  * Initialization function for Jooby server.
  * @param initStaticResources initialize default static resources for SPA
+ * @param initContentNegotiation install Jackson2 module extension
  * @param appDeclaration Koin modules declarations
  */
-public fun Kooby.initRpcKoin(initStaticResources: Boolean = true, appDeclaration: KoinApplication.() -> Unit) {
+public fun Kooby.initRpcKoin(
+    initStaticResources: Boolean = true,
+    initContentNegotiation: Boolean = true,
+    appDeclaration: KoinApplication.() -> Unit
+) {
     val koinApplication = startKoin {
         slf4jLogger()
         modules(KoinModule.joobyModule(this@initRpcKoin))
         appDeclaration()
     }
-    initRpc(initStaticResources) {
+    initRpc(initStaticResources, initContentNegotiation) {
         registerServiceFactory { kClass, context, _ ->
             KoinModule.threadLocalContext.set(context)
             val service = koinApplication.koin.get<Any>(kClass)
