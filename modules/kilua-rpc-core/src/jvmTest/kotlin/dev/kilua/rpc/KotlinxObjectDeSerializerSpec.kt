@@ -22,37 +22,16 @@
  */
 package dev.kilua.rpc
 
+import de.infix.testBalloon.framework.core.testSuite
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.PairSerializer
 import kotlinx.serialization.builtins.serializer
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
-import org.testng.annotations.DataProvider
-import org.testng.annotations.Test
+import kotlin.test.assertEquals
 
-class KotlinxObjectDeSerializerKtTest {
-    private val deSerializer = kotlinxObjectDeSerializer()
+val KotlinxObjectDeSerializerSpec by testSuite {
+    val deSerializer = kotlinxObjectDeSerializer()
 
-    @Test(dataProvider = "provide_obj_expectedString")
-    fun serialize_serializesAsExpected(obj: Any?, serializer: KSerializer<Any>, expectedString: String?) {
-        // execution
-        val actual = deSerializer.serializeNullableToString(obj, serializer)
-
-        // evaluation
-        assertThat(actual, equalTo(expectedString))
-    }
-
-    @Test(dataProvider = "provide_string_type_expectedObject")
-    fun deserialize_deserializesAsExpected(str: String?, serializer: KSerializer<Any>, expectedObject: Any?) {
-        // execution
-        val actual = deSerializer.deserialize(str, serializer)
-
-        // evaluation
-        assertThat(actual, equalTo(expectedObject))
-    }
-
-    @DataProvider
-    fun provide_obj_expectedString(): Array<Array<Any?>> = arrayOf(
+    val provideObjExpectedString: Array<Array<Any?>> = arrayOf(
         arrayOf("simple string", String.serializer(), "\"simple string\""),
         arrayOf("special {[]} chars", String.serializer(), "\"special {[]} chars\""),
         arrayOf(42, Int.serializer(), "42"),
@@ -63,9 +42,7 @@ class KotlinxObjectDeSerializerKtTest {
         ),
         arrayOf(null, String.serializer(), null)
     )
-
-    @DataProvider
-    fun provide_string_type_expectedObject(): Array<Array<Any?>> = arrayOf(
+    val provideStringTypeExpectedObject: Array<Array<Any?>> = arrayOf(
         arrayOf("\"simple string\"", String.serializer(), "simple string"),
         arrayOf("\"special {[]} chars\"", String.serializer(), "special {[]} chars"),
         arrayOf("42", Int.serializer(), 42),
@@ -77,4 +54,20 @@ class KotlinxObjectDeSerializerKtTest {
         arrayOf(null, String.serializer(), null),
         arrayOf(null, Int.serializer(), null),
     )
+
+    for (data in provideObjExpectedString) {
+        test("serialize${data[0]}_serializesAsExpected") {
+            @Suppress("UNCHECKED_CAST")
+            val actual = deSerializer.serializeNullableToString(data[0], data[1] as KSerializer<Any>)
+            assertEquals(actual, data[2])
+        }
+    }
+
+    for (data in provideStringTypeExpectedObject) {
+        test("deserialize${data[0]}_deserializesAsExpected") {
+            @Suppress("UNCHECKED_CAST")
+            val actual = deSerializer.deserialize(data[0] as String?, data[1] as KSerializer<Any>)
+            assertEquals(actual, data[2])
+        }
+    }
 }

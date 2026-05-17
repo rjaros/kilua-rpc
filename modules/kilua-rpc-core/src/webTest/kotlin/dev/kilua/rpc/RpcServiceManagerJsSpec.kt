@@ -23,10 +23,9 @@
 
 package dev.kilua.rpc
 
+import de.infix.testBalloon.framework.core.testSuite
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
-import kotlin.test.Test
-import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 
 @Suppress("UNUSED_PARAMETER", "RedundantSuspendModifier")
@@ -76,108 +75,95 @@ val ALL_NON_WS_CALL_NAMES = listOf(
 
 class RpcServiceManager : RpcServiceManagerJs<Dummy>()
 
-class RpcServiceManagerJsSpec {
+val RpcServiceManagerJsSpec by testSuite {
 
-    private lateinit var serviceManager: RpcServiceManager
+    testFixture {
+        RpcServiceManager()
+    } asParameterForEach {
+        test("bind_addsFunctions") { serviceManager ->
+            // execution
+            ALL_NON_WS_BIND_CALLS.forEach { it(serviceManager, HttpMethod.POST, null) }
 
-    @BeforeTest
-    fun beforeMethod() {
-        serviceManager = RpcServiceManager()
-    }
+            // evaluation
+            val registry = serviceManager.calls.entries.sortedBy { it.value.first }
 
-    @Test
-    fun bind_addsFunctions() {
-        // execution
-        ALL_NON_WS_BIND_CALLS.forEach { it(serviceManager, HttpMethod.POST, null) }
+            assertEquals(ALL_NON_WS_BIND_CALLS.size, registry.size, "number of registered endpoints")
+            for (i in ALL_NON_WS_BIND_CALLS.indices) {
+                assertEndpointMatches(
+                    endpoint = registry[i],
+                    functionName = ALL_NON_WS_CALL_NAMES[i],
+                    httpMethod = HttpMethod.POST,
+                    expectedRoute = "/rpc/routeRpcServiceManager$i"
+                )
+            }
+        }
+        test("bind_addsFunctions_withCustomRouteIfSupplied") { serviceManager ->
+            // execution
+            ALL_NON_WS_BIND_CALLS.forEachIndexed { index, bind ->
+                bind(serviceManager, HttpMethod.POST, "customRoute$index")
+            }
 
-        // evaluation
-        val registry = serviceManager.calls.entries.sortedBy { it.value.first }
+            // evaluation
+            val registry = serviceManager.calls.entries.sortedBy { it.value.first }
+            assertEquals(ALL_NON_WS_BIND_CALLS.size, registry.size, "number of registered endpoints")
+            for (i in ALL_NON_WS_BIND_CALLS.indices) {
+                assertEndpointMatches(
+                    endpoint = registry[i],
+                    functionName = ALL_NON_WS_CALL_NAMES[i],
+                    httpMethod = HttpMethod.POST,
+                    expectedRoute = "/rpc/customRoute$i"
+                )
+            }
+        }
+        test("bind_addsWebsocketFunction") { serviceManager ->
+            // execution
+            serviceManager.bind(Dummy::websocketFun, null)
 
-        assertEquals(ALL_NON_WS_BIND_CALLS.size, registry.size, "number of registered endpoints")
-        for (i in ALL_NON_WS_BIND_CALLS.indices) {
+            // evaluation
             assertEndpointMatches(
-                endpoint = registry[i],
-                functionName = ALL_NON_WS_CALL_NAMES[i],
+                endpoint = serviceManager.calls.entries.single(),
+                functionName = getCallName(Dummy::websocketFun),
                 httpMethod = HttpMethod.POST,
-                expectedRoute = "/rpc/routeRpcServiceManager$i"
+                expectedRoute = "/rpcws/routeRpcServiceManager0"
+            )
+        }
+        test("bind_addsWebsocketFunctionWithCustomRoute_ifSupplied") { serviceManager ->
+            // execution
+            serviceManager.bind(Dummy::websocketFun, "customWsRoute")
+
+            // evaluation
+            assertEndpointMatches(
+                endpoint = serviceManager.calls.entries.single(),
+                functionName = getCallName(Dummy::websocketFun),
+                httpMethod = HttpMethod.POST,
+                expectedRoute = "/rpcws/customWsRoute"
+            )
+        }
+        test("bind_addFunctionIfMethodIsGetAndFunctionHasNoParameters") { serviceManager ->
+            // execution
+            serviceManager.bind(Dummy::param0fun, HttpMethod.GET, null)
+
+            // evaluation
+            assertEndpointMatches(
+                endpoint = serviceManager.calls.entries.single(),
+                functionName = getCallName(Dummy::param0fun),
+                httpMethod = HttpMethod.GET,
+                expectedRoute = "/rpc/routeRpcServiceManager0"
             )
         }
     }
+}
 
-    @Test
-    fun bind_addsFunctions_withCustomRouteIfSupplied() {
-        // execution
-        ALL_NON_WS_BIND_CALLS.forEachIndexed { index, bind ->
-            bind(serviceManager, HttpMethod.POST, "customRoute$index")
-        }
+private fun assertEndpointMatches(
+    endpoint: Map.Entry<String, Pair<String, HttpMethod>>,
+    functionName: String,
+    httpMethod: HttpMethod,
+    expectedRoute: String
+) {
+    val actualCallName = endpoint.key
+    val (actualPath, actualHttpMethod) = endpoint.value
 
-        // evaluation
-        val registry = serviceManager.calls.entries.sortedBy { it.value.first }
-        assertEquals(ALL_NON_WS_BIND_CALLS.size, registry.size, "number of registered endpoints")
-        for (i in ALL_NON_WS_BIND_CALLS.indices) {
-            assertEndpointMatches(
-                endpoint = registry[i],
-                functionName = ALL_NON_WS_CALL_NAMES[i],
-                httpMethod = HttpMethod.POST,
-                expectedRoute = "/rpc/customRoute$i"
-            )
-        }
-    }
-
-    @Test
-    fun bind_addsWebsocketFunction() {
-        // execution
-        serviceManager.bind(Dummy::websocketFun, null)
-
-        // evaluation
-        assertEndpointMatches(
-            endpoint = serviceManager.calls.entries.single(),
-            functionName = getCallName(Dummy::websocketFun),
-            httpMethod = HttpMethod.POST,
-            expectedRoute = "/rpcws/routeRpcServiceManager0"
-        )
-    }
-
-    @Test
-    fun bind_addsWebsocketFunctionWithCustomRoute_ifSupplied() {
-        // execution
-        serviceManager.bind(Dummy::websocketFun, "customWsRoute")
-
-        // evaluation
-        assertEndpointMatches(
-            endpoint = serviceManager.calls.entries.single(),
-            functionName = getCallName(Dummy::websocketFun),
-            httpMethod = HttpMethod.POST,
-            expectedRoute = "/rpcws/customWsRoute"
-        )
-    }
-
-    @Test
-    fun bind_addFunctionIfMethodIsGetAndFunctionHasNoParameters() {
-        // execution
-        serviceManager.bind(Dummy::param0fun, HttpMethod.GET, null)
-
-        // evaluation
-        assertEndpointMatches(
-            endpoint = serviceManager.calls.entries.single(),
-            functionName = getCallName(Dummy::param0fun),
-            httpMethod = HttpMethod.GET,
-            expectedRoute = "/rpc/routeRpcServiceManager0"
-        )
-    }
-
-
-    private fun assertEndpointMatches(
-        endpoint: Map.Entry<String, Pair<String, HttpMethod>>,
-        functionName: String,
-        httpMethod: HttpMethod,
-        expectedRoute: String
-    ) {
-        val actualCallName = endpoint.key
-        val (actualPath, actualHttpMethod) = endpoint.value
-
-        assertEquals(functionName, actualCallName)
-        assertEquals(httpMethod, actualHttpMethod, "http method")
-        assertEquals(actualPath, expectedRoute)
-    }
+    assertEquals(functionName, actualCallName)
+    assertEquals(httpMethod, actualHttpMethod, "http method")
+    assertEquals(actualPath, expectedRoute)
 }

@@ -5,6 +5,7 @@ plugins {
     id("org.jetbrains.dokka")
     id("maven-publish")
     id("signing")
+    alias(libs.plugins.test.balloon)
 }
 
 kotlin {
@@ -27,6 +28,7 @@ kotlin {
                 implementation(kotlin("test"))
                 implementation(kotlin("test-common"))
                 implementation(kotlin("test-annotations-common"))
+                implementation(libs.test.balloon)
             }
         }
         val webMain by getting {
@@ -34,17 +36,7 @@ kotlin {
                 api(libs.wrappers.browser)
             }
         }
-        val jvmMain by getting {
-            dependencies {
-                implementation(libs.hamcrest)
-                implementation(libs.testng)
-            }
-        }
     }
-}
-
-tasks.withType<Test> {
-    useTestNG()
 }
 
 setupDokka(tasks.dokkaGenerate)

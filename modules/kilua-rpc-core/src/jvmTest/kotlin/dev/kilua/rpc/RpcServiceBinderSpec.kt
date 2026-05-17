@@ -24,6 +24,7 @@
 
 package dev.kilua.rpc
 
+import de.infix.testBalloon.framework.core.testSuite
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.Channel
@@ -35,13 +36,7 @@ import kotlinx.coroutines.flow.produceIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.KSerializer
-import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.equalTo
-import org.testng.Assert.assertEquals
-import org.testng.annotations.BeforeMethod
-import org.testng.annotations.DataProvider
-import org.testng.annotations.Test
-
+import kotlin.test.assertEquals
 
 // The bind-method can bind to functions with args of various types up to 6 parameters.
 // So here are some compatible type definitions for zero to six params:
@@ -90,113 +85,92 @@ val SAMPLE_STRING_ARGS = listOf("\"some text\"", "42", "42", "42", "42", "\"c\""
 // this is the expected result:
 val SAMPLE_PARSED_ARGS = listOf(true, "some text", 42, 42.0, 42.toFloat(), 42.toByte(), 'c')
 
-class RpcServiceBinderTest {
-    private lateinit var serviceBinder: RpcServiceBinderImpl
-
-    @BeforeMethod
-    fun setUp() {
-        serviceBinder = RpcServiceBinderImpl()
-        serviceBinder.deSerializer = kotlinxObjectDeSerializer()
-    }
-
-    @Test(dataProvider = "provide_binder_args_expectedArgs")
-    fun bind_registersFunctionParsingParametersAndDelegatingToHandlerFunction(
-        binder: BindingInitializer,
-        args: List<String?>,
-        result: Any
-    ) {
-        // execution
-        testBind(binder, args, result = result)
-    }
-
-    private fun testBind(
-        binder: BindingInitializer,
-        args: List<String?> = emptyList(),
-        method: HttpMethod = HttpMethod.POST,
-        result: Any
-    ) {
-        // setup
-        val route = "someRoute"
-
-        // execution
-        binder.invoke(serviceBinder, method, route)
-        val actualEntry = serviceBinder.routeMapRegistry.asSequence().single()
-        val handlerResult = actualEntry.handler.invoke(HANDLER_THIS, args)
-
-        // evaluation
-        assertThat(actualEntry.method, equalTo(method))
-        assertThat(actualEntry.path, equalTo("/rpc/$route"))
-
-        assertEquals(handlerResult, result)
-    }
-
-    @DataProvider
-    fun provide_binder_args_expectedArgs(): Array<Array<Any?>> {
+val RpcServiceBinderSpec by testSuite {
+    testFixture {
+        RpcServiceBinderImpl().also { serviceBinder ->
+            serviceBinder.deSerializer = kotlinxObjectDeSerializer()
+        }
+    } asParameterForEach {
         fun args(argCount: Int, f: BindingInitializer): Array<Any?> =
             arrayOf(f, SAMPLE_STRING_ARGS.subList(0, argCount), SAMPLE_PARSED_ARGS[argCount])
-
         // Try for each of the seven possible `bind`-invocations, that the correct method with correctly converted
         // arguments is registered and called:
-        return Array(BINDING_INITIALIZERS.size) { args(it, BINDING_INITIALIZERS[it]) }
-    }
+        val provide_binder_args_expectedArgs: Array<Array<Any?>> =
+            Array(BINDING_INITIALIZERS.size) { args(it, BINDING_INITIALIZERS[it]) }
+        provide_binder_args_expectedArgs.forEachIndexed { index, data ->
+            @Suppress("UNCHECKED_CAST")
+            val binder = data[0] as BindingInitializer
 
-    @DataProvider
-    fun provide_bindingInitializersWithArgs(): Array<BindingInitializer> =
-        BINDING_INITIALIZERS.copyOfRange(1, BINDING_INITIALIZERS.size)
+            @Suppress("UNCHECKED_CAST")
+            val args = data[1] as List<String?>
+            val result = data[2] as Any
+            test("bind_registersFunctionParsingParametersAndDelegatingToHandlerFunction_$index") { serviceBinder ->
+                // setup
+                val route = "someRoute"
+                // execution
+                binder.invoke(serviceBinder, HttpMethod.POST, route)
+                val actualEntry = serviceBinder.routeMapRegistry.asSequence().single()
+                val handlerResult = actualEntry.handler.invoke(HANDLER_THIS, args)
 
-    @Test
-    fun bind_generatesRouteName_ifNoneGiven() {
-        // execution
-        serviceBinder.bind(PARAM_0_FUN, HttpMethod.GET, null)
-
-        // evaluation
-        assertThat(
-            serviceBinder.routeMapRegistry.asSequence().single().path,
-            equalTo("/rpc/routeRpcServiceBinderImpl0")
-        )
-    }
-
-    @DelicateCoroutinesApi
-    @Test
-    fun bind_delegatesToHandlingFunction_forWebsockets() {
-        // setup
-        val handler: suspend Any.(ReceiveChannel<String>, SendChannel<String>) -> Unit =
-            { requestChannel, responseChannel ->
-                GlobalScope.launch {
-                    responseChannel.send(requestChannel.receive())
-                }
+                // evaluation
+                assertEquals(actualEntry.method, HttpMethod.POST)
+                assertEquals(actualEntry.path, "/rpc/$route")
+                assertEquals(handlerResult, result)
             }
-        val receiveChannel = Channel<String>()
-        val responseChannel = Channel<String>()
-        val clientServerMessage = "a message from client to server"
-
-        // execution
-        serviceBinder.bind(handler, null)
-        val entry = serviceBinder.webSocketRequests.entries.single()
-        entry.value(HANDLER_THIS, receiveChannel, responseChannel)
-        val response = runBlocking {
-            receiveChannel.send(clientServerMessage)
-            responseChannel.receive()
         }
 
-        // evaluation
-        assertEquals(response, clientServerMessage)
+        test("bind_generatesRouteName_ifNoneGiven") { serviceBinder ->
+            // execution
+            serviceBinder.bind(PARAM_0_FUN, HttpMethod.GET, null)
+
+            // evaluation
+            assertEquals(
+                serviceBinder.routeMapRegistry.asSequence().single().path,
+                "/rpc/routeRpcServiceBinderImpl0"
+            )
+        }
+
+        test("bind_delegatesToHandlingFunction_forWebsockets") { serviceBinder ->
+            // setup
+            val handler: suspend Any.(ReceiveChannel<String>, SendChannel<String>) -> Unit =
+                { requestChannel, responseChannel ->
+                    @OptIn(DelicateCoroutinesApi::class)
+                    GlobalScope.launch {
+                        responseChannel.send(requestChannel.receive())
+                    }
+                }
+            val receiveChannel = Channel<String>()
+            val responseChannel = Channel<String>()
+            val clientServerMessage = "a message from client to server"
+
+            // execution
+            serviceBinder.bind(handler, null)
+            val entry = serviceBinder.webSocketRequests.entries.single()
+            entry.value(HANDLER_THIS, receiveChannel, responseChannel)
+            val response = runBlocking {
+                receiveChannel.send(clientServerMessage)
+                responseChannel.receive()
+            }
+
+            // evaluation
+            assertEquals(response, clientServerMessage)
+        }
+        val provide_route_expectedUrl_forWebsockets: Array<Array<Any?>> = arrayOf(
+            arrayOf("someRoute", "/rpcws/someRoute"),
+            arrayOf(null, "/rpcws/routeRpcServiceBinderImpl0")
+        )
+        for (data in provide_route_expectedUrl_forWebsockets) {
+            test("bind_registersCorrectUrl_forWebsockets") { serviceBinder ->
+                val route = data[0] as String?
+                val expectedUrl = data[1] as String
+                // execution
+                serviceBinder.bind({ _: ReceiveChannel<String>, _: SendChannel<String> -> }, route)
+
+                // evaluation
+                assertEquals(serviceBinder.webSocketRequests.keys.single(), expectedUrl)
+            }
+        }
     }
-
-    @Test(dataProvider = "provide_route_expectedUrl_forWebsockets")
-    fun bind_registersCorrectUrl_forWebsockets(route: String?, expectedUrl: String) {
-        // execution
-        serviceBinder.bind({ _: ReceiveChannel<String>, _: SendChannel<String> -> }, route)
-
-        // evaluation
-        assertThat(serviceBinder.webSocketRequests.keys.single(), equalTo(expectedUrl))
-    }
-
-    @DataProvider
-    fun provide_route_expectedUrl_forWebsockets(): Array<Array<Any?>> = arrayOf(
-        arrayOf("someRoute", "/rpcws/someRoute"),
-        arrayOf(null, "/rpcws/routeRpcServiceBinderImpl0")
-    )
 }
 
 private class RpcServiceBinderImpl : RpcServiceBinder<Any, RouteHandler, WebsocketHandler, SseHandler>() {
