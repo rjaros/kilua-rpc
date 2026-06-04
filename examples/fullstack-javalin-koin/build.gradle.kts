@@ -4,7 +4,6 @@ import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
-    alias(libs.plugins.koin.compiler)
     id("com.google.devtools.ksp")
     alias(libs.plugins.kilua.rpc)
 }
@@ -56,7 +55,6 @@ kotlin {
         }
         val jvmMain by getting {
             dependencies {
-                implementation(libs.koin.annotations)
                 implementation(libs.logback.classic)
             }
         }

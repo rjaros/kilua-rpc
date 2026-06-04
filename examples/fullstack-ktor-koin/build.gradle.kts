@@ -4,7 +4,6 @@ import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
-    alias(libs.plugins.koin.compiler)
     id("com.google.devtools.ksp")
     alias(libs.plugins.kilua.rpc)
 }
@@ -58,7 +57,6 @@ kotlin {
             dependencies {
                 implementation(libs.ktor.server.netty)
                 implementation(libs.ktor.server.compression)
-                implementation(libs.koin.annotations)
                 implementation(libs.logback.classic)
             }
         }

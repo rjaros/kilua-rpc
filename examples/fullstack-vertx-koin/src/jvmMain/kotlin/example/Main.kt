@@ -5,20 +5,20 @@ import dev.kilua.rpc.getAllServiceManagers
 import dev.kilua.rpc.initRpcKoin
 import io.vertx.core.AbstractVerticle
 import io.vertx.ext.web.Router
-import org.koin.core.annotation.ComponentScan
-import org.koin.core.annotation.Module
-import org.koin.plugin.module.dsl.module
+import org.koin.core.module.dsl.factoryOf
+import org.koin.dsl.bind
+import org.koin.dsl.module
 
-@Module
-@ComponentScan
-class PingModule
+val pingModule = module {
+    factoryOf(::PingService) bind IPingService::class
+}
 
 class MainVerticle : AbstractVerticle() {
     override fun start() {
         val router = Router.router(vertx)
         val server = vertx.createHttpServer()
         vertx.initRpcKoin(router, server, getAllServiceManagers(), null) {
-            module<PingModule>()
+            modules(pingModule)
         }
         getAllServiceManagers().forEach {
             vertx.applyRoutes(router, it)
