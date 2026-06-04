@@ -279,7 +279,7 @@ public class RpcProcessor(
             appendLine("//")
             appendLine("package $packageName")
             appendLine()
-            appendLine("import web.http.RequestInit")
+            appendLine("import web.http.Request")
             appendLine("import dev.kilua.rpc.RpcAgent")
             if (isExported) {
                 appendLine("import kotlin.js.ExperimentalJsExport")
@@ -300,7 +300,7 @@ public class RpcProcessor(
                 appendLine("@OptIn(ExperimentalJsExport::class)")
                 appendLine("@JsExport")
             }
-            appendLine("class $className(serializersModules: List<SerializersModule>? = null, requestFilter: (suspend RequestInit.() -> Unit)? = null) : $interfaceName, RpcAgent<$interfaceName>($managerName, serializersModules, requestFilter) {")
+            appendLine("class $className(serializersModules: List<SerializersModule>? = null, requestFilter: (suspend Request.() -> Unit)? = null) : $interfaceName, RpcAgent<$interfaceName>($managerName, serializersModules, requestFilter) {")
             val wsMethods = mutableListOf<String>()
             val sseMethods = mutableListOf<String>()
             ksClassDeclaration.getDeclaredFunctions().forEach {
@@ -407,10 +407,10 @@ public class RpcProcessor(
             if (services.isNotEmpty()) {
                 appendLine("package dev.kilua.rpc")
                 appendLine()
-                appendLine("import web.http.RequestInit")
+                appendLine("import web.http.Request")
                 appendLine("import kotlinx.serialization.modules.SerializersModule")
                 appendLine()
-                appendLine("inline fun <reified T : Any> getService(serializersModules: List<SerializersModule>? = null, noinline requestFilter: (suspend RequestInit.() -> Unit)? = null): T = when (T::class) {")
+                appendLine("inline fun <reified T : Any> getService(serializersModules: List<SerializersModule>? = null, noinline requestFilter: (suspend Request.() -> Unit)? = null): T = when (T::class) {")
                 services.forEach {
                     appendLine("    ${it.packageName}.${it.interfaceName}::class -> ${it.packageName}.${it.className}(serializersModules, requestFilter) as T")
                 }

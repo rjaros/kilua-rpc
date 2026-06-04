@@ -27,6 +27,7 @@ import js.reflect.unsafeCast
 import js.uri.encodeURIComponent
 import web.http.BodyInit
 import web.http.Headers
+import web.http.Request
 import web.http.RequestInit
 import web.http.RequestMethod
 import web.http.fetchAsync
@@ -81,14 +82,12 @@ public open class CallAgent {
         url: String,
         data: List<String?> = listOf(),
         method: HttpMethod = HttpMethod.POST,
-        requestFilter: (suspend RequestInit.() -> Unit)? = null
+        requestFilter: (suspend Request.() -> Unit)? = null
     ): String {
         val urlPrefix = getRpcUrlPrefix()
         val jsonRpcRequest = JsonRpcRequest(counter++, url, data)
         val body =
             if (method == HttpMethod.GET) null else BodyInit(RpcSerialization.plain.encodeToString(jsonRpcRequest))
-        val requestInit = getRequestInit(method, body, "application/json")
-        requestFilter?.invoke(requestInit)
         val urlAddr = urlPrefix + url.drop(1)
         val fetchUrl = if (method == HttpMethod.GET) {
             val urlSearchParams = URLSearchParams()
@@ -99,8 +98,11 @@ public open class CallAgent {
         } else {
             urlAddr
         }
+        val requestInit = getRequestInit(method, body, "application/json")
+        val request = Request(fetchUrl, requestInit)
+        requestFilter?.invoke(request)
         val response = try {
-            fetchAsync(fetchUrl, requestInit).await()
+            fetchAsync(request).await()
         } catch (e: Throwable) {
             throw Exception("Failed to fetch $fetchUrl: ${e.message}")
         }

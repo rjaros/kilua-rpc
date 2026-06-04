@@ -23,7 +23,7 @@
 package dev.kilua.rpc
 
 import kotlinx.serialization.modules.SerializersModule
-import web.http.RequestInit
+import web.http.Request
 
 /**
  * This will make IntelliJ think that this function exists.
@@ -32,7 +32,7 @@ import web.http.RequestInit
 @Suppress("UNUSED_PARAMETER")
 public inline fun <reified T : Any> getService(
     serializersModules: List<SerializersModule>? = null,
-    noinline requestFilter: (suspend RequestInit.() -> Unit)? = null
+    noinline requestFilter: (suspend Request.() -> Unit)? = null
 ): T {
     throw NotImplementedError("Kilua RPC didn't generate code for " + T::class.simpleName + ". You need to apply Kilua RPC Gradle Plugin.")
 }

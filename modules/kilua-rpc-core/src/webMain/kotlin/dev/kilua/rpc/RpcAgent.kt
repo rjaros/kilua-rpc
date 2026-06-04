@@ -21,7 +21,6 @@
  */
 package dev.kilua.rpc
 
-import js.globals.globalThis
 import js.json.parse
 import js.objects.unsafeJso
 import kotlinx.coroutines.CancellationException
@@ -38,7 +37,7 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.serializer
 import web.console.console
 import web.events.EventHandler
-import web.http.RequestInit
+import web.http.Request
 import web.messaging.MessageEvent
 import web.sse.EventSource
 import kotlin.js.toJsBoolean
@@ -50,7 +49,7 @@ import kotlin.js.toJsBoolean
 public open class RpcAgent<T : Any>(
     public val serviceManager: RpcServiceMgr<T>,
     serializersModules: List<SerializersModule>? = null,
-    public val requestFilter: (suspend RequestInit.() -> Unit)? = null
+    public val requestFilter: (suspend Request.() -> Unit)? = null
 ) {
 
     public val callAgent: CallAgent = CallAgent()
