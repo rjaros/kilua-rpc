@@ -23,7 +23,7 @@ kotlin {
         }
         val jvmMain by getting {
             dependencies {
-                api(libs.koin.ktor)
+                api(libs.koin.core)
                 api(libs.koin.logger.slf4j)
             }
         }

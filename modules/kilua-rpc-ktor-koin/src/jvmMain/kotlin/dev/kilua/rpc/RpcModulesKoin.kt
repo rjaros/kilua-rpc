@@ -23,8 +23,7 @@ package dev.kilua.rpc
 
 import io.ktor.server.application.*
 import org.koin.core.KoinApplication
-import org.koin.ktor.ext.getKoin
-import org.koin.ktor.plugin.Koin
+import org.koin.core.context.startKoin
 import org.koin.logger.slf4jLogger
 
 /**
@@ -38,7 +37,7 @@ public fun Application.initRpcKoin(
     initContentNegotiation: Boolean = true,
     appDeclaration: KoinApplication.() -> Unit
 ) {
-    install(Koin) {
+    val koinApplication = startKoin {
         slf4jLogger()
         modules(KoinModule.applicationModule(this@initRpcKoin))
         appDeclaration()
@@ -47,7 +46,7 @@ public fun Application.initRpcKoin(
         registerServiceFactory { kClass, call, wssSession ->
             KoinModule.threadLocalApplicationCall.set(call)
             KoinModule.threadLocalWebSocketServerSession.set(wssSession)
-            val service = this@initRpcKoin.getKoin().get<Any>(kClass)
+            val service = koinApplication.koin.get<Any>(kClass)
             KoinModule.threadLocalApplicationCall.remove()
             KoinModule.threadLocalWebSocketServerSession.remove()
             service
