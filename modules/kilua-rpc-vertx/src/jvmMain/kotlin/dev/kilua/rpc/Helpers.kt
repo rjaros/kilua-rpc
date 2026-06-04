@@ -45,6 +45,7 @@ import io.vertx.ext.web.Session
 import io.vertx.ext.web.UserContext
 import java.nio.charset.Charset
 import java.security.cert.Certificate
+import java.time.Duration
 import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLSession
 
@@ -351,6 +352,14 @@ public class DummyServerWebSocket : ServerWebSocket {
         statusCode: Short,
         reason: String?
     ): Future<Void?>? {
+        throw IllegalStateException("Empty implementation")
+    }
+
+    override fun shutdown(
+        timeout: Duration?,
+        statusCode: Short,
+        reason: String?
+    ): Future<Void> {
         throw IllegalStateException("Empty implementation")
     }
 
