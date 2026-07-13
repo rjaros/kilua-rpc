@@ -40,10 +40,10 @@ interface IPingService {
     suspend fun sseConnection(output: SendChannel<String>) {}
 
     @JsName("sseConnectionJs")
-    suspend fun sseConnection(handler: suspend (ReceiveChannel<String>) -> Unit) {
-    }
+    suspend fun sseConnection(handler: suspend (ReceiveChannel<String>) -> Unit) {}
 }
 
+@OptIn(ExperimentalJsExport::class)
 @JsExport
 class PingServiceWrapper(private val service: IPingService, private val callback: (String) -> Unit) {
 
