@@ -23,12 +23,38 @@
 package example
 
 import dev.kilua.rpc.annotations.RpcService
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.launch
 import kotlin.js.ExperimentalJsExport
 import kotlin.js.JsExport
+import kotlin.js.JsName
 
 @RpcService
 @OptIn(ExperimentalJsExport::class)
 @JsExport
 interface IPingService {
     suspend fun ping(message: String? = null): String
+    suspend fun sseConnection(output: SendChannel<String>) {}
+
+    @JsName("sseConnectionJs")
+    suspend fun sseConnection(handler: suspend (ReceiveChannel<String>) -> Unit) {
+    }
+}
+
+@JsExport
+class PingServiceWrapper(private val service: IPingService, private val callback: (String) -> Unit) {
+
+    init {
+        @OptIn(DelicateCoroutinesApi::class)
+        GlobalScope.launch {
+            service.sseConnection { channel ->
+                for (message in channel) {
+                    callback(message)
+                }
+            }
+        }
+    }
 }
