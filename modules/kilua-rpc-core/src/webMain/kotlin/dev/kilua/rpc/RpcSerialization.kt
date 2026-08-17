@@ -38,6 +38,7 @@ public actual object RpcSerialization {
      */
     public actual val plain: Json = Json {
         ignoreUnknownKeys = true
+        encodeDefaults = true
         serializersModule = SerializersModule {
             contextual(Result::class) { args -> ResultSerializer(args[0]) }
         }
@@ -78,6 +79,7 @@ public actual object RpcSerialization {
         } else {
             Json(from = (customConfiguration ?: Json.Default)) {
                 ignoreUnknownKeys = true
+                encodeDefaults = true
                 serializersModule = serializersModule.overwriteWith(SerializersModule {
                     contextual(Result::class) { args -> ResultSerializer(args[0]) }
                     exceptionsSerializersModule?.let { this.include(it) }

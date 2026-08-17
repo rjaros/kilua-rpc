@@ -43,6 +43,7 @@ public actual object RpcSerialization {
      */
     public actual val plain: Json = Json {
         ignoreUnknownKeys = true
+        encodeDefaults = true
         serializersModule = rpcSerializersModule
     }
 
@@ -73,6 +74,7 @@ public actual object RpcSerialization {
         } else {
             Json(from = (customConfiguration ?: Json.Default)) {
                 ignoreUnknownKeys = true
+                encodeDefaults = true
                 serializersModule = serializersModule.overwriteWith(SerializersModule {
                     this.include(rpcSerializersModule)
                     exceptionsSerializersModule?.let { this.include(it) }
