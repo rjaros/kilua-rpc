@@ -15,7 +15,7 @@ kotlin {
     kotlinWasmTargets()
     kotlinJvmTargets()
     sourceSets {
-        val commonMain by getting {
+        getByName("commonMain") {
             dependencies {
                 api(project(":modules:kilua-rpc-core"))
                 api(project(":modules:kilua-rpc-annotations"))
@@ -23,7 +23,7 @@ kotlin {
                 implementation(libs.kotlinx.coroutines)
             }
         }
-        val jvmMain by getting {
+        getByName("jvmMain") {
             dependencies {
                 implementation(kotlin("reflect"))
                 api(libs.kotlinx.coroutines.jdk8)

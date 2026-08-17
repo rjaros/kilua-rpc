@@ -14,7 +14,7 @@ kotlin {
     kotlinWasmTargets()
     kotlinJvmTargets()
     sourceSets {
-        val commonMain by getting {
+        getByName("commonMain") {
             dependencies {
                 implementation(libs.kotlinx.serialization.json)
             }

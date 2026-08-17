@@ -49,13 +49,13 @@ kotlin {
         }
     }
     sourceSets {
-        val commonMain by getting {
+        getByName("commonMain") {
             dependencies {
                 implementation(libs.kilua.rpc.jooby.metro)
                 implementation(libs.kotlinx.datetime)
             }
         }
-        val jvmMain by getting {
+        getByName("jvmMain") {
             dependencies {
                 implementation(libs.jooby.netty)
                 implementation(libs.logback.classic)

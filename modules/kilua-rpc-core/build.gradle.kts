@@ -16,14 +16,14 @@ kotlin {
     kotlinJvmTargets()
     applyDefaultHierarchyTemplate()
     sourceSets {
-        val commonMain by getting {
+        getByName("commonMain") {
             dependencies {
                 api(project(":modules:kilua-rpc-types"))
                 api(libs.kotlinx.serialization.json)
                 api(libs.kotlinx.coroutines)
             }
         }
-        val commonTest by getting {
+        getByName("commonTest") {
             dependencies {
                 implementation(kotlin("test"))
                 implementation(kotlin("test-common"))
@@ -31,7 +31,7 @@ kotlin {
                 implementation(libs.test.balloon)
             }
         }
-        val webMain by getting {
+        getByName("webMain") {
             dependencies {
                 api(libs.wrappers.browser)
             }

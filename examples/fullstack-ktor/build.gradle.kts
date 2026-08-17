@@ -47,13 +47,13 @@ kotlin {
         }
     }
     sourceSets {
-        val commonMain by getting {
+        getByName("commonMain") {
             dependencies {
                 implementation(libs.kilua.rpc.ktor)
                 implementation(libs.kotlinx.datetime)
             }
         }
-        val jvmMain by getting {
+        getByName("jvmMain") {
             dependencies {
                 implementation(libs.ktor.server.netty)
                 implementation(libs.ktor.server.compression)

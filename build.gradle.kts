@@ -13,10 +13,10 @@ val versionVal = libs.versions.kilua.rpc.asProvider().get()
 
 allprojects {
     group = "dev.kilua"
-    if (hasProperty("SNAPSHOT")) {
-        version = "$versionVal-SNAPSHOT"
+    version = if (hasProperty("SNAPSHOT")) {
+        "$versionVal-SNAPSHOT"
     } else {
-        version = versionVal
+        versionVal
     }
 }
 

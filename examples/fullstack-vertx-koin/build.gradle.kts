@@ -48,13 +48,13 @@ kotlin {
         }
     }
     sourceSets {
-        val commonMain by getting {
+        getByName("commonMain") {
             dependencies {
                 implementation(libs.kilua.rpc.vertx.koin)
                 implementation(libs.kotlinx.datetime)
             }
         }
-        val jvmMain by getting {
+        getByName("jvmMain") {
             dependencies {
                 implementation(libs.logback.classic)
             }

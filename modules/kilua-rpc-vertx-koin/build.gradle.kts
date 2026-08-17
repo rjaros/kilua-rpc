@@ -14,14 +14,14 @@ kotlin {
     kotlinWasmTargets()
     kotlinJvmTargets()
     sourceSets {
-        val commonMain by getting {
+        getByName("commonMain") {
             dependencies {
                 api(project(":modules:kilua-rpc-vertx"))
                 implementation(libs.kotlinx.serialization.json)
                 implementation(libs.kotlinx.coroutines)
             }
         }
-        val jvmMain by getting {
+        getByName("jvmMain") {
             dependencies {
                 api(libs.koin.core)
                 api(libs.koin.logger.slf4j)

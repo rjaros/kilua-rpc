@@ -15,14 +15,14 @@ kotlin {
     kotlinWasmTargets()
     kotlinJvmTargets()
     sourceSets {
-        val commonMain by getting {
+        getByName("commonMain") {
             dependencies {
                 api(project(":modules:kilua-rpc-ktor"))
                 implementation(libs.kotlinx.serialization.json)
                 implementation(libs.kotlinx.coroutines)
             }
         }
-        val jvmMain by getting {
+        getByName("jvmMain") {
             dependencies {
                 api(project(":modules:kilua-rpc-metro"))
                 implementation(libs.metro.runtime)
