@@ -38,7 +38,7 @@ gradlePlugin {
 
 kotlin {
     explicitApi()
-    kotlinJvmTargets()
+    kotlinJvmTargets("21")
 }
 
 dependencies {
