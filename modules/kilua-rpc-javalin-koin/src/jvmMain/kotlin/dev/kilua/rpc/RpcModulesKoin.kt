@@ -40,12 +40,14 @@ public fun JavalinConfig.initRpcKoin(initStaticResources: Boolean = true, appDec
     }
     initRpc(initStaticResources) {
         registerServiceFactory { kclass, context, _, wsContext ->
-            KoinModule.threadLocalContext.set(context)
-            KoinModule.threadLocalWsContext.set(wsContext)
-            val service = koinApplication.koin.get<Any>(kclass)
-            KoinModule.threadLocalContext.remove()
-            KoinModule.threadLocalWsContext.remove()
-            service
-        }
+                KoinModule.threadLocalContext.set(context)
+                KoinModule.threadLocalWsContext.set(wsContext)
+                try {
+                    koinApplication.koin.get(kclass)
+                } finally {
+                    KoinModule.threadLocalContext.remove()
+                    KoinModule.threadLocalWsContext.remove()
+                }
+            }
     }
 }

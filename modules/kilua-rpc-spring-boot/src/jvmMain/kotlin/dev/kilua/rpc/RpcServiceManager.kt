@@ -81,9 +81,12 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(
             val bodyBuilder = ServerResponse.ok().json()
             tlReq.set(req)
             tlHeadersBuilder.set(bodyBuilder)
-            val service = ctx.getBean(serviceClass.java)
-            tlReq.remove()
-            tlHeadersBuilder.remove()
+            val service = try {
+                ctx.getBean(serviceClass.java)
+            } finally {
+                tlReq.remove()
+                tlHeadersBuilder.remove()
+            }
             val jsonRpcRequest = if (method == HttpMethod.GET) {
                 val parameters = (0..<numberOfParams).map {
                     req.queryParam("p$it").getOrNull()?.let {
@@ -133,8 +136,11 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(
         val responseSerializer by lazy { responseSerializerFactory() }
         return { webSocketSession, tlWsSession, ctx, incoming, outgoing ->
             tlWsSession.set(webSocketSession)
-            val service = ctx.getBean(serviceClass.java)
-            tlWsSession.remove()
+            val service = try {
+                ctx.getBean(serviceClass.java)
+            } finally {
+                tlWsSession.remove()
+            }
             handleWebsocketConnection(
                 deSerializer = deSerializer,
                 rawIn = incoming,
@@ -156,9 +162,12 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(
             val bodyBuilder = ServerResponse.ok().contentType(MediaType.TEXT_EVENT_STREAM)
             tlReq.set(req)
             tlHeadersBuilder.set(bodyBuilder)
-            val service = ctx.getBean(serviceClass.java)
-            tlReq.remove()
-            tlHeadersBuilder.remove()
+            val service = try {
+                ctx.getBean(serviceClass.java)
+            } finally {
+                tlReq.remove()
+                tlHeadersBuilder.remove()
+            }
             val channel = Channel<String>()
             val events = flux {
                 for (item in channel) {

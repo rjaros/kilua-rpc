@@ -43,13 +43,15 @@ public fun Application.initRpcKoin(
         appDeclaration()
     }
     initRpc(initStaticResources, initContentNegotiation) {
-        registerServiceFactory { kClass, call, wssSession ->
-            KoinModule.threadLocalApplicationCall.set(call)
-            KoinModule.threadLocalWebSocketServerSession.set(wssSession)
-            val service = koinApplication.koin.get<Any>(kClass)
-            KoinModule.threadLocalApplicationCall.remove()
-            KoinModule.threadLocalWebSocketServerSession.remove()
-            service
-        }
+                registerServiceFactory { kClass, call, wssSession ->
+                    KoinModule.threadLocalApplicationCall.set(call)
+                    KoinModule.threadLocalWebSocketServerSession.set(wssSession)
+                    try {
+                        koinApplication.koin.get(kClass)
+                    } finally {
+                        KoinModule.threadLocalApplicationCall.remove()
+                        KoinModule.threadLocalWebSocketServerSession.remove()
+                    }
+                }
     }
 }

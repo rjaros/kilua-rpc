@@ -44,10 +44,12 @@ public fun Kooby.initRpcKoin(
     }
     initRpc(initStaticResources, initContentNegotiation) {
         registerServiceFactory { kClass, context, _ ->
-            KoinModule.threadLocalContext.set(context)
-            val service = koinApplication.koin.get<Any>(kClass)
-            KoinModule.threadLocalContext.remove()
-            service
-        }
+                KoinModule.threadLocalContext.set(context)
+                try {
+                    koinApplication.koin.get(kClass)
+                } finally {
+                    KoinModule.threadLocalContext.remove()
+                }
+            }
     }
 }

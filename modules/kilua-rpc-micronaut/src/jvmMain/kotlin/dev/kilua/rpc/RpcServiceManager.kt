@@ -76,9 +76,12 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(
             val httpResponseMutator = HttpResponseMutator()
             tlReq.set(req)
             tlResponseMutator.set(httpResponseMutator)
-            val service = ctx.getBean(serviceClass.java)
-            tlReq.remove()
-            tlResponseMutator.remove()
+            val service = try {
+                ctx.getBean(serviceClass.java)
+            } finally {
+                tlReq.remove()
+                tlResponseMutator.remove()
+            }
             val jsonRpcRequest = if (method == HttpMethod.GET) {
                 val parameters = (0..<numberOfParams).map {
                     req.parameters["p$it"]?.let {
@@ -129,8 +132,11 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(
         val responseSerializer by lazy { responseSerializerFactory() }
         return { webSocketSession, tlWsSession, ctx, incoming, outgoing ->
             tlWsSession.set(webSocketSession)
-            val service = ctx.getBean(serviceClass.java)
-            tlWsSession.remove()
+            val service = try {
+                ctx.getBean(serviceClass.java)
+            } finally {
+                tlWsSession.remove()
+            }
 
             handleWebsocketConnection(
                 deSerializer = deSerializer,
@@ -151,8 +157,11 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(
         val serializer by lazy { serializerFactory() }
         return { req, tlReq, ctx ->
             tlReq.set(req)
-            val service = ctx.getBean(serviceClass.java)
-            tlReq.remove()
+            val service = try {
+                ctx.getBean(serviceClass.java)
+            } finally {
+                tlReq.remove()
+            }
             val channel = Channel<String>()
             applicationScope.launch {
                 handleSseConnection(

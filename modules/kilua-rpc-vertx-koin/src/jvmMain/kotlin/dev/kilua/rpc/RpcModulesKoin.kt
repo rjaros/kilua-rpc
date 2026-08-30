@@ -49,10 +49,12 @@ public fun Vertx.initRpcKoin(
         registerServiceFactory { kClass, routingContext, _, serverWebSocket ->
             KoinModule.threadLocalRoutingContext.set(routingContext)
             KoinModule.threadLocalServerWebSocket.set(serverWebSocket)
-            val service = koinApplication.koin.get<Any>(kClass)
-            KoinModule.threadLocalRoutingContext.remove()
-            KoinModule.threadLocalServerWebSocket.remove()
-            service
+            try {
+                koinApplication.koin.get(kClass)
+            } finally {
+                KoinModule.threadLocalRoutingContext.remove()
+                KoinModule.threadLocalServerWebSocket.remove()
+            }
         }
     }
 }
@@ -83,10 +85,12 @@ public fun Vertx.initRpcKoin(
         registerServiceFactory { kClass, routingContext, _, serverWebSocket ->
             KoinModule.threadLocalRoutingContext.set(routingContext)
             KoinModule.threadLocalServerWebSocket.set(serverWebSocket)
-            val service = koinApplication.koin.get<Any>(kClass)
-            KoinModule.threadLocalRoutingContext.remove()
-            KoinModule.threadLocalServerWebSocket.remove()
-            service
+            try {
+                koinApplication.koin.get<Any>(kClass)
+            } finally {
+                KoinModule.threadLocalRoutingContext.remove()
+                KoinModule.threadLocalServerWebSocket.remove()
+            }
         }
     }
 }
