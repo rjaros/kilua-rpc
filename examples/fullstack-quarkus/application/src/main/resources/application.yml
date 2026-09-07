@@ -1,0 +1,5 @@
+quarkus:
+  http:
+    port: 8080
+  arc:
+    remove-unused-beans: none

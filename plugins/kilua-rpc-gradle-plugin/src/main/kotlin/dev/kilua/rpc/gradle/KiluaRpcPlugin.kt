@@ -23,6 +23,8 @@
 package dev.kilua.rpc.gradle
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import io.quarkus.gradle.extension.QuarkusPluginExtension
+import io.quarkus.gradle.tasks.QuarkusBuild
 import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -34,6 +36,7 @@ import org.gradle.api.tasks.TaskCollection
 import org.gradle.api.tasks.TaskContainer
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.internal.extensions.core.extra
+
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
@@ -42,7 +45,7 @@ import org.tomlj.Toml
 import java.util.Locale.US
 
 public enum class RpcServerType {
-    Javalin, Jooby, Ktor, Micronaut, SpringBoot, VertX
+    Javalin, Jooby, Ktor, Micronaut, Quarkus, SpringBoot, VertX
 }
 
 public abstract class KiluaRpcPlugin : Plugin<Project> {
@@ -159,6 +162,7 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
                     val serverType = getServerType(project)
                     val assetsPath = when (serverType) {
                         RpcServerType.Micronaut, RpcServerType.SpringBoot -> "/public"
+                        RpcServerType.Quarkus -> "/META-INF/resources"
                         RpcServerType.VertX -> "/webroot"
                         else -> "/assets"
                     }
@@ -200,6 +204,18 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
                                 it.subprojects.forEach {
                                     if (it.name == "application") {
                                         dependsOn("${it.path}:run")
+                                    }
+                                }
+                            }
+                        }
+
+                        RpcServerType.Quarkus -> {
+                            if (isJsTarget) createQuarkusJarTask("jarWithJs", "js")
+                            if (isWasmJsTarget) createQuarkusJarTask("jarWithWasmJs", "wasmJs")
+                            it.tasks.getByName("jvmRun").apply {
+                                it.subprojects.forEach { subproject ->
+                                    if (subproject.name == "application") {
+                                        dependsOn("${subproject.path}:quarkusDev")
                                     }
                                 }
                             }
@@ -249,8 +265,7 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
                     mapOf(
                         "Implementation-Title" to project.rootProject.name,
                         "Implementation-Group" to project.rootProject.group,
-                        "Implementation-Version" to project.rootProject.version,
-                        "Timestamp" to System.currentTimeMillis()
+                        "Implementation-Version" to project.rootProject.version
                     )
                 )
             }
@@ -318,6 +333,72 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
         }
     }
 
+    private fun KiluaRpcPluginContext.createQuarkusJarTask(name: String, webPrefix: String) {
+        val appProject = project.subprojects.firstOrNull { it.name == "application" }
+        if (appProject == null) {
+            project.logger.warn("Kilua RPC: project 'application' not found to assemble Quarkus application '$name'.")
+            return
+        }
+        val archiveJarProvider = project.tasks.named("${webPrefix}Archive", Jar::class.java).flatMap { it.archiveFile }
+        appProject.configurations.configureEach { configuration ->
+            if (configuration.name == "runtimeOnly") {
+                appProject.dependencies.add(
+                    "runtimeOnly",
+                    appProject.files(
+                        appProject.provider {
+                            if (project.gradle.taskGraph.hasTask(project.tasks.named(name).get())) {
+                                appProject.files(archiveJarProvider)
+                            } else {
+                                appProject.files()
+                            }
+                        }
+                    )
+                )
+            }
+        }
+        appProject.afterEvaluate {
+            appProject.tasks.matching { it.name.startsWith("quarkus") }.configureEach { task ->
+                task.dependsOn(project.tasks.named("${webPrefix}Archive"))
+                task.outputs.cacheIf { false }
+            }
+            appProject.tasks.withType(QuarkusBuild::class.java).configureEach {
+                appProject.extensions.getByType(QuarkusPluginExtension::class.java)
+                    .quarkusBuildProperties.put("quarkus.package.type", "uber-jar")
+            }
+        }
+        val runnerJarProvider = project.provider {
+            val finalName =
+                appProject.extensions.findByType(QuarkusPluginExtension::class.java)?.finalName?.orNull
+                    ?: appProject.name
+            appProject.layout.buildDirectory.file("$finalName-runner.jar").get().asFile
+        }
+        project.tasks.register(name, Jar::class.java) { jar ->
+            jar.group = KILUA_RPC_TASK_GROUP
+            jar.description = "Assembles a fat jar archive containing application with $webPrefix frontend."
+            kiluaRpcExtension.jarArchiveFileName.orNull?.let {
+                jar.archiveFileName.set(kiluaRpcExtension.jarArchiveFileName)
+            }
+            jar.duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+            jar.dependsOn("${webPrefix}Archive", appProject.tasks.named("quarkusBuild"))
+            jar.from(
+                project.zipTree(
+                    project.tasks.named("${webPrefix}Archive", Jar::class.java).flatMap { it.archiveFile }
+                )
+            )
+            jar.from(project.provider { project.zipTree(runnerJarProvider.get()) })
+            jar.doFirst {
+                java.util.jar.JarFile(runnerJarProvider.get()).use { jarFile ->
+                    val mainAttributes = jarFile.manifest?.mainAttributes ?: return@use
+                    jar.manifest.attributes(
+                        mainAttributes
+                            .mapKeys { (key, _) -> key.toString() }
+                            .filterValues { it != null }
+                    )
+                }
+            }
+        }
+    }
+
     private val TaskContainer.all: TaskCollections get() = TaskCollections(this)
 
     /** Lazy task collections */
@@ -354,6 +435,7 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
             "kilua-rpc-jooby", "kilua-rpc-jooby-koin", "kilua-rpc-jooby-metro" -> return RpcServerType.Jooby
             "kilua-rpc-ktor", "kilua-rpc-ktor-koin", "kilua-rpc-ktor-metro" -> return RpcServerType.Ktor
             "kilua-rpc-micronaut" -> return RpcServerType.Micronaut
+            "kilua-rpc-quarkus" -> return RpcServerType.Quarkus
             "kilua-rpc-spring-boot" -> return RpcServerType.SpringBoot
             "kilua-rpc-vertx", "kilua-rpc-vertx-koin", "kilua-rpc-vertx-metro" -> return RpcServerType.VertX
         }
@@ -364,6 +446,7 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
             "kilua-ssr-server-jooby" -> return RpcServerType.Jooby
             "kilua-ssr-server-ktor" -> return RpcServerType.Ktor
             "kilua-ssr-server-micronaut" -> return RpcServerType.Micronaut
+            "kilua-ssr-server-quarkus" -> return RpcServerType.Quarkus
             "kilua-ssr-server-spring-boot" -> return RpcServerType.SpringBoot
             "kilua-ssr-server-vertx" -> return RpcServerType.VertX
         }
@@ -378,6 +461,9 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
         }
         if (jvmMainDependencies.contains("micronaut-runtime")) {
             return RpcServerType.Micronaut
+        }
+        if (jvmMainDependencies.contains("quarkus-rest") || jvmMainDependencies.contains("quarkus-rest-jvm")) {
+            return RpcServerType.Quarkus
         }
         if (jvmMainDependencies.contains("spring-boot-starter-web") || jvmMainDependencies.contains("spring-boot-starter-webflux")) {
             return RpcServerType.SpringBoot

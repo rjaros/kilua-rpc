@@ -10,6 +10,7 @@ plugins {
 
 repositories {
     gradlePluginPortal()
+    mavenCentral()
 }
 
 gradlePlugin {
@@ -47,6 +48,7 @@ dependencies {
     implementation(libs.tomlj)
     implementation(libs.shadow.gradle.plugin)
     implementation(libs.spring.boot.gradle.plugin)
+    implementation(libs.quarkus.gradle.plugin)
 }
 
 tasks.getByName("jar", Jar::class) {

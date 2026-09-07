@@ -16,6 +16,7 @@ are fully supported:
 - [Javalin](https://javalin.io)
 - [Vert.x](https://vertx.io)
 - [Micronaut](https://micronaut.io)
+- [Quarkus](https://quarkus.io)
 
 Kilua RPC is a new project, but it is mostly based on stable and production ready 
 fullstack interfaces implemented in the [KVision](https://kvision.io) framework. 
