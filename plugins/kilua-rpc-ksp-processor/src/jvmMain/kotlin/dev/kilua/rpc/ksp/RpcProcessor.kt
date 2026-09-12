@@ -28,19 +28,9 @@ import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.processing.SymbolProcessor
-import com.google.devtools.ksp.symbol.ClassKind
-import com.google.devtools.ksp.symbol.KSAnnotated
-import com.google.devtools.ksp.symbol.KSClassDeclaration
-import com.google.devtools.ksp.symbol.KSFunctionDeclaration
-import com.google.devtools.ksp.symbol.KSNode
-import com.google.devtools.ksp.symbol.KSType
-import com.google.devtools.ksp.symbol.KSValueParameter
+import com.google.devtools.ksp.symbol.*
 import com.google.devtools.ksp.validate
-import dev.kilua.rpc.annotations.RpcBinding
-import dev.kilua.rpc.annotations.RpcBindingMethod
-import dev.kilua.rpc.annotations.RpcBindingRoute
-import dev.kilua.rpc.annotations.RpcService
-import dev.kilua.rpc.annotations.RpcServiceException
+import dev.kilua.rpc.annotations.*
 import java.io.File
 
 public data class NameDetails(
@@ -67,7 +57,7 @@ public class RpcProcessor(
         isInitialInvocation = false
         val services = mutableListOf<NameDetails>()
         val deps = resolver.getSymbolsWithAnnotation(RpcService::class.qualifiedName.orEmpty())
-            .filterIsInstance<KSClassDeclaration>().filter(KSNode::validate)
+            .filterIsInstance<KSClassDeclaration>().filter { it.validate(enableNewFeatures = true) }
             .filter { it.classKind == ClassKind.INTERFACE }
             .mapNotNull { classDeclaration ->
                 val interfaceName = classDeclaration.simpleName.asString()
@@ -148,7 +138,7 @@ public class RpcProcessor(
             }
         val exceptions = mutableListOf<ExceptionNameDetails>()
         val depsExceptions = resolver.getSymbolsWithAnnotation(RpcServiceException::class.qualifiedName.orEmpty())
-            .filterIsInstance<KSClassDeclaration>().filter(KSNode::validate)
+            .filterIsInstance<KSClassDeclaration>().filter { it.validate(enableNewFeatures = true) }
             .filter { it.classKind == ClassKind.CLASS }
             .mapNotNull { classDeclaration ->
                 val className = classDeclaration.simpleName.asString()
