@@ -1,6 +1,4 @@
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
-import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalDistributionDsl
 
 plugins {
@@ -12,7 +10,6 @@ plugins {
 
 val mainClassName = "io.ktor.server.netty.EngineMain"
 
-@OptIn(ExperimentalWasmDsl::class)
 kotlin {
     jvmToolchain(25)
     jvm {
@@ -34,9 +31,6 @@ kotlin {
                 val generatedDir = "generated-packages/${project.name}"
                 outputDirectory = mainDir.dir(generatedDir)
             }
-        }
-        compilerOptions {
-            languageVersion.set(KotlinVersion.KOTLIN_2_4)
         }
         binaries.library()
         generateTypeScriptDefinitions()
