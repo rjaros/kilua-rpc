@@ -10,6 +10,7 @@ import org.gradle.plugins.signing.Sign
 import org.gradle.plugins.signing.SigningExtension
 import org.jetbrains.dokka.gradle.DokkaExtension
 import org.jetbrains.dokka.gradle.tasks.DokkaBaseTask
+import org.jetbrains.kotlin.gradle.ExperimentalJsTestDsl
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
@@ -36,10 +37,10 @@ fun KotlinMultiplatformExtension.kotlinJsTargets(withNode: Boolean = true) {
     js {
         useEsModules()
         browser {
-            testTask {
-                it.useKarma {
-                    useChromeHeadless()
-                }
+            @OptIn(ExperimentalJsTestDsl::class)
+            test {
+                it.headless.set(true)
+                it.chromium()
             }
         }
         if (withNode) {
@@ -57,10 +58,10 @@ fun KotlinMultiplatformExtension.kotlinWasmTargets(withNode: Boolean = true) {
     wasmJs {
         useEsModules()
         browser {
-            testTask {
-                it.useKarma {
-                    useChromeHeadless()
-                }
+            @OptIn(ExperimentalJsTestDsl::class)
+            test {
+                it.headless.set(true)
+                it.chromium()
             }
         }
         if (withNode) {
