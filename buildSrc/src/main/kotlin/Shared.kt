@@ -9,7 +9,7 @@ import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.plugins.signing.Sign
 import org.gradle.plugins.signing.SigningExtension
 import org.jetbrains.dokka.gradle.DokkaExtension
-import org.jetbrains.dokka.gradle.tasks.DokkaBaseTask
+import org.jetbrains.dokka.gradle.tasks.DokkaGeneratePublicationTask
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
@@ -147,10 +147,9 @@ fun Project.setupPublishing() {
     }
 }
 
-fun Project.setupDokka(provider: TaskProvider<DokkaBaseTask>) {
+fun Project.setupDokka(provider: TaskProvider<DokkaGeneratePublicationTask>) {
     tasks.register("javadocJar", Jar::class.java) {
-        it.dependsOn(provider)
-        it.from(provider.map { it.outputs })
+        it.from(provider.flatMap { it.outputDirectory })
         it.archiveClassifier.set("javadoc")
     }
 

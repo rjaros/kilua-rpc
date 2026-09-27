@@ -51,10 +51,15 @@ dependencies {
     implementation(libs.quarkus.gradle.plugin)
 }
 
-tasks.getByName("jar", Jar::class) {
-    from(rootProject.layout.projectDirectory.file("gradle/libs.versions.toml")) {
-        rename { "dev.kilua.rpc.versions.toml" }
-        filter { line -> line.replaceAfter("kilua-rpc = ", "\"${version}\"") }
+tasks {
+    val versionsToml = rootProject.layout.projectDirectory.file("gradle/libs.versions.toml")
+    val version = project.version.toString()
+
+    getByName("jar", Jar::class) {
+        from(versionsToml) {
+            rename { "dev.kilua.rpc.versions.toml" }
+            filter { line -> line.replaceAfter("kilua-rpc = ", "\"${version}\"") }
+        }
     }
 }
 
@@ -77,4 +82,4 @@ extensions.getByType<SigningExtension>().run {
     sign(extensions.getByType<PublishingExtension>().publications)
 }
 
-setupDokka(tasks.dokkaGenerate)
+setupDokka(tasks.dokkaGeneratePublicationHtml)
