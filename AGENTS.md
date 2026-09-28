@@ -20,11 +20,17 @@
 
 - Default route prefixes are fixed in binder code: HTTP `/rpc/`, WebSocket `/rpcws/`, SSE `/rpcsse/`.
 - Ktor default static SPA resources are mounted from `/assets`; plugin packaging uses `/public` for Micronaut/Spring Boot and `/webroot` for Vert.x.
+- The JVM client logs through SLF4J only (`api(libs.slf4j.api)` in `kilua-rpc-core`); no binding ships with the library, so consumers must add one (e.g. Logback). The core `jvmTest` source set adds `runtimeOnly(libs.logback.classic)`.
+
+## testBalloon gotchas (JVM tests)
+
+- `./gradlew :modules:kilua-rpc-core:jvmTest --tests "dev.kilua.rpc.SomeSpec"` does **not** match testBalloon suites; the filter is ignored. Run the whole task and read `build/test-results/jvmTest/*.xml`.
+- testBalloon runs each test in a `kotlinx.coroutines.test.TestScope`, so `delay` and `withTimeout` use *virtual* time and fire instantly for code that waits on a real socket. Socket-based tests must escape to a real clock, e.g. `runBlocking { withTimeout(60.seconds) { withContext(Dispatchers.Default) { ... } } }`.
+- Never let a test hang on teardown: a client that keeps its connection pool alive can block `embeddedServer.stop(...)` indefinitely. Run `stop` on a daemon thread and bound the wait.
 
 ## High-value commands
 
 - Fast library verification: `./gradlew :modules:kilua-rpc-core:jvmTest`.
-- Run one JVM test: `./gradlew :modules:kilua-rpc-core:jvmTest --tests "dev.kilua.rpc.NameGeneratorSpec"`.
 - Browser target tests (Karma + ChromeHeadless required): `./gradlew :modules:kilua-rpc-core:jsBrowserTest :modules:kilua-rpc-core:wasmJsBrowserTest`.
 - Only `modules/kilua-rpc-core` currently contains test sources (`src/commonTest`, `src/jvmTest`, `src/webTest`).
 - Fullstack example packaging tasks come from the Kilua plugin: `:examples:<name>:jarWithJs`, `:examples:<name>:jarWithWasmJs`.
