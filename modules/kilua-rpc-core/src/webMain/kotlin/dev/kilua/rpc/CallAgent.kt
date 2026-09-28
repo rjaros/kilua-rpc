@@ -25,15 +25,8 @@ import js.objects.unsafeJso
 import js.promise.await
 import js.reflect.unsafeCast
 import js.uri.encodeURIComponent
-import web.http.BodyInit
-import web.http.Headers
-import web.http.Request
-import web.http.RequestInit
-import web.http.RequestMethod
-import web.http.fetchAsync
+import web.http.*
 import web.url.URLSearchParams
-import kotlin.js.JsAny
-import kotlin.js.toJsString
 
 public external class JsonRpcResponseJs : JsAny {
     public var id: Int
@@ -65,7 +58,7 @@ public class ContentTypeException(message: String) : Exception(message)
 /**
  * An agent responsible for remote calls.
  */
-public open class CallAgent {
+public open class CallAgent(private val urlPrefix: String = getRpcUrlPrefix()) {
 
     private var counter = 1
 
@@ -84,7 +77,6 @@ public open class CallAgent {
         method: HttpMethod = HttpMethod.POST,
         requestFilter: (suspend Request.() -> Unit)? = null
     ): String {
-        val urlPrefix = getRpcUrlPrefix()
         val jsonRpcRequest = JsonRpcRequest(counter++, url, data)
         val body =
             if (method == HttpMethod.GET) null else BodyInit(RpcSerialization.plain.encodeToString(jsonRpcRequest))

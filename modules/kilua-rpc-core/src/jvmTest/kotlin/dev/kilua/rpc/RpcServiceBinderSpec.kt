@@ -37,6 +37,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.KSerializer
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 // The bind-method can bind to functions with args of various types up to 6 parameters.
 // So here are some compatible type definitions for zero to six params:
@@ -173,7 +174,148 @@ val RpcServiceBinderSpec by testSuite {
     }
 }
 
-private class RpcServiceBinderImpl : RpcServiceBinder<Any, RouteHandler, WebsocketHandler, SseHandler>() {
+/**
+ * Sample service with functions of each supported transport, to be bound by reference just like the generated service
+ * managers do.
+ */
+private interface SampleService {
+    suspend fun ping(): String
+    suspend fun echo(text: String): String
+    suspend fun ws(request: ReceiveChannel<String>, response: SendChannel<String>)
+    suspend fun sse(response: SendChannel<String>)
+}
+
+/**
+ * The routes registered by the binder have to be discoverable via `getCall` for client side calls, which is why the
+ * binder records every bound function along with its route and method.
+ */
+val RpcServiceBinderCallSpec by testSuite {
+    testFixture {
+        SampleServiceBinder().also { serviceBinder ->
+            serviceBinder.deSerializer = kotlinxObjectDeSerializer()
+        }
+    } asParameterForEach {
+        test("getCall_returnsRouteAndMethod_forHttpCalls") { serviceBinder ->
+            // execution
+            serviceBinder.bind(SampleService::ping, HttpMethod.POST, "ping")
+
+            // evaluation
+            assertEquals(serviceBinder.getCall(SampleService::ping), Pair("/rpc/ping", HttpMethod.POST))
+            assertEquals(serviceBinder.calls.size, 1)
+        }
+
+        test("getCall_returnsRouteAndMethod_forHttpCallsWithParameters") { serviceBinder ->
+            // execution
+            serviceBinder.bind(SampleService::echo, HttpMethod.POST, null)
+
+            // evaluation
+            assertEquals(
+                serviceBinder.getCall(SampleService::echo),
+                Pair("/rpc/routeSampleServiceBinder0", HttpMethod.POST)
+            )
+            assertEquals(
+                serviceBinder.routeMapRegistry.asSequence().single().path,
+                serviceBinder.requireCall(SampleService::echo).first
+            )
+        }
+
+        test("getCall_returnsRouteAndMethod_forWebsockets") { serviceBinder ->
+            // execution
+            serviceBinder.bind(SampleService::ws, null)
+
+            // evaluation
+            assertEquals(
+                serviceBinder.getCall(SampleService::ws),
+                Pair("/rpcws/routeSampleServiceBinder0", HttpMethod.GET)
+            )
+            assertEquals(
+                serviceBinder.getCall(SampleService::ws)?.first,
+                serviceBinder.webSocketRequests.keys.single()
+            )
+        }
+
+        test("getCall_returnsRouteAndMethod_forServerSentEvents") { serviceBinder ->
+            // execution
+            serviceBinder.bind(SampleService::sse, "sseRoute")
+
+            // evaluation
+            assertEquals(
+                serviceBinder.getCall(SampleService::sse),
+                Pair("/rpcsse/sseRoute", HttpMethod.GET)
+            )
+            assertEquals(
+                serviceBinder.getCall(SampleService::sse)?.first,
+                serviceBinder.sseRequests.keys.single()
+            )
+        }
+
+        test("getCall_returnsNull_forUnboundFunctions") { serviceBinder ->
+            // evaluation
+            assertEquals(serviceBinder.getCall(SampleService::ping), null)
+        }
+
+        test("requireCall_throws_forUnboundFunctions") { serviceBinder ->
+            // evaluation
+            assertFailsWith<IllegalStateException> { serviceBinder.requireCall(SampleService::ping) }
+        }
+    }
+}
+
+private typealias SampleRouteHandler = SampleService.(params: List<String?>) -> Any?
+private typealias SampleWebsocketHandler = SampleService.(ReceiveChannel<String>, SendChannel<String>) -> Any?
+private typealias SampleSseHandler = SampleService.(SendChannel<String>) -> Any?
+
+/**
+ * Receiver instance used when the created handlers are invoked, which the call lookup tests never do.
+ */
+private val SAMPLE_THIS = object : SampleService {
+    override suspend fun ping(): String = ""
+    override suspend fun echo(text: String): String = ""
+    override suspend fun ws(request: ReceiveChannel<String>, response: SendChannel<String>) = Unit
+    override suspend fun sse(response: SendChannel<String>) = Unit
+}
+
+private class SampleServiceBinder : RpcServiceMgr<SampleService>,
+    RpcServiceBinder<SampleService, SampleRouteHandler, SampleWebsocketHandler, SampleSseHandler>() {
+
+    override fun getCall(function: Function<*>): Pair<String, HttpMethod>? = getBoundCall(function)
+
+    override fun <RET> createRequestHandler(
+        method: HttpMethod,
+        function: suspend SampleService.(params: List<String?>) -> RET,
+        numberOfParams: Int,
+        serializerFactory: () -> KSerializer<RET>
+    ): SampleRouteHandler = { runBlocking { function.invoke(SAMPLE_THIS, it) } }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    @Suppress("UNCHECKED_CAST")
+    override fun <REQ, RES> createWebsocketHandler(
+        function: suspend SampleService.(ReceiveChannel<REQ>, SendChannel<RES>) -> Unit,
+        requestSerializerFactory: () -> KSerializer<REQ>,
+        responseSerializerFactory: () -> KSerializer<RES>,
+    ): SampleWebsocketHandler = { receiveChannel, sendChannel ->
+        runBlocking {
+            function.invoke(
+                SAMPLE_THIS,
+                receiveChannel.consumeAsFlow().map { it as REQ }.produceIn(GlobalScope),
+                sendChannel as SendChannel<RES>
+            )
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    override fun <PAR> createSseHandler(
+        function: suspend SampleService.(SendChannel<PAR>) -> Unit,
+        serializerFactory: () -> KSerializer<PAR>
+    ): SampleSseHandler = { sendChannel ->
+        runBlocking { function.invoke(SAMPLE_THIS, sendChannel as SendChannel<PAR>) }
+    }
+}
+
+private class RpcServiceBinderImpl : RpcServiceMgr<Any>,
+    RpcServiceBinder<Any, RouteHandler, WebsocketHandler, SseHandler>() {
+    override fun getCall(function: Function<*>): Pair<String, HttpMethod>? = getBoundCall(function)
+
     override fun <RET> createRequestHandler(
         method: HttpMethod,
         function: suspend Any.(params: List<String?>) -> RET,

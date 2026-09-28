@@ -36,6 +36,32 @@ kotlin {
                 api(libs.wrappers.browser)
             }
         }
+        getByName("jvmMain") {
+            dependencies {
+                api(libs.ktor.client.core)
+                api(libs.ktor.client.content.negotiation)
+                api(libs.ktor.client.websockets)
+                api(libs.ktor.client.cio)
+                api(libs.ktor.serialization.kotlinx.json)
+                api(libs.kotlinx.coroutines)
+                // Logger leaks into the ABI through the @PublishedApi member of RpcAgent,
+                // so it has to stay on the compile classpath of consumers. The library ships no
+                // binding - consumers supply their own (all of the server modules and examples
+                // already pull in logback).
+                api(libs.slf4j.api)
+                implementation(libs.kotlinx.serialization.json)
+            }
+        }
+        getByName("jvmTest") {
+            dependencies {
+                // A binding is only needed to make the agent's logging observable in tests.
+                runtimeOnly(libs.logback.classic)
+                implementation(libs.ktor.server.cio)
+                implementation(libs.ktor.server.websockets)
+                implementation(libs.ktor.server.content.negotiation)
+                implementation(libs.ktor.server.sse)
+            }
+        }
     }
 }
 

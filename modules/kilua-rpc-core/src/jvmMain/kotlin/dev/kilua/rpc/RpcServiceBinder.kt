@@ -26,6 +26,12 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.serializer
+import kotlin.reflect.KFunction
+
+@PublishedApi
+internal fun getCallName(function: Function<*>): String =
+    if (function is KFunction<*>) function.name
+    else function.toString().replace("\\s".toRegex(), "")
 
 /**
  * Binds HTTP calls to kotlin functions
@@ -45,6 +51,7 @@ public abstract class RpcServiceBinder<out T, RH, WH, SH>(
     public val routeMapRegistry: RouteMapRegistry<RH> = createRouteMapRegistry<RH>()
     public val webSocketRequests: MutableMap<String, WH> = HashMap()
     public val sseRequests: MutableMap<String, SH> = HashMap()
+    public val calls: MutableMap<String, Pair<String, HttpMethod>> = mutableMapOf()
 
     //  deSerializer has to public instead of protected because of https://youtrack.jetbrains.com/issue/KT-22625
     public lateinit var deSerializer: ObjectDeSerializer
@@ -70,19 +77,25 @@ public abstract class RpcServiceBinder<out T, RH, WH, SH>(
     /**
      * Bind the given HTTP call defined by [method] and an optional [route] (auto-generated if null) to a function that
      * receives the parameters of the call as String array.
+     *
+     * The [function] parameter is the original callable reference of the bound function (as passed by the generated
+     * service manager), which is used to record the call for client side lookups by [getBoundCall].
      */
     @PublishedApi
     internal inline fun <reified RET> bind(
+        function: Function<*>,
         method: HttpMethod,
         route: String?,
         numberOfParams: Int,
-        noinline function: suspend T.(params: List<String?>) -> RET
+        noinline handler: suspend T.(params: List<String?>) -> RET
     ) {
+        val fullRoute = "/rpc/${route ?: generateRouteName()}"
         routeMapRegistry.addRoute(
             method,
-            "/rpc/${route ?: generateRouteName()}",
-            createRequestHandler(method, function, numberOfParams) { deSerializer.serializersModule.serializer() }
+            fullRoute,
+            createRequestHandler(method, handler, numberOfParams) { deSerializer.serializersModule.serializer() }
         )
+        calls[getCallName(function)] = Pair(fullRoute, method)
     }
 
     /**
@@ -92,7 +105,7 @@ public abstract class RpcServiceBinder<out T, RH, WH, SH>(
      * @param route a route
      */
     public inline fun <reified RET> bind(noinline function: suspend T.() -> RET, method: HttpMethod, route: String?) {
-        bind(method, route, 0) {
+        bind(function, method, route, 0) {
             requireParameterCountEqualTo(it, 0)
             function.invoke(this)
         }
@@ -109,7 +122,7 @@ public abstract class RpcServiceBinder<out T, RH, WH, SH>(
         method: HttpMethod,
         route: String?
     ) {
-        bind(method, route, 1) {
+        bind(function, method, route, 1) {
             requireParameterCountEqualTo(it, 1)
             function.invoke(this, deserialize(it[0]))
         }
@@ -126,7 +139,7 @@ public abstract class RpcServiceBinder<out T, RH, WH, SH>(
         method: HttpMethod,
         route: String?
     ) {
-        bind(method, route, 2) {
+        bind(function, method, route, 2) {
             requireParameterCountEqualTo(it, 2)
             function.invoke(this, deserialize(it[0]), deserialize(it[1]))
         }
@@ -143,7 +156,7 @@ public abstract class RpcServiceBinder<out T, RH, WH, SH>(
         method: HttpMethod,
         route: String?
     ) {
-        bind(method, route, 3) {
+        bind(function, method, route, 3) {
             requireParameterCountEqualTo(it, 3)
             function.invoke(this, deserialize(it[0]), deserialize(it[1]), deserialize(it[2]))
         }
@@ -160,7 +173,7 @@ public abstract class RpcServiceBinder<out T, RH, WH, SH>(
         method: HttpMethod,
         route: String?
     ) {
-        bind(method, route, 4) {
+        bind(function, method, route, 4) {
             requireParameterCountEqualTo(it, 4)
             function.invoke(this, deserialize(it[0]), deserialize(it[1]), deserialize(it[2]), deserialize(it[3]))
         }
@@ -177,7 +190,7 @@ public abstract class RpcServiceBinder<out T, RH, WH, SH>(
         method: HttpMethod,
         route: String?
     ) {
-        bind(method, route, 5) {
+        bind(function, method, route, 5) {
             requireParameterCountEqualTo(it, 5)
             function.invoke(
                 this,
@@ -201,7 +214,7 @@ public abstract class RpcServiceBinder<out T, RH, WH, SH>(
         method: HttpMethod,
         route: String?
     ) {
-        bind(method, route, 6) {
+        bind(function, method, route, 6) {
             requireParameterCountEqualTo(it, 6)
             function.invoke(
                 this,
@@ -239,8 +252,10 @@ public abstract class RpcServiceBinder<out T, RH, WH, SH>(
         requestSerializerFactory: () -> KSerializer<REQ>,
         responseSerializerFactory: () -> KSerializer<RES>,
     ) {
-        webSocketRequests["/rpcws/${route ?: generateRouteName()}"] =
+        val fullRoute = "/rpcws/${route ?: generateRouteName()}"
+        webSocketRequests[fullRoute] =
             createWebsocketHandler(function, requestSerializerFactory, responseSerializerFactory)
+        calls[getCallName(function)] = Pair(fullRoute, HttpMethod.GET)
     }
 
     /**
@@ -269,8 +284,9 @@ public abstract class RpcServiceBinder<out T, RH, WH, SH>(
         noinline function: suspend T.(SendChannel<PAR>) -> Unit,
         route: String?
     ) {
-        sseRequests["/rpcsse/${route ?: generateRouteName()}"] =
-            createSseHandler(function) { deSerializer.serializersModule.serializer() }
+        val fullRoute = "/rpcsse/${route ?: generateRouteName()}"
+        sseRequests[fullRoute] = createSseHandler(function) { deSerializer.serializersModule.serializer() }
+        calls[getCallName(function)] = Pair(fullRoute, HttpMethod.GET)
     }
 
     /**
@@ -280,4 +296,12 @@ public abstract class RpcServiceBinder<out T, RH, WH, SH>(
     internal inline fun <reified T> deserialize(txt: String?): T {
         return deSerializer.deserialize(txt)
     }
+
+    /**
+     * Returns the route and HTTP method a given function reference is bound to, or null if the function has not been
+     * bound. This is the client side counterpart of the route registration performed by the various bind methods, and
+     * is the basis of the [RpcServiceMgr.getCall] implementation of the service managers based on this binder.
+     */
+    public open fun getBoundCall(function: Function<*>): Pair<String, HttpMethod>? =
+        calls[getCallName(function)]
 }

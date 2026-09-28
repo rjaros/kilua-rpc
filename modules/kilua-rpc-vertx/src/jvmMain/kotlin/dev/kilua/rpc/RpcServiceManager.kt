@@ -55,6 +55,12 @@ public actual open class RpcServiceManager<out T : Any> actual constructor(
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    /**
+     * Returns the route and HTTP method a given function is bound to, or null if the function is not bound.
+     * Clients use this to look up the endpoint of a remote call.
+     */
+    override fun getCall(function: Function<*>): Pair<String, HttpMethod>? = getBoundCall(function)
+
     override fun <RET> createRequestHandler(
         method: HttpMethod,
         function: suspend T.(params: List<String?>) -> RET,
