@@ -24,6 +24,7 @@ package dev.kilua.rpc
 import js.json.parse
 import js.objects.unsafeJso
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -31,6 +32,7 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
@@ -306,139 +308,70 @@ public open class RpcAgent<T : Any>(
     /**
      * Executes defined web socket connection
      */
-    @OptIn(DelicateCoroutinesApi::class)
-    @Suppress("ComplexMethod", "TooGenericExceptionCaught")
     public suspend inline fun <reified PAR1 : Any, reified PAR2 : Any> webSocket(
         noinline function: suspend T.(ReceiveChannel<PAR1>, SendChannel<PAR2>) -> Unit,
         noinline handler: suspend (SendChannel<PAR1>, ReceiveChannel<PAR2>) -> Unit
     ) {
         if (!isDom) return
-        val urlPrefix = getRpcUrlPrefix()
+        val urlPrefix = baseUrl ?: getRpcUrlPrefix()
         val (url, _) = serviceManager.requireCall(function)
-        val serializerPAR1 = json.serializersModule.serializer<PAR1>()
-        val serializerPAR2 = json.serializersModule.serializer<PAR2>()
-        val socket = Socket()
-        val requestChannel = Channel<PAR1>()
-        val responseChannel = Channel<PAR2>()
-        try {
-            coroutineScope {
-                socket.connect(getWebSocketUrl(urlPrefix + url.drop(1)))
-                lateinit var responseJob: Job
-                lateinit var handlerJob: Job
-                val requestJob = launch {
-                    for (par1 in requestChannel) {
-                        val param = json.encodeToString(serializerPAR1, par1)
-                        val str = RpcSerialization.plain.encodeToString(
-                            JsonRpcRequest(
-                                0,
-                                url,
-                                listOf(param)
-                            )
-                        )
-                        if (!socket.sendOrFalse(str)) break
-                    }
-                    responseJob.cancel()
-                    handlerJob.cancel()
-                    if (!requestChannel.isClosedForReceive) requestChannel.close()
-                    if (!responseChannel.isClosedForSend) responseChannel.close()
-                }
-                responseJob = launch {
-                    while (true) {
-                        val str = socket.receiveOrNull() ?: break
-                        val data = parse<JsonRpcResponseJs>(str).result ?: ""
-                        val par2 = json.decodeFromString(serializerPAR2, data)
-                        responseChannel.send(par2)
-                    }
-                    requestJob.cancel()
-                    handlerJob.cancel()
-                    if (!requestChannel.isClosedForReceive) requestChannel.close()
-                    if (!responseChannel.isClosedForSend) responseChannel.close()
-                }
-                handlerJob = launch {
-                    exceptionHelper {
-                        handler(requestChannel, responseChannel)
-                    }
-                    requestJob.cancel()
-                    responseJob.cancel()
-                    if (!requestChannel.isClosedForReceive) requestChannel.close()
-                    if (!responseChannel.isClosedForSend) responseChannel.close()
-                }
-            }
-        } catch (e: Exception) {
-            console.log(e.message)
-        }
-        if (!requestChannel.isClosedForReceive) requestChannel.close()
-        if (!responseChannel.isClosedForSend) responseChannel.close()
-        socket.close()
+        webSocketCall(
+            urlPrefix, url, json,
+            json.serializersModule.serializer<PAR1>(), json.serializersModule.serializer<PAR2>(),
+            handler
+        )
     }
 
     /**
      * Executes defined web socket connection returning list objects
      */
-    @OptIn(DelicateCoroutinesApi::class)
-    @Suppress("ComplexMethod", "TooGenericExceptionCaught")
     public suspend inline fun <reified PAR1 : Any, reified PAR2 : Any> webSocket(
         noinline function: suspend T.(ReceiveChannel<PAR1>, SendChannel<List<PAR2>>) -> Unit,
         noinline handler: suspend (SendChannel<PAR1>, ReceiveChannel<List<PAR2>>) -> Unit
     ) {
         if (!isDom) return
-        val urlPrefix = getRpcUrlPrefix()
+        val urlPrefix = baseUrl ?: getRpcUrlPrefix()
         val (url, _) = serviceManager.requireCall(function)
-        val serializerPAR1 = json.serializersModule.serializer<PAR1>()
-        val serializerPAR2 = json.serializersModule.serializer<PAR2>()
+        webSocketCall(
+            urlPrefix, url, json,
+            json.serializersModule.serializer<PAR1>(),
+            ListSerializer(json.serializersModule.serializer<PAR2>()),
+            handler
+        )
+    }
+
+    /**
+     * Opens the socket and runs the call. Kept separate from the public overloads so both the
+     * single object and the list variant share a single implementation.
+     */
+    @PublishedApi
+    @OptIn(DelicateCoroutinesApi::class)
+    @Suppress("TooGenericExceptionCaught")
+    internal suspend fun <PAR1 : Any, PAR2 : Any> webSocketCall(
+        urlPrefix: String,
+        url: String,
+        json: Json,
+        serializerPAR1: KSerializer<PAR1>,
+        serializerPAR2: KSerializer<PAR2>,
+        handler: suspend (SendChannel<PAR1>, ReceiveChannel<PAR2>) -> Unit
+    ) {
         val socket = Socket()
         val requestChannel = Channel<PAR1>()
-        val responseChannel = Channel<List<PAR2>>()
+        val responseChannel = Channel<PAR2>()
         try {
-            coroutineScope {
-                socket.connect(getWebSocketUrl(urlPrefix + url.drop(1)))
-                lateinit var responseJob: Job
-                lateinit var handlerJob: Job
-                val requestJob = launch {
-                    for (par1 in requestChannel) {
-                        val param = json.encodeToString(serializerPAR1, par1)
-                        val str = RpcSerialization.plain.encodeToString(
-                            JsonRpcRequest(
-                                0,
-                                url,
-                                listOf(param)
-                            )
-                        )
-                        if (!socket.sendOrFalse(str)) break
-                    }
-                    responseJob.cancel()
-                    handlerJob.cancel()
-                    if (!requestChannel.isClosedForReceive) requestChannel.close()
-                    if (!responseChannel.isClosedForSend) responseChannel.close()
-                }
-                responseJob = launch {
-                    while (true) {
-                        val str = socket.receiveOrNull() ?: break
-                        val data = parse<JsonRpcResponseJs>(str).result ?: ""
-                        val par2 = json.decodeFromString(ListSerializer(serializerPAR2), data)
-                        responseChannel.send(par2)
-                    }
-                    requestJob.cancel()
-                    handlerJob.cancel()
-                    if (!requestChannel.isClosedForReceive) requestChannel.close()
-                    if (!responseChannel.isClosedForSend) responseChannel.close()
-                }
-                handlerJob = launch {
-                    exceptionHelper {
-                        handler(requestChannel, responseChannel)
-                    }
-                    requestJob.cancel()
-                    responseJob.cancel()
-                    if (!requestChannel.isClosedForReceive) requestChannel.close()
-                    if (!responseChannel.isClosedForSend) responseChannel.close()
-                }
-            }
+            socket.connect(getWebSocketUrl(urlPrefix + url.drop(1)))
+            webSocketLoop(socket, url, requestChannel, responseChannel, json, serializerPAR1, serializerPAR2, handler)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             console.log(e.message)
+        } finally {
+            if (!requestChannel.isClosedForReceive) requestChannel.close()
+            if (!responseChannel.isClosedForSend) responseChannel.close()
+            // closing in `finally` matters once cancellation is rethrown, otherwise a cancelled
+            // call would leak the browser socket
+            socket.close()
         }
-        if (!requestChannel.isClosedForReceive) requestChannel.close()
-        if (!responseChannel.isClosedForSend) responseChannel.close()
-        socket.close()
     }
 
     /**
@@ -467,14 +400,15 @@ public open class RpcAgent<T : Any>(
     }
 
     /**
-     * @suppress internal function
+     * Runs an RPC handler, logging any failure through the console instead of letting it escape
+     * into the caller's coroutine. Cancellation is rethrown so structured concurrency still works.
      */
     @Suppress("TooGenericExceptionCaught")
     public suspend fun exceptionHelper(block: suspend () -> Unit) {
         try {
             block()
         } catch (e: CancellationException) {
-            console.log(e.message)
+            throw e
         } catch (e: Exception) {
             console.log(e.message)
         }
@@ -483,7 +417,6 @@ public open class RpcAgent<T : Any>(
     /**
      * Executes defined server-sent events connection
      */
-    @OptIn(DelicateCoroutinesApi::class)
     public suspend inline fun <reified PAR : Any> sseConnection(
         noinline function: suspend T.(SendChannel<PAR>) -> Unit,
         noinline handler: suspend (ReceiveChannel<PAR>) -> Unit
@@ -491,13 +424,40 @@ public open class RpcAgent<T : Any>(
         if (!isDom) return
         val urlPrefix = getRpcUrlPrefix()
         val (url, _) = serviceManager.requireCall(function)
-        val serializerPAR = json.serializersModule.serializer<PAR>()
+        sseConnectionCall(urlPrefix, url, json, json.serializersModule.serializer<PAR>(), handler)
+    }
+
+    /**
+     * Executes defined server-sent events connection with list of objects
+     */
+    public suspend inline fun <reified PAR : Any> sseConnection(
+        noinline function: suspend T.(SendChannel<List<PAR>>) -> Unit,
+        noinline handler: suspend (ReceiveChannel<List<PAR>>) -> Unit
+    ) {
+        if (!isDom) return
+        val urlPrefix = baseUrl ?: getRpcUrlPrefix()
+        val (url, _) = serviceManager.requireCall(function)
+        sseConnectionCall(
+            urlPrefix, url, json,
+            ListSerializer(json.serializersModule.serializer<PAR>()),
+            handler
+        )
+    }
+
+    @PublishedApi
+    @OptIn(DelicateCoroutinesApi::class)
+    @Suppress("TooGenericExceptionCaught")
+    internal suspend fun <PAR : Any> sseConnectionCall(
+        urlPrefix: String,
+        url: String,
+        json: Json,
+        serializerPAR: KSerializer<PAR>,
+        handler: suspend (ReceiveChannel<PAR>) -> Unit
+    ) {
         val eventSource = EventSource(urlPrefix + url.drop(1), unsafeJso {
             jsSet("withCredentials", true.toJsBoolean())
         })
         val channel = Channel<PAR>()
-        // A DOM event handler cannot suspend, so events go through an unbounded handoff buffer
-        // that a single pump drains into the rendezvous channel, preserving order and events.
         val events = Channel<PAR>(Channel.UNLIMITED)
         eventSource.onmessage = EventHandler { event: MessageEvent<*> ->
             if (event.data != null) {
@@ -510,102 +470,133 @@ public open class RpcAgent<T : Any>(
         // waiting for events that are never coming and the call would never return
         eventSource.onerror = EventHandler { _ -> events.close() }
         try {
-            coroutineScope {
-                val jobs = mutableListOf<Job>()
-                val teardown: () -> Unit = {
-                    jobs.forEach { it.cancel() }
-                    events.close()
-                    if (!channel.isClosedForSend) channel.close()
-                }
-                val pumpJob = launch(start = CoroutineStart.LAZY) {
-                    try {
-                        for (par in events) channel.send(par)
-                    } finally {
-                        // the end of the stream (or an error) reaches the handler as a closed
-                        // channel, so its `for` loop finishes instead of being cancelled
-                        channel.close()
-                    }
-                }
-                val handlerJob = launch(start = CoroutineStart.LAZY) {
-                    try {
-                        exceptionHelper {
-                            handler(channel)
-                        }
-                    } finally {
-                        teardown()
-                    }
-                }
-                jobs += listOf(pumpJob, handlerJob)
-                pumpJob.start()
-                handlerJob.start()
-            }
+            sseConnectionLoop(events, channel, handler)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             console.log(e.message)
+        } finally {
+            if (!channel.isClosedForSend) channel.close()
+            // closing in `finally` matters once cancellation is rethrown, otherwise a cancelled
+            // call would leak the EventSource
+            eventSource.close()
         }
-        if (!channel.isClosedForSend) channel.close()
-        eventSource.close()
     }
 
     /**
-     * Executes defined server-sent events connection with list of objects
+     * Runs the three websocket pumps until the first one finishes.
+     *
+     * The jobs are registered before any of them starts, which is what allows a single teardown
+     * lambda to cancel all of them without any `lateinit` reference. Lazy start mirrors this shape
+     * across the JVM and web targets.
      */
+    @PublishedApi
     @OptIn(DelicateCoroutinesApi::class)
-    public suspend inline fun <reified PAR : Any> sseConnection(
-        noinline function: suspend T.(SendChannel<List<PAR>>) -> Unit,
-        noinline handler: suspend (ReceiveChannel<List<PAR>>) -> Unit
+    internal suspend fun <PAR1 : Any, PAR2 : Any> webSocketLoop(
+        socket: Socket,
+        url: String,
+        requestChannel: Channel<PAR1>,
+        responseChannel: Channel<PAR2>,
+        json: Json,
+        serializerPAR1: KSerializer<PAR1>,
+        serializerPAR2: KSerializer<PAR2>,
+        handler: suspend (SendChannel<PAR1>, ReceiveChannel<PAR2>) -> Unit
     ) {
-        if (!isDom) return
-        val urlPrefix = getRpcUrlPrefix()
-        val (url, _) = serviceManager.requireCall(function)
-        val serializerPAR = json.serializersModule.serializer<PAR>()
-        val eventSource = EventSource(urlPrefix + url.drop(1), unsafeJso {
-            jsSet("withCredentials", true.toJsBoolean())
-        })
-        val channel = Channel<List<PAR>>()
-        val events = Channel<List<PAR>>(Channel.UNLIMITED)
-        eventSource.onmessage = EventHandler { event ->
-            if (event.data != null) {
-                val response = json.decodeFromString<JsonRpcResponse>(event.data.toString())
-                val par = json.decodeFromString(ListSerializer(serializerPAR), response.requireResult())
-                events.trySend(par)
+        coroutineScope {
+            val jobs = mutableListOf<Job>()
+            val teardown: () -> Unit = {
+                jobs.forEach { it.cancel() }
+                if (!requestChannel.isClosedForReceive) requestChannel.close()
+                if (!responseChannel.isClosedForSend) responseChannel.close()
             }
-        }
-        // see the single object overload above
-        eventSource.onerror = EventHandler { _ -> events.close() }
-        try {
-            coroutineScope {
-                val jobs = mutableListOf<Job>()
-                val teardown: () -> Unit = {
-                    jobs.forEach { it.cancel() }
-                    events.close()
-                    if (!channel.isClosedForSend) channel.close()
-                }
-                val pumpJob = launch(start = CoroutineStart.LAZY) {
-                    try {
-                        for (par in events) channel.send(par)
-                    } finally {
-                        // the end of the stream (or an error) reaches the handler as a closed
-                        // channel, so its `for` loop finishes instead of being cancelled
-                        channel.close()
+            val requestJob = launch(start = CoroutineStart.LAZY) {
+                try {
+                    for (par1 in requestChannel) {
+                        val param = json.encodeToString(serializerPAR1, par1)
+                        val str = RpcSerialization.plain.encodeToString(
+                            JsonRpcRequest(0, url, listOf(param))
+                        )
+                        if (!socket.sendOrFalse(str)) break
                     }
+                } finally {
+                    teardown()
                 }
-                val handlerJob = launch(start = CoroutineStart.LAZY) {
-                    try {
-                        exceptionHelper {
-                            handler(channel)
-                        }
-                    } finally {
-                        teardown()
-                    }
-                }
-                jobs += listOf(pumpJob, handlerJob)
-                pumpJob.start()
-                handlerJob.start()
             }
-        } catch (e: Exception) {
-            console.log(e.message)
+            val responseJob = launch(start = CoroutineStart.LAZY) {
+                try {
+                    // the browser socket is a suspend API and the value is consumed on every
+                    // iteration, so this cannot spin the way a collect-on-closed-flow can
+                    while (true) {
+                        val str = socket.receiveOrNull() ?: break
+                        val data = parse<JsonRpcResponseJs>(str).result ?: ""
+                        val par2 = json.decodeFromString(serializerPAR2, data)
+                        responseChannel.send(par2)
+                    }
+                } finally {
+                    teardown()
+                }
+            }
+            val handlerJob = launch(start = CoroutineStart.LAZY) {
+                try {
+                    exceptionHelper {
+                        handler(requestChannel, responseChannel)
+                    }
+                } finally {
+                    teardown()
+                }
+            }
+            jobs += listOf(requestJob, responseJob, handlerJob)
+            requestJob.start()
+            responseJob.start()
+            handlerJob.start()
         }
-        if (!channel.isClosedForSend) channel.close()
-        eventSource.close()
     }
+
+    /**
+     * Runs the server-sent events pump and the handler until the handler is done.
+     *
+     * Each job has a distinct ending role, which is what keeps the stream lossless: the event source
+     * callback only marks the end of the stream, the pump hands the last events over and then closes
+     * the handler channel, and the handler ends the connection. If the pump tore down instead, a fast
+     * server would silently drop events for a slow consumer.
+     */
+    @PublishedApi
+    @OptIn(DelicateCoroutinesApi::class)
+    internal suspend fun <PAR : Any> sseConnectionLoop(
+        events: Channel<PAR>,
+        channel: Channel<PAR>,
+        handler: suspend (ReceiveChannel<PAR>) -> Unit
+    ) {
+        coroutineScope {
+            val jobs = mutableListOf<Job>()
+            val teardown: () -> Unit = {
+                jobs.forEach { it.cancel() }
+                events.close()
+                if (!channel.isClosedForSend) channel.close()
+            }
+            val pumpJob = launch(start = CoroutineStart.LAZY) {
+                try {
+                    for (par in events) channel.send(par)
+                } finally {
+                    // the handler sees the end of the stream as a closed channel
+                    channel.close()
+                }
+            }
+            val handlerJob = launch(start = CoroutineStart.LAZY) {
+                try {
+                    exceptionHelper {
+                        handler(channel)
+                    }
+                } finally {
+                    teardown()
+                }
+            }
+            jobs += listOf(pumpJob, handlerJob)
+            pumpJob.start()
+            handlerJob.start()
+        }
+    }
+
 }
+
+
