@@ -75,3 +75,16 @@ internal expect fun isDom(): Boolean
  */
 @PublishedApi
 internal val isDom: Boolean by lazy { isDom() }
+
+/**
+ * Returns the result of a JSON-RPC response or throws, so that a streaming caller can surface a
+ * server error instead of dereferencing a null `result`. Mirrors the HTTP path in CallAgent.
+ */
+@PublishedApi
+internal fun JsonRpcResponse.requireResult(): String {
+    val error = this.error
+    if (error != null) {
+        throw Exception(error)
+    }
+    return this.result ?: throw Exception("Invalid response")
+}

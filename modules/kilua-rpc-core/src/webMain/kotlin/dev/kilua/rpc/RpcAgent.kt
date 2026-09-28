@@ -496,21 +496,48 @@ public open class RpcAgent<T : Any>(
             jsSet("withCredentials", true.toJsBoolean())
         })
         val channel = Channel<PAR>()
+        // A DOM event handler cannot suspend, so events go through an unbounded handoff buffer
+        // that a single pump drains into the rendezvous channel, preserving order and events.
+        val events = Channel<PAR>(Channel.UNLIMITED)
         eventSource.onmessage = EventHandler { event: MessageEvent<*> ->
             if (event.data != null) {
                 val response = json.decodeFromString<JsonRpcResponse>(event.data.toString())
-                val par = json.decodeFromString(serializerPAR, response.result!!)
-                if (!channel.isClosedForSend) channel.trySend(par)
+                val par = json.decodeFromString(serializerPAR, response.requireResult())
+                events.trySend(par)
             }
         }
+        // the browser fires this when the stream ends or fails; without it the pump would keep
+        // waiting for events that are never coming and the call would never return
+        eventSource.onerror = EventHandler { _ -> events.close() }
         try {
             coroutineScope {
-                launch {
-                    exceptionHelper {
-                        handler(channel)
-                    }
+                val jobs = mutableListOf<Job>()
+                val teardown: () -> Unit = {
+                    jobs.forEach { it.cancel() }
+                    events.close()
                     if (!channel.isClosedForSend) channel.close()
                 }
+                val pumpJob = launch(start = CoroutineStart.LAZY) {
+                    try {
+                        for (par in events) channel.send(par)
+                    } finally {
+                        // the end of the stream (or an error) reaches the handler as a closed
+                        // channel, so its `for` loop finishes instead of being cancelled
+                        channel.close()
+                    }
+                }
+                val handlerJob = launch(start = CoroutineStart.LAZY) {
+                    try {
+                        exceptionHelper {
+                            handler(channel)
+                        }
+                    } finally {
+                        teardown()
+                    }
+                }
+                jobs += listOf(pumpJob, handlerJob)
+                pumpJob.start()
+                handlerJob.start()
             }
         } catch (e: Exception) {
             console.log(e.message)
@@ -535,21 +562,45 @@ public open class RpcAgent<T : Any>(
             jsSet("withCredentials", true.toJsBoolean())
         })
         val channel = Channel<List<PAR>>()
+        val events = Channel<List<PAR>>(Channel.UNLIMITED)
         eventSource.onmessage = EventHandler { event ->
             if (event.data != null) {
                 val response = json.decodeFromString<JsonRpcResponse>(event.data.toString())
-                val par = json.decodeFromString(ListSerializer(serializerPAR), response.result!!)
-                if (!channel.isClosedForSend) channel.trySend(par)
+                val par = json.decodeFromString(ListSerializer(serializerPAR), response.requireResult())
+                events.trySend(par)
             }
         }
+        // see the single object overload above
+        eventSource.onerror = EventHandler { _ -> events.close() }
         try {
             coroutineScope {
-                launch {
-                    exceptionHelper {
-                        handler(channel)
-                    }
+                val jobs = mutableListOf<Job>()
+                val teardown: () -> Unit = {
+                    jobs.forEach { it.cancel() }
+                    events.close()
                     if (!channel.isClosedForSend) channel.close()
                 }
+                val pumpJob = launch(start = CoroutineStart.LAZY) {
+                    try {
+                        for (par in events) channel.send(par)
+                    } finally {
+                        // the end of the stream (or an error) reaches the handler as a closed
+                        // channel, so its `for` loop finishes instead of being cancelled
+                        channel.close()
+                    }
+                }
+                val handlerJob = launch(start = CoroutineStart.LAZY) {
+                    try {
+                        exceptionHelper {
+                            handler(channel)
+                        }
+                    } finally {
+                        teardown()
+                    }
+                }
+                jobs += listOf(pumpJob, handlerJob)
+                pumpJob.start()
+                handlerJob.start()
             }
         } catch (e: Exception) {
             console.log(e.message)
