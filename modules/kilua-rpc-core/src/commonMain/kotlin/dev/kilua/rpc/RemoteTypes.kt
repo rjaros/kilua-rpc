@@ -49,6 +49,11 @@ public class ServiceException(message: String) : Exception(message)
 
 public class SecurityException(message: String) : Exception(message)
 
+/**
+ * An exception thrown when the server returns a non-json response for a json-rpc call.
+ */
+public class ContentTypeException(message: String) : Exception(message)
+
 @Serializable
 public data class RemoteOption(
     val value: String? = null,

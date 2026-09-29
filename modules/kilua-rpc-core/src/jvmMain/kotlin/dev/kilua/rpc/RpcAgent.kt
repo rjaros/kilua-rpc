@@ -28,8 +28,12 @@ public open class RpcAgent<T : Any>(
     @PublishedApi
     internal val logger: Logger = LoggerFactory.getLogger(RpcAgent::class.java)
 
-    public val callAgent: CallAgent = CallAgent(baseUrl ?: getRpcUrlPrefix())
+    // `json` is declared before `callAgent` on purpose: the call agent decodes the json-rpc
+    // envelope with it, and that instance has to include the service exception serializers,
+    // which the generated service manager registers while the super constructor arguments above
+    // are being evaluated.
     public val json: Json = RpcSerialization.getJson(serializersModules)
+    public val callAgent: CallAgent = CallAgent(baseUrl ?: getRpcUrlPrefix(), json)
 
     public inline fun <reified PAR> serialize(value: PAR): String {
         return json.encodeToString(value)
@@ -315,6 +319,9 @@ public open class RpcAgent<T : Any>(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            // A streaming call is not expected to report setup failures to the caller: it is a
+            // long lived connection, so the error is logged and the call returns normally. This
+            // differs from `jsonRpcCall`, which propagates, and is deliberate.
             logger.error("RPC websocket call to $url failed", e)
         } finally {
             if (!requestChannel.isClosedForReceive) requestChannel.close()
@@ -368,6 +375,7 @@ public open class RpcAgent<T : Any>(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            // As in `webSocketCall`, a failed connection is logged rather than thrown at the caller.
             logger.error("RPC SSE connection to $url failed", e)
         } finally {
             if (!channel.isClosedForSend) channel.close()

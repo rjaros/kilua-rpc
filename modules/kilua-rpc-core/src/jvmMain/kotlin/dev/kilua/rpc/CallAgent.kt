@@ -1,22 +1,37 @@
 package dev.kilua.rpc
 
 import io.ktor.client.*
-import io.ktor.client.call.*
 import io.ktor.client.engine.*
 import io.ktor.client.engine.cio.*
+import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.sse.*
 import io.ktor.client.plugins.websocket.*
 import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
+import java.util.concurrent.atomic.AtomicInteger
 import io.ktor.http.HttpMethod as KtorHttpMethod
 
 /**
- * HTTP client agent using Ktor client for JVM.
+ * The canonical name reported by the server for a plain [ServiceException].
  */
-public open class CallAgent(urlPrefix: String = getRpcUrlPrefix()) {
+private const val SERVICE_EXCEPTION_TYPE = "dev.kilua.rpc.ServiceException"
+
+/**
+ * HTTP client agent using Ktor client for JVM.
+ *
+ * @param urlPrefix the base url of the rpc server.
+ * @param json the configuration used to decode the json-rpc envelope. It has to be the very same
+ *   instance the [dev.kilua.rpc.RpcAgent] uses for payloads, because that is the one carrying the
+ *   service exception serializers registered by the generated service manager.
+ */
+public open class CallAgent(
+    urlPrefix: String = getRpcUrlPrefix(),
+    private val json: Json = RpcSerialization.getJson()
+) {
 
     private val urlPrefix: String =
         if (urlPrefix.isNotEmpty() && !urlPrefix.endsWith("/")) "$urlPrefix/" else urlPrefix
@@ -26,13 +41,15 @@ public open class CallAgent(urlPrefix: String = getRpcUrlPrefix()) {
     // engine, therefore closing a client cannot shut the shared engine down.
     private val client: HttpClient = HttpClient(sharedEngine) {
         install(ContentNegotiation) {
-            json(RpcSerialization.getJson())
+            json(json)
         }
         install(WebSockets)
         install(SSE)
     }
 
-    private var counter = 1
+    // The agent is meant to be used from several coroutines at once, so the request id has to
+    // be handed out atomically. A plain counter could hand the same id to two concurrent calls.
+    private val counter = AtomicInteger(1)
 
     public suspend fun jsonRpcCall(
         url: String,
@@ -41,7 +58,8 @@ public open class CallAgent(urlPrefix: String = getRpcUrlPrefix()) {
         requestFilter: (suspend HttpRequestBuilder.() -> Unit)? = null
     ): String {
         val urlAddr = urlPrefix + url.drop(1)
-        val jsonRpcRequest = JsonRpcRequest(counter++, url, data)
+        val requestId = counter.getAndIncrement()
+        val jsonRpcRequest = JsonRpcRequest(requestId, url, data)
 
         val ktorMethod = when (method) {
             HttpMethod.GET -> KtorHttpMethod.Get
@@ -51,8 +69,11 @@ public open class CallAgent(urlPrefix: String = getRpcUrlPrefix()) {
             HttpMethod.OPTIONS -> KtorHttpMethod.Options
         }
 
-        val responseBody: String = client.request(urlAddr) {
+        val response = client.request(urlAddr) {
             this.method = ktorMethod
+            // The status is inspected manually below, so that it is mapped to the same exception
+            // types as in the web client instead of ktor's ClientRequestException/ServerResponseException.
+            expectSuccess = false
             if (method == HttpMethod.GET) {
                 data.forEachIndexed { index, s ->
                     if (s != null) this.url.parameters.append("p$index", s)
@@ -63,9 +84,20 @@ public open class CallAgent(urlPrefix: String = getRpcUrlPrefix()) {
             }
             // the filter runs last so that it has the final say over method, body and parameters
             requestFilter?.invoke(this)
-        }.body()
+        }
 
-        return parseResponse(responseBody)
+        if (!response.status.isSuccess()) {
+            if (response.status == HttpStatusCode.Unauthorized) {
+                throw SecurityException(response.status.description)
+            }
+            throw Exception(response.status.description)
+        }
+        val contentType = response.contentType()
+        if (contentType == null || !contentType.match(ContentType.Application.Json)) {
+            throw ContentTypeException("Invalid response content type: $contentType")
+        }
+
+        return parseResponse(response.bodyAsText(), requestId, method)
     }
 
     public suspend fun webSocketConnect(
@@ -93,9 +125,28 @@ public open class CallAgent(urlPrefix: String = getRpcUrlPrefix()) {
         }
     }
 
-    private fun parseResponse(responseBody: String): String {
-        val response = Json.decodeFromString(JsonRpcResponse.serializer(), responseBody)
-        return response.requireResult()
+    /**
+     * Unwraps a json-rpc envelope, mirroring the web client. An error is turned back into the
+     * exception the server actually threw, so that a declared service exception can be caught by
+     * its own type on every platform.
+     */
+    private fun parseResponse(responseBody: String, requestId: Int, method: HttpMethod): String {
+        val response = json.decodeFromString(JsonRpcResponse.serializer(), responseBody)
+        if (method != HttpMethod.GET && response.id != requestId) {
+            throw Exception("Invalid response ID")
+        }
+        val error = response.error
+        if (error != null) {
+            if (response.exceptionType == SERVICE_EXCEPTION_TYPE) {
+                throw ServiceException(error)
+            }
+            val exceptionJson = response.exceptionJson
+            if (exceptionJson != null) {
+                throw json.decodeFromString<AbstractServiceException>(exceptionJson)
+            }
+            throw Exception(error)
+        }
+        return response.result ?: throw Exception("Invalid response")
     }
 
     private companion object {

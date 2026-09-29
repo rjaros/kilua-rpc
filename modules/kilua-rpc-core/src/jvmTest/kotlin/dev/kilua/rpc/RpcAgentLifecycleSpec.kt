@@ -249,4 +249,26 @@ val RpcAgentLifecycleSpec by testSuite {
             }
         }
     }
+
+    test("a refused streaming connection is logged but not thrown at the caller") {
+        withRealTime {
+            // nothing is listening on port 1, so every connection attempt is refused
+            val service = agentFor("http://127.0.0.1:1/").streamService()
+
+            // jsonRpcCall propagates, the streaming calls deliberately do not - see the catch
+            // blocks in webSocketCall and sseConnectionCall. Whether the handler itself got to run
+            // is a race against scope cancellation, so only the propagation is asserted here.
+            val thrown = listOf(
+                runCatching { service.streamService { _, _ -> } }.exceptionOrNull(),
+                runCatching { service.eventsService { } }.exceptionOrNull(),
+                runCatching { service.listStreamService { _, _ -> } }.exceptionOrNull(),
+                runCatching { service.listEventsService { } }.exceptionOrNull()
+            )
+
+            assertTrue(
+                thrown.all { it == null },
+                "a refused streaming call must not throw, but got $thrown"
+            )
+        }
+    }
 }

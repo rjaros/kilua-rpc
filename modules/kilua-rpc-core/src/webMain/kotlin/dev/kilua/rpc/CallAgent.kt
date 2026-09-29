@@ -51,11 +51,6 @@ public enum class ResponseBodyType {
 }
 
 /**
- * An exception thrown when the server returns a non-json response for a json-rpc call.
- */
-public class ContentTypeException(message: String) : Exception(message)
-
-/**
  * An agent responsible for remote calls.
  */
 public open class CallAgent(private val urlPrefix: String = getRpcUrlPrefix()) {
