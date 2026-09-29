@@ -154,6 +154,21 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
             project.tasks.all.kspKotlinJvm.configureEach {
                 it.dependsOn("kspCommonMainKotlinMetadata")
             }
+            // The android compilation reaches the commonMain ksp output through kspAndroidMain, and
+            // unlike the jvm/js/wasm compilations that edge is not wired anywhere else. The task is
+            // matched by name because AGP is not on this plugin's classpath, so there is no typed
+            // accessor to attach it to.
+            //
+            // Depending on a *matching collection* rather than on the task name avoids a hard build
+            // failure: kspCommonMainKotlinMetadata only exists when the project has at least two KMP
+            // targets, so an android only project has none and naming it would fail. Such a project
+            // is not supported by the code generator anyway (with a single target KSP folds the
+            // common sources into the android compilation and never emits the shared expect
+            // declarations), so an empty collection simply contributes nothing here.
+            val commonMetadataKspTask = project.tasks.matching { it.name == "kspCommonMainKotlinMetadata" }
+            project.tasks.matching { it.name == "kspAndroidMain" }.configureEach {
+                it.dependsOn(commonMetadataKspTask)
+            }
 
             if (kiluaRpcExtension.enableGradleTasks.get()) {
                 project.tasks.register("generateKiluaRpcSources") {

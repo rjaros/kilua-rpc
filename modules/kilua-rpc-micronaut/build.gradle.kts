@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlinx.serialization)
     alias(libs.plugins.nmcp)
     alias(libs.plugins.ksp)
+    id("com.android.kotlin.multiplatform.library")
     id("org.jetbrains.dokka")
     id("maven-publish")
     id("signing")
@@ -14,6 +15,19 @@ kotlin {
     kotlinJsTargets()
     kotlinWasmTargets()
     kotlinJvmTargets()
+    // The android flavour of this module is client only: androidMain holds a null-object route
+    // registry and nothing else, so none of the Micronaut server dependencies in jvmMain are published
+    // for it. Everything the client needs comes from commonMain via kilua-rpc-core.
+    android {
+        namespace = "dev.kilua.rpc"
+        compileSdk = androidCompileSdk
+        minSdk = androidMinSdk
+        compilerOptions {
+            jvmTarget.set(androidJvmTarget)
+        }
+        withHostTestBuilder {}.configure {}
+    }
+    kiluaHierarchyTemplate()
     sourceSets {
         getByName("commonMain") {
             dependencies {
