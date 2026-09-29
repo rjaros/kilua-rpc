@@ -3,6 +3,8 @@
 pluginManagement {
     repositories {
         gradlePluginPortal()
+        // Needed by the Android Gradle plugin, which is not published to the plugin portal.
+        google()
         mavenCentral()
         mavenLocal()
     }
@@ -10,6 +12,7 @@ pluginManagement {
 
 dependencyResolutionManagement {
     repositories {
+        google()
         mavenCentral()
         mavenLocal()
     }

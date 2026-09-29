@@ -12,7 +12,9 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
-import java.util.concurrent.atomic.AtomicInteger
+import kotlin.concurrent.atomics.AtomicInt
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.concurrent.atomics.incrementAndFetch
 import io.ktor.http.HttpMethod as KtorHttpMethod
 
 /**
@@ -21,13 +23,14 @@ import io.ktor.http.HttpMethod as KtorHttpMethod
 private const val SERVICE_EXCEPTION_TYPE = "dev.kilua.rpc.ServiceException"
 
 /**
- * HTTP client agent using Ktor client for JVM.
+ * HTTP client agent using Ktor client for JVM and Android.
  *
  * @param urlPrefix the base url of the rpc server.
  * @param json the configuration used to decode the json-rpc envelope. It has to be the very same
  *   instance the [dev.kilua.rpc.RpcAgent] uses for payloads, because that is the one carrying the
  *   service exception serializers registered by the generated service manager.
  */
+@OptIn(ExperimentalAtomicApi::class)
 public open class CallAgent(
     urlPrefix: String = getRpcUrlPrefix(),
     private val json: Json = RpcSerialization.getJson()
@@ -49,7 +52,7 @@ public open class CallAgent(
 
     // The agent is meant to be used from several coroutines at once, so the request id has to
     // be handed out atomically. A plain counter could hand the same id to two concurrent calls.
-    private val counter = AtomicInteger(1)
+    private val counter = AtomicInt(0)
 
     public suspend fun jsonRpcCall(
         url: String,
@@ -58,7 +61,7 @@ public open class CallAgent(
         requestFilter: (suspend HttpRequestBuilder.() -> Unit)? = null
     ): String {
         val urlAddr = urlPrefix + url.drop(1)
-        val requestId = counter.getAndIncrement()
+        val requestId = counter.incrementAndFetch()
         val jsonRpcRequest = JsonRpcRequest(requestId, url, data)
 
         val ktorMethod = when (method) {

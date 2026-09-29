@@ -13,6 +13,7 @@ wrappers = "2026.9.2"
 javalin = "7.2.3"
 jooby = "4.5.4"
 ktor = "3.6.0"
+agp = "9.4.1"
 koin = "4.2.2"
 metro = "1.4.5"
 micronaut = "5.1.5"
@@ -24,9 +25,9 @@ tomlj = "1.3.0"
 jackson-module-kotlin2 = "2.22.3"
 jackson-module-kotlin3 = "3.2.3"
 logback = "1.6.3"
-slf4j = "2.0.19"
 shadow = "9.6.1"
 test-balloon = "1.2.0-Beta1"
+junit-junit4 = "4.13.2"
 
 [libraries]
 kotlinx-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
@@ -52,6 +53,7 @@ ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
 ktor-client-websockets = { module = "io.ktor:ktor-client-websockets", version.ref = "ktor" }
 ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
+ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "ktor" }
 ktor-server-netty = { module = "io.ktor:ktor-server-netty", version.ref = "ktor" }
 ktor-server-compression = { module = "io.ktor:ktor-server-compression", version.ref = "ktor" }
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
@@ -81,7 +83,6 @@ tomlj = { module = "org.tomlj:tomlj", version.ref = "tomlj" }
 jackson-module-kotlin2 = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson-module-kotlin2" }
 jackson-module-kotlin3 = { module = "tools.jackson.module:jackson-module-kotlin", version.ref = "jackson-module-kotlin3" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
-slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 shadow-gradle-plugin = { module = "com.gradleup.shadow:shadow-gradle-plugin", version.ref = "shadow" }
 test-balloon = { module = "de.infix.testBalloon:testBalloon-framework-core", version.ref = "test-balloon" }
 kilua-rpc-javalin = { module = "dev.kilua:kilua-rpc-javalin", version.ref = "kilua-rpc-published" }
@@ -99,6 +100,7 @@ kilua-rpc-quarkus = { module = "dev.kilua:kilua-rpc-quarkus", version.ref = "kil
 kilua-rpc-vertx = { module = "dev.kilua:kilua-rpc-vertx", version.ref = "kilua-rpc-published" }
 kilua-rpc-vertx-koin = { module = "dev.kilua:kilua-rpc-vertx-koin", version.ref = "kilua-rpc-published" }
 kilua-rpc-vertx-metro = { module = "dev.kilua:kilua-rpc-vertx-metro", version.ref = "kilua-rpc-published" }
+junit-junit4 = { module = "junit:junit", version.ref = "junit-junit4" }
 
 [plugins]
 kotlinx-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

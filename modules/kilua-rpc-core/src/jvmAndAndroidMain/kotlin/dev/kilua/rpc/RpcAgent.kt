@@ -1,5 +1,6 @@
 package dev.kilua.rpc
 
+import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.websocket.*
 import io.ktor.client.request.*
 import io.ktor.websocket.*
@@ -12,8 +13,6 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.serializer
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 
 /**
  * Client side agent for JSON-RPC remote calls using Ktor client for JVM.
@@ -26,7 +25,7 @@ public open class RpcAgent<T : Any>(
     public val requestFilter: (suspend HttpRequestBuilder.() -> Unit)? = null
 ) {
     @PublishedApi
-    internal val logger: Logger = LoggerFactory.getLogger(RpcAgent::class.java)
+    internal val logger: Logger = rpcLogger()
 
     // `json` is declared before `callAgent` on purpose: the call agent decodes the json-rpc
     // envelope with it, and that instance has to include the service exception serializers,
@@ -322,7 +321,7 @@ public open class RpcAgent<T : Any>(
             // A streaming call is not expected to report setup failures to the caller: it is a
             // long lived connection, so the error is logged and the call returns normally. This
             // differs from `jsonRpcCall`, which propagates, and is deliberate.
-            logger.error("RPC websocket call to $url failed", e)
+            logger.logError("RPC websocket call to $url failed", e)
         } finally {
             if (!requestChannel.isClosedForReceive) requestChannel.close()
             if (!responseChannel.isClosedForSend) responseChannel.close()
@@ -376,7 +375,7 @@ public open class RpcAgent<T : Any>(
             throw e
         } catch (e: Exception) {
             // As in `webSocketCall`, a failed connection is logged rather than thrown at the caller.
-            logger.error("RPC SSE connection to $url failed", e)
+            logger.logError("RPC SSE connection to $url failed", e)
         } finally {
             if (!channel.isClosedForSend) channel.close()
         }
@@ -528,6 +527,6 @@ internal suspend fun exceptionHelper(logger: Logger, block: suspend () -> Unit) 
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
-        logger.error("RPC handler failed", e)
+        logger.logError("RPC handler failed", e)
     }
 }
