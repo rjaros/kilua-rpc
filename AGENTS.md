@@ -25,6 +25,22 @@
 - The Android target has a single variant: the compile task is `compileAndroidMain`. There is no `compileDebugKotlinAndroid` and no `testDebugUnitTest`.
 - Android SDK: `ANDROID_HOME` / `ANDROID_SDK_ROOT` point at `/home/rjaros/Programs/Android/Sdk`, with `platform-tools`, `platforms;android-37.0` and `build-tools;37.0.0` installed. Compile/min SDK and the JVM target are `androidCompileSdk = 37`, `androidMinSdk = 21`, `androidJvmTarget = JVM_11`.
 
+## Android KSP and codegen (measured, not inferred)
+
+- An Android **client** needs more than `kilua-rpc-core`. `RpcProcessor` emits `object <Iface>Manager : RpcServiceManager<Iface>` and a `getServiceManager(): RpcServiceManager<T>`, and `RpcServiceManager` is declared `expect` in the **server** modules' `commonMain` (`kilua-rpc-ktor`, `javalin`, `jooby`, `micronaut`, `quarkus`, `spring-boot`, `vertx`). So a client must depend on one of those modules. The Android actual is the *web* shape — a null-object route registry extending core's `RpcServiceManagerBase` — never the JVM one, which pulls in the Ktor server stack.
+- The Android target is contributed by AGP, so it is not a KGP `KotlinAndroidTarget`, but it still reports `KotlinPlatformType.androidJvm` and `targetName == "android"`. That is why `KiluaRpcPlugin`'s existing `"ksp" + targetName.titlecase()` yields the correct `kspAndroid` configuration with no change beyond adding `androidJvm` to the platform-type set.
+- KSP task and configuration naming differs between KGP targets and the AGP target, so never guess it:
+  - KGP targets: config `kspJvm`/`kspJs`, task `kspKotlinJvm`/`kspKotlinJs`.
+  - AGP android: config `kspAndroid`, task **`kspAndroidMain`** (compilation-based, not `kspKotlinAndroid`).
+  - KSP output is `build/generated/ksp/<targetName>/<sourceSetName>/kotlin`; `RpcProcessor.sourceSetBelowKsp()` returns the **second** segment, so an Android file dispatches on `androidMain`.
+- A single `kspAndroidMain` run emits **both** `ksp/android/androidMain` and `ksp/metadata/commonMain` (the `expect` declarations and the per-service managers). Consequences:
+  - The plugin's `commonMain` `srcDir` is required for Android or compilation fails with *"has no corresponding 'expect' declaration"* and *"Unresolved reference '<Iface>Manager'"*.
+  - An `androidMain` `srcDir` is **not** needed — KSP registers its own output with the android compilation.
+  - There is **no** `kspCommonMainKotlinMetadata` task in an Android-only project. Wiring the plugin's existing `dependsOn("kspCommonMainKotlinMetadata")` to `compileAndroidMain` fails with *"Task with name 'kspCommonMainKotlinMetadata' not found"*. Android needs no explicit task wiring; KSP already orders itself.
+- `KiluaRpcPlugin`'s server-distribution block (`jvmProcessResources`, `jvmRun`, boot/shadow jars) is skipped when the project has no JVM target, and `getServerType` uses `findByName` rather than `getByName`. Without both, a pure Android client fails at configuration time.
+- Adding an Android target to a module is enough to publish an `androidJvm` variant; no extra publishing wiring. Verified via `publishToMavenLocal -PSNAPSHOT=true` and a consumer resolving `dev.kilua:kilua-rpc-ktor:<version>`.
+- `getCallName` used to be duplicated verbatim in `jvmMain/RpcServiceBinder.kt` and `webMain/RpcServiceManagerJs.kt`. It now lives once in `commonMain/RpcServiceManagerBase.kt`; adding it back to a platform source set is a redeclaration.
+
 ## Source-set gotchas
 
 - A file name that exists in both `commonMain` and a JVM-consumed shared or leaf source set collides, because both generate the same `<Name>Kt` facade — `Duplicate JVM class name 'dev/kilua/rpc/LoggerKt'`. Platform actuals need a suffix: `Decimal.jvmAndAndroid.kt`, `RpcService.jvmAndAndroid.kt`, `Logger.jvm.kt`, `Logger.android.kt`. This is why the pre-existing `Decimal.jvm.kt` was already suffixed.
@@ -50,8 +66,9 @@
 
 - Fast library verification: `./gradlew :modules:kilua-rpc-core:jvmTest`.
 - All core targets at once: `./gradlew :modules:kilua-rpc-core:jvmTest :modules:kilua-rpc-core:testAndroidHostTest :modules:kilua-rpc-core:compileKotlinJs :modules:kilua-rpc-core:compileKotlinWasmJs :modules:kilua-rpc-core:compileAndroidMain` (expect 64 JVM + 4 Android tests, 0 failures).
+- Android client path end to end (server module publishes an `androidJvm` variant, KSP generates a compiling client): `./gradlew :modules:kilua-rpc-ktor:compileAndroidMain`. A consumer project must apply the Kilua plugin, `com.google.devtools.ksp` and `com.android.kotlin.multiplatform.library`, and depend on a **server** module in `commonMain`.
 - Browser target tests (Karma + ChromeHeadless required): `./gradlew :modules:kilua-rpc-core:jsBrowserTest :modules:kilua-rpc-core:wasmJsBrowserTest`.
-- Only `modules/kilua-rpc-core` currently contains test sources (`src/commonTest`, `src/jvmTest`, `src/webTest`); there are no `jvmAndAndroidTest`/`androidHostTest` source dirs, so the Android suite set is whatever sits in `commonTest`.
+- Only `modules/kilua-rpc-core` currently contains test sources (`src/commonTest`, `src/jvmTest`, `src/webTest`); there are no `jvmAndAndroidTest`/`androidHostTest` source dirs, so the Android suite set is whatever sits in `commonTest`. The web suite covering the client route registry is `RpcServiceManagerBaseSpec` (it was `RpcServiceManagerJsSpec` before that class moved to `commonMain`).
 - Fullstack example packaging tasks come from the Kilua plugin: `:examples:<name>:jarWithJs`, `:examples:<name>:jarWithWasmJs`.
 - TypeScript example flow (`examples/typescript-ktor`):
   1) `./gradlew :examples:typescript-ktor:ktor-server:jsBrowserDevelopmentLibraryDistribution`

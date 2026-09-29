@@ -73,9 +73,9 @@ val ALL_NON_WS_CALL_NAMES = listOf(
     getCallName(Dummy::remoteDataFun),
 )
 
-class RpcServiceManager : RpcServiceManagerJs<Dummy>()
+class RpcServiceManager : RpcServiceManagerBase<Dummy>()
 
-val RpcServiceManagerJsSpec by testSuite {
+val RpcServiceManagerBaseSpec by testSuite {
 
     testFixture {
         RpcServiceManager()

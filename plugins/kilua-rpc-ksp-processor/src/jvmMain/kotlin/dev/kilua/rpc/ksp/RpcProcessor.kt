@@ -123,6 +123,21 @@ public class RpcProcessor(
                                 )
                             )
                         }
+
+                        "androidMain" -> {
+                            it.write(
+                                generateFrontendCode(
+                                    packageName,
+                                    className,
+                                    interfaceName,
+                                    managerName,
+                                    "io.ktor.client.request.HttpRequestBuilder",
+                                    false,
+                                    classDeclaration,
+                                    "${className}Client"
+                                )
+                            )
+                        }
                     }
                 }
                 services.add(NameDetails(packageName, className, interfaceName, managerName))
@@ -154,6 +169,18 @@ public class RpcProcessor(
                     }
 
                     "jvmMain" -> {
+                        it.write(
+                            generateFrontendCodeFunctions(
+                                services,
+                                "io.ktor.client.request.HttpRequestBuilder",
+                                "GeneratedRpcServiceManagerFunctions"
+                            )
+                        )
+                    }
+
+                    // The android client is the same Ktor CIO client as the JVM one, so it gets the
+                    // same frontend code. The only difference is where KSP writes it.
+                    "androidMain" -> {
                         it.write(
                             generateFrontendCodeFunctions(
                                 services,

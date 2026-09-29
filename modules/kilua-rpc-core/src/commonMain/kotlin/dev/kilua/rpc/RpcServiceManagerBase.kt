@@ -31,7 +31,16 @@ internal fun getCallName(function: Function<*>): String =
     if (function is KFunction<*>) function.name
     else function.toString().replace("\\s".toRegex(), "")
 
-public open class RpcServiceManagerJs<out T: Any> : RpcServiceMgr<T> {
+/**
+ * Client side route registry.
+ *
+ * A fullstack build needs an [RpcServiceManager] on every target, but only the server actually
+ * routes anything - the client only has to know which route and HTTP method a call maps to, so it
+ * can be pointed at the right endpoint. This is that bookkeeping half, and it is target agnostic
+ * on purpose: the browser and the android client both use it as a null object, and neither pulls
+ * in a single line of the Ktor server machinery the JVM implementation needs.
+ */
+public open class RpcServiceManagerBase<out T : Any> : RpcServiceMgr<T> {
     public val calls: MutableMap<String, Pair<String, HttpMethod>> = mutableMapOf()
     public var counter: Int = 0
 

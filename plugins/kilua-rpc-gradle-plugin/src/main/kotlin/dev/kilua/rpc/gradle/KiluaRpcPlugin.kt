@@ -116,7 +116,11 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
                     it.platformType in setOf(
                         KotlinPlatformType.jvm,
                         KotlinPlatformType.js,
-                        KotlinPlatformType.wasm
+                        KotlinPlatformType.wasm,
+                        // The android target of a multiplatform module is contributed by AGP rather
+                        // than by a KotlinGradlePlugin target, but it still reports a platform type,
+                        // so the processor reaches it exactly the way it reaches the others.
+                        KotlinPlatformType.androidJvm
                     )
                 }.configureEach {
                     project.dependencies.add(
@@ -135,6 +139,10 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
                     "jsMain" -> it.kotlin.srcDir("build/generated/ksp/js/jsMain/kotlin")
                     "wasmJsMain" -> it.kotlin.srcDir("build/generated/ksp/wasmJs/wasmJsMain/kotlin")
                     "jvmMain" -> it.kotlin.srcDir("build/generated/ksp/jvm/jvmMain/kotlin")
+                    // androidMain deliberately has no entry: KSP already adds its own output to the
+                    // android compilation, and the shared declarations the android code refers to
+                    // (the getService expect, the per service managers) are the commonMain ones
+                    // mapped just above.
                 }
             }
             project.tasks.all.kspKotlinJs.configureEach {
@@ -157,7 +165,14 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
         }
 
         if (kiluaRpcExtension.enableGradleTasks.get()) {
-            project.afterEvaluate {
+            project.afterEvaluate outer@{
+                // Everything below assembles a server distribution: boot jars, shadow jars, web
+                // archives and the resource handling that goes with them. A consumer that has no JVM
+                // target - an android only client - has no jvmProcessResources, no jvmRun and no jar
+                // to assemble, so every one of those lookups would fail the build for no reason.
+                if (kotlinMppExtension.targets.none { it.platformType == KotlinPlatformType.jvm }) {
+                    return@outer
+                }
                 it.afterEvaluate {
                     val serverType = getServerType(project)
                     val assetsPath = when (serverType) {
@@ -427,8 +442,10 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
     }
 
     private fun getServerType(project: Project): RpcServerType? {
+        // A consumer does not have to be a fullstack project: a pure android client has no
+        // jvmMain source set at all, so neither configuration can be assumed to exist.
         val commonMainDependencies =
-            project.configurations.getByName("commonMainImplementation").dependencies.map { it.name }
+            project.configurations.findByName("commonMainImplementation")?.dependencies?.map { it.name }.orEmpty()
         val kiluaRpcDependency = commonMainDependencies.firstOrNull { it.startsWith("kilua-rpc-") }
         when (kiluaRpcDependency) {
             "kilua-rpc-javalin", "kilua-rpc-javalin-koin", "kilua-rpc-javalin-metro" -> return RpcServerType.Javalin
@@ -439,7 +456,8 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
             "kilua-rpc-spring-boot" -> return RpcServerType.SpringBoot
             "kilua-rpc-vertx", "kilua-rpc-vertx-koin", "kilua-rpc-vertx-metro" -> return RpcServerType.VertX
         }
-        val jvmMainDependencies = project.configurations.getByName("jvmMainImplementation").dependencies.map { it.name }
+        val jvmMainDependencies =
+            project.configurations.findByName("jvmMainImplementation")?.dependencies?.map { it.name }.orEmpty()
         val kiluaSsrDependency = jvmMainDependencies.firstOrNull { it.startsWith("kilua-ssr-server-") }
         when (kiluaSsrDependency) {
             "kilua-ssr-server-javalin" -> return RpcServerType.Javalin
