@@ -6,7 +6,7 @@
 
 ## Critical dependency gotcha
 
-- Examples do **not** depend on local `project(...)` modules; they consume published Maven coords from `libs.versions.toml` (`versions.kilua-rpc-published`, currently `0.0.46-RC2-SNAPSHOT`).
+- Examples do **not** depend on local `project(...)` modules; they consume published Maven coords from `libs.versions.toml` (`versions.kilua-rpc-published`). Read the current value from the catalog rather than assuming one — it is bumped per release.
 - After changing library/plugin code, publish fresh local artifacts before validating examples: `./gradlew publishToMavenLocal -PSNAPSHOT=true` (or `./build-mvnlocal.sh`).
 - If example behavior looks stale, clear/rebuild local Maven artifacts first; `mavenLocal()` is enabled in settings.
 
