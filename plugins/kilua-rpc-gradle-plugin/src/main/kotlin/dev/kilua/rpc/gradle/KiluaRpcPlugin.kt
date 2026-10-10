@@ -137,13 +137,13 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
             // target project leaves this empty and contributes no dependency, whereas depending on
             // the task name itself would fail the build when the compile task finally runs.
             val commonMetadataKspTask = project.tasks.matching { it.name == "kspCommonMainKotlinMetadata" }
-            project.tasks.all.compileKotlinJs.configureEach {
+            project.tasks.byName.compileKotlinJs.configureEach {
                 it.dependsOn(commonMetadataKspTask)
             }
-            project.tasks.all.compileKotlinWasmJs.configureEach {
+            project.tasks.byName.compileKotlinWasmJs.configureEach {
                 it.dependsOn(commonMetadataKspTask)
             }
-            project.tasks.all.compileKotlinJvm.configureEach {
+            project.tasks.byName.compileKotlinJvm.configureEach {
                 it.dependsOn(commonMetadataKspTask)
             }
             project.dependencies.add("kspCommonMainMetadata", "dev.kilua:kilua-rpc-ksp-processor:${kiluaRpcVersion}")
@@ -170,13 +170,13 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
             kotlinMppExtension.sourceSets.configureEach {
                 if (it.name == "commonMain") it.kotlin.srcDir("build/generated/ksp/metadata/commonMain/kotlin")
             }
-            project.tasks.all.kspKotlinJs.configureEach {
+            project.tasks.byName.kspKotlinJs.configureEach {
                 it.dependsOn(commonMetadataKspTask)
             }
-            project.tasks.all.kspKotlinWasmJs.configureEach {
+            project.tasks.byName.kspKotlinWasmJs.configureEach {
                 it.dependsOn(commonMetadataKspTask)
             }
-            project.tasks.all.kspKotlinJvm.configureEach {
+            project.tasks.byName.kspKotlinJvm.configureEach {
                 it.dependsOn(commonMetadataKspTask)
             }
             // The android compilation reaches the commonMain ksp output through kspAndroidMain, and
@@ -467,7 +467,14 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
         }
     }
 
-    private val TaskContainer.all: TaskCollections get() = TaskCollections(this)
+    /**
+     * Lazy task lookups by name.
+     *
+     * Deliberately not called `all`: that name is already taken by `TaskContainer.all`, which
+     * realizes every task in the project the moment it is reached. These collections are live,
+     * filtered views, and nothing here realizes a task until something actually needs it.
+     */
+    private val TaskContainer.byName: TaskCollections get() = TaskCollections(this)
 
     /** Lazy task collections */
     private class TaskCollections(private val tasks: TaskContainer) {
