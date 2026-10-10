@@ -32,7 +32,7 @@ import com.google.devtools.ksp.processing.SymbolProcessor
 import com.google.devtools.ksp.symbol.*
 import com.google.devtools.ksp.validate
 import dev.kilua.rpc.annotations.*
-import dev.kilua.rpc.KspLayout
+import java.io.Writer
 
 public data class NameDetails(
     val packageName: String,
@@ -58,193 +58,211 @@ public class RpcProcessor(
         }
         isInitialInvocation = false
         val services = mutableListOf<NameDetails>()
-        val deps = resolver.getSymbolsWithAnnotation(RpcService::class.qualifiedName.orEmpty())
+        // Collected before anything is generated, and derived from the declarations rather than
+        // produced as a side effect of visiting them: reading the containing file to filter on is a
+        // separate concern from registering a service, and mixing the two meant a declaration with no
+        // containing file - one from a binary dependency, say - dropped out of the dependencies of a
+        // file that still lists it.
+        val serviceDeclarations = resolver.getSymbolsWithAnnotation(RpcService::class.qualifiedName.orEmpty())
             .filterIsInstance<KSClassDeclaration>().filter { it.validate(enableNewFeatures = true) }
             .filter { it.classKind == ClassKind.INTERFACE }
-            .mapNotNull { classDeclaration ->
-                val interfaceName = classDeclaration.simpleName.asString()
-                val packageName = classDeclaration.packageName.asString()
-                val className = "${interfaceName}Impl"
-                val managerName = "${interfaceName}Manager"
-                val isExported = classDeclaration.annotations.any {
-                    it.annotationType.resolve().declaration.qualifiedName?.asString() == "kotlin.js.JsExport"
-                }
-                val dependencies = classDeclaration.containingFile?.let { Dependencies(true, it) } ?: Dependencies(true)
-                codeGenerator.createNewFile(dependencies, packageName, className).writer().use {
-                    when (val sourceSet = sourceSetBelowKsp()) {
-                        "commonMain" -> {
-                            it.write(
-                                generateCommonCode(
-                                    packageName,
-                                    interfaceName,
-                                    managerName,
-                                    classDeclaration
-                                )
-                            )
-                        }
-
-                        "jsMain" -> {
-                            it.write(
-                                generateFrontendCode(
-                                    packageName,
-                                    className,
-                                    interfaceName,
-                                    managerName,
-                                    "web.http.Request",
-                                    isExported,
-                                    classDeclaration
-                                )
-                            )
-                        }
-
-                        "wasmJsMain" -> {
-                            it.write(
-                                generateFrontendCode(
-                                    packageName,
-                                    className,
-                                    interfaceName,
-                                    managerName,
-                                    "web.http.Request",
-                                    isExported,
-                                    classDeclaration
-                                )
-                            )
-                        }
-
-                        "jvmMain" -> {
-                            it.write(
-                                generateFrontendCode(
-                                    packageName,
-                                    className,
-                                    interfaceName,
-                                    managerName,
-                                    "io.ktor.client.request.HttpRequestBuilder",
-                                    false,
-                                    classDeclaration,
-                                    "${className}Client"
-                                )
-                            )
-                        }
-
-                        "androidMain" -> {
-                            it.write(
-                                generateFrontendCode(
-                                    packageName,
-                                    className,
-                                    interfaceName,
-                                    managerName,
-                                    "io.ktor.client.request.HttpRequestBuilder",
-                                    false,
-                                    classDeclaration,
-                                    "${className}Client"
-                                )
-                            )
-                        }
-
-                        else -> logger.warn(
-                            "Kilua RPC: source set \"$sourceSet\" has no client flavour, so " +
-                                "$className was generated empty."
-                        )
-                    }
-                }
-                services.add(NameDetails(packageName, className, interfaceName, managerName))
-                classDeclaration.containingFile
-            }.toList().toTypedArray()
-        codeGenerator.createNewFile(Dependencies(true, *deps), "dev.kilua.rpc", "GeneratedRpcServiceManager")
-            .writer().use {
-                when (val sourceSet = sourceSetBelowKsp()) {
+            .toList()
+        val deps = serviceDeclarations.mapNotNull { it.containingFile }.toTypedArray()
+        serviceDeclarations.forEach { classDeclaration ->
+            val interfaceName = classDeclaration.simpleName.asString()
+            val packageName = classDeclaration.packageName.asString()
+            val className = "${interfaceName}Impl"
+            val managerName = "${interfaceName}Manager"
+            val isExported = classDeclaration.annotations.any {
+                it.annotationType.resolve().declaration.qualifiedName?.asString() == "kotlin.js.JsExport"
+            }
+            val dependencies = classDeclaration.containingFile?.let { Dependencies(true, it) } ?: Dependencies(true)
+            services.add(NameDetails(packageName, className, interfaceName, managerName))
+            createNewFile(dependencies, packageName, className) { writer, sourceSet ->
+                when (sourceSet) {
                     "commonMain" -> {
-                        it.write(generateCommonCodeFunctions(services))
+                        writer.write(
+                            generateCommonCode(
+                                packageName,
+                                interfaceName,
+                                managerName,
+                                classDeclaration
+                            )
+                        )
                     }
 
                     "jsMain" -> {
-                        it.write(
-                            generateFrontendCodeFunctions(
-                                services,
-                                "web.http.Request"
+                        writer.write(
+                            generateFrontendCode(
+                                packageName,
+                                className,
+                                interfaceName,
+                                managerName,
+                                "web.http.Request",
+                                isExported,
+                                classDeclaration
                             )
                         )
                     }
 
                     "wasmJsMain" -> {
-                        it.write(
-                            generateFrontendCodeFunctions(
-                                services,
-                                "web.http.Request"
+                        writer.write(
+                            generateFrontendCode(
+                                packageName,
+                                className,
+                                interfaceName,
+                                managerName,
+                                "web.http.Request",
+                                isExported,
+                                classDeclaration
                             )
                         )
                     }
 
                     "jvmMain" -> {
-                        it.write(
-                            generateFrontendCodeFunctions(
-                                services,
+                        writer.write(
+                            generateFrontendCode(
+                                packageName,
+                                className,
+                                interfaceName,
+                                managerName,
                                 "io.ktor.client.request.HttpRequestBuilder",
-                                "GeneratedRpcServiceManagerFunctions"
+                                false,
+                                classDeclaration,
+                                "${className}Client"
                             )
                         )
                     }
 
-                    // The android client is the same Ktor CIO client as the JVM one, so it gets the
-                    // same frontend code. The only difference is where KSP writes it.
                     "androidMain" -> {
-                        it.write(
-                            generateFrontendCodeFunctions(
-                                services,
+                        writer.write(
+                            generateFrontendCode(
+                                packageName,
+                                className,
+                                interfaceName,
+                                managerName,
                                 "io.ktor.client.request.HttpRequestBuilder",
-                                "GeneratedRpcServiceManagerFunctions"
+                                false,
+                                classDeclaration,
+                                "${className}Client"
                             )
                         )
                     }
 
                     else -> logger.warn(
-                        "Kilua RPC: source set \"$sourceSet\" has no service manager functions " +
-                            "flavour, so GeneratedRpcServiceManager was generated empty."
+                        "Kilua RPC: source set \"$sourceSet\" has no client flavour, so " +
+                            "$className was generated empty."
                     )
                 }
             }
+        }
+        createNewFile(Dependencies(true, *deps), "dev.kilua.rpc", "GeneratedRpcServiceManager") { writer, sourceSet ->
+            when (sourceSet) {
+                "commonMain" -> {
+                    writer.write(generateCommonCodeFunctions(services))
+                }
+
+                "jsMain" -> {
+                    writer.write(generateFrontendCodeFunctions(services, "web.http.Request"))
+                }
+
+                "wasmJsMain" -> {
+                    writer.write(generateFrontendCodeFunctions(services, "web.http.Request"))
+                }
+
+                "jvmMain" -> {
+                    writer.write(
+                        generateFrontendCodeFunctions(
+                            services,
+                            "io.ktor.client.request.HttpRequestBuilder",
+                            "GeneratedRpcServiceManagerFunctions"
+                        )
+                    )
+                }
+
+                // The android client is the same Ktor CIO client as the JVM one, so it gets the same
+                // frontend code. The only difference is where KSP writes it.
+                "androidMain" -> {
+                    writer.write(
+                        generateFrontendCodeFunctions(
+                            services,
+                            "io.ktor.client.request.HttpRequestBuilder",
+                            "GeneratedRpcServiceManagerFunctions"
+                        )
+                    )
+                }
+
+                else -> logger.warn(
+                    "Kilua RPC: source set \"$sourceSet\" has no service manager functions flavour, " +
+                        "so GeneratedRpcServiceManager was generated empty."
+                )
+            }
+        }
+        // Same shape as the services above: register every declaration, and derive the dependencies
+        // from them, instead of doing one as a side effect of filtering for the other.
         val exceptions = mutableListOf<ExceptionNameDetails>()
-        val depsExceptions = resolver.getSymbolsWithAnnotation(RpcServiceException::class.qualifiedName.orEmpty())
+        val exceptionDeclarations = resolver.getSymbolsWithAnnotation(RpcServiceException::class.qualifiedName.orEmpty())
             .filterIsInstance<KSClassDeclaration>().filter { it.validate(enableNewFeatures = true) }
             .filter { it.classKind == ClassKind.CLASS }
-            .mapNotNull { classDeclaration ->
-                val className = classDeclaration.simpleName.asString()
-                val packageName = classDeclaration.packageName.asString()
-                exceptions.add(ExceptionNameDetails(packageName, className))
-                classDeclaration.containingFile
-            }.toList().toTypedArray()
-        codeGenerator.createNewFile(
-            Dependencies(true, *depsExceptions),
-            "dev.kilua.rpc",
-            "GeneratedRpcServiceExceptions"
-        ).writer().use {
-            when (sourceSetBelowKsp()) {
+            .toList()
+        val depsExceptions = exceptionDeclarations.mapNotNull { it.containingFile }.toTypedArray()
+        exceptionDeclarations.forEach { classDeclaration ->
+            exceptions.add(
+                ExceptionNameDetails(
+                    classDeclaration.packageName.asString(),
+                    classDeclaration.simpleName.asString()
+                )
+            )
+        }
+        createNewFile(Dependencies(true, *depsExceptions), "dev.kilua.rpc", "GeneratedRpcServiceExceptions") { writer, sourceSet ->
+            when (sourceSet) {
                 "commonMain" -> {
-                    it.write(generateCommonCodeExceptions(exceptions))
+                    writer.write(generateCommonCodeExceptions(exceptions))
                 }
+
+                else -> {} // Do nothing, we don't generate exceptions for other source sets.
             }
         }
         return emptyList()
     }
 
     /**
-     * The source set the file the processor is currently writing into belongs to.
+     * The simple name of the class a request filter parameter is declared in.
      *
-     * Deciding this by parsing the path KSP already reported is what makes a single run able to emit
-     * the common half and the platform half into different directories. [KspLayout.sourceSetOf]
-     * returns null when the path belongs to no source set the processor knows about, which is warned
-     * about rather than treated as an empty result: a silently empty file is far harder to notice
-     * than a build log that says nothing was produced.
+     * Generated code refers to it by simple name only, having imported it above, so the same
+     * `substringAfterLast` showed up wherever a request filter was emitted.
      */
-    private fun sourceSetBelowKsp(): String? {
-        val sourceSet = KspLayout.sourceSetOf(codeGenerator.generatedFile.first().toString())
-        if (sourceSet == null) {
-            logger.warn(
-                "Kilua RPC: the file just generated is not in a source set the processor knows about, " +
-                    "so it was left empty. Generated ${codeGenerator.generatedFile.first()}"
-            )
-        }
-        return sourceSet
+    private fun requestClassNameOf(requestClass: String): String = requestClass.substringAfterLast('.')
+
+    /** Marks a generated file as generated, so it is obvious not to edit it by hand. */
+    private fun StringBuilder.appendGeneratedHeader() {
+        appendLine("//")
+        appendLine("// GENERATED by Kilua RPC")
+        appendLine("//")
+    }
+
+    /**
+     * Create [fileName] in [packageName] and hand both the writer and the source set the file landed
+     * in to [block].
+     *
+     * The source set has to come from a file KSP actually created, because that is the only thing
+     * which says where the output went. It is found by diffing what KSP reports before and after the
+     * call rather than by reading a position in that collection: the collection is a snapshot of
+     * everything created in this round, so with several services the just created file is not its
+     * first entry, and taking the first entry of an empty collection would throw. This costs a
+     * re-materialisation per file, which is immaterial at realistic service counts and deliberately
+     * cheaper than carrying a running set.
+     */
+    private fun createNewFile(
+        dependencies: Dependencies,
+        packageName: String,
+        fileName: String,
+        block: (Writer, String?) -> Unit
+    ) {
+        val known = codeGenerator.generatedFile.toSet()
+        val writer = codeGenerator.createNewFile(dependencies, packageName, fileName).writer()
+        val created = codeGenerator.generatedFile.firstOrNull { it !in known }
+        writer.use { block(it, created?.path?.let(KspLayout::sourceSetOf)) }
     }
 
     private fun generateCommonCode(
@@ -254,9 +272,7 @@ public class RpcProcessor(
         ksClassDeclaration: KSClassDeclaration
     ): String {
         return StringBuilder().apply {
-            appendLine("//")
-            appendLine("// GENERATED by Kilua RPC")
-            appendLine("//")
+            appendGeneratedHeader()
             appendLine("package $packageName")
             appendLine()
             appendLine("import dev.kilua.rpc.HttpMethod")
@@ -316,11 +332,9 @@ public class RpcProcessor(
         ksClassDeclaration: KSClassDeclaration,
         fileJvmName: String? = null
     ): String {
-        val requestClassName = requestClass.substringAfterLast('.')
+        val requestClassName = requestClassNameOf(requestClass)
         return StringBuilder().apply {
-            appendLine("//")
-            appendLine("// GENERATED by Kilua RPC")
-            appendLine("//")
+            appendGeneratedHeader()
             fileJvmName?.let { appendLine("@file:JvmName(\"$it\")") }
             appendLine("package $packageName")
             appendLine()
@@ -408,9 +422,7 @@ public class RpcProcessor(
 
     private fun generateCommonCodeFunctions(services: List<NameDetails>): String {
         return StringBuilder().apply {
-            appendLine("//")
-            appendLine("// GENERATED by Kilua RPC")
-            appendLine("//")
+            appendGeneratedHeader()
             if (services.isNotEmpty()) {
                 appendLine("package dev.kilua.rpc")
                 appendLine()
@@ -456,11 +468,9 @@ public class RpcProcessor(
         requestClass: String,
         fileJvmName: String? = null
     ): String {
-        val requestClassName = requestClass.substringAfterLast('.')
+        val requestClassName = requestClassNameOf(requestClass)
         return StringBuilder().apply {
-            appendLine("//")
-            appendLine("// GENERATED by Kilua RPC")
-            appendLine("//")
+            appendGeneratedHeader()
             if (services.isNotEmpty()) {
                 fileJvmName?.let { appendLine("@file:JvmName(\"$it\")") }
                 appendLine("package dev.kilua.rpc")
@@ -483,13 +493,10 @@ public class RpcProcessor(
 
     private fun generateCommonCodeExceptions(exceptions: List<ExceptionNameDetails>): String {
         return StringBuilder().apply {
-            appendLine("//")
-            appendLine("// GENERATED by Kilua RPC")
-            appendLine("//")
+            appendGeneratedHeader()
             appendLine("package dev.kilua.rpc")
             appendLine()
             if (exceptions.isNotEmpty()) {
-                appendLine("import kotlinx.serialization.json.Json")
                 appendLine("import kotlinx.serialization.modules.SerializersModule")
                 appendLine("import kotlinx.serialization.modules.polymorphic")
                 appendLine("import kotlinx.serialization.modules.subclass")
@@ -498,7 +505,7 @@ public class RpcProcessor(
                 appendLine()
                 appendLine("fun registerRpcServiceExceptions() {")
                 appendLine("    if (!registered) {")
-                appendLine("        RpcSerialization.exceptionsSerializersModule =  SerializersModule {")
+                appendLine("        RpcSerialization.exceptionsSerializersModule = SerializersModule {")
                 appendLine("            polymorphic(AbstractServiceException::class) {")
                 exceptions.forEach {
                     appendLine("                subclass(${it.packageName}.${it.className}::class)")
@@ -565,7 +572,7 @@ public class RpcProcessor(
             params.size == 1 && params[0].type.resolve().isTypeOf(SEND_CHANNEL) -> RpcMethodKind.SSE
             else -> RpcMethodKind.CALL
         }
-        val (method, route) = httpMethodAndRoute(function, interfaceName, namedRoutes)
+        val [method, route] = httpMethodAndRoute(function, interfaceName, namedRoutes)
         return FunctionInfo(
             name = function.simpleName.asString(),
             kind = kind,
