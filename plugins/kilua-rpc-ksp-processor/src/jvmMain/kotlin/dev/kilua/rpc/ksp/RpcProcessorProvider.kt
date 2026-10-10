@@ -28,6 +28,6 @@ import com.google.devtools.ksp.processing.SymbolProcessorProvider
 
 public class RpcProcessorProvider : SymbolProcessorProvider {
     override fun create(environment: SymbolProcessorEnvironment): SymbolProcessor {
-        return RpcProcessor(environment.codeGenerator)
+        return RpcProcessor(environment.codeGenerator, environment.logger)
     }
 }

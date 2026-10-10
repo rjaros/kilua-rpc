@@ -27,11 +27,12 @@ import com.google.devtools.ksp.getDeclaredFunctions
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.processing.Resolver
+import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.SymbolProcessor
 import com.google.devtools.ksp.symbol.*
 import com.google.devtools.ksp.validate
 import dev.kilua.rpc.annotations.*
-import java.io.File
+import dev.kilua.rpc.KspLayout
 
 public data class NameDetails(
     val packageName: String,
@@ -45,6 +46,7 @@ public data class ExceptionNameDetails(val packageName: String, val className: S
 @OptIn(KspExperimental::class)
 public class RpcProcessor(
     private val codeGenerator: CodeGenerator,
+    private val logger: KSPLogger,
 ) : SymbolProcessor {
 
     private var isInitialInvocation = true
@@ -69,7 +71,7 @@ public class RpcProcessor(
                 }
                 val dependencies = classDeclaration.containingFile?.let { Dependencies(true, it) } ?: Dependencies(true)
                 codeGenerator.createNewFile(dependencies, packageName, className).writer().use {
-                    when (codeGenerator.generatedFile.first().toString().sourceSetBelowKsp()) {
+                    when (val sourceSet = sourceSetBelowKsp()) {
                         "commonMain" -> {
                             it.write(
                                 generateCommonCode(
@@ -138,6 +140,11 @@ public class RpcProcessor(
                                 )
                             )
                         }
+
+                        else -> logger.warn(
+                            "Kilua RPC: source set \"$sourceSet\" has no client flavour, so " +
+                                "$className was generated empty."
+                        )
                     }
                 }
                 services.add(NameDetails(packageName, className, interfaceName, managerName))
@@ -145,7 +152,7 @@ public class RpcProcessor(
             }.toList().toTypedArray()
         codeGenerator.createNewFile(Dependencies(true, *deps), "dev.kilua.rpc", "GeneratedRpcServiceManager")
             .writer().use {
-                when (codeGenerator.generatedFile.first().toString().sourceSetBelowKsp()) {
+                when (val sourceSet = sourceSetBelowKsp()) {
                     "commonMain" -> {
                         it.write(generateCommonCodeFunctions(services))
                     }
@@ -189,6 +196,11 @@ public class RpcProcessor(
                             )
                         )
                     }
+
+                    else -> logger.warn(
+                        "Kilua RPC: source set \"$sourceSet\" has no service manager functions " +
+                            "flavour, so GeneratedRpcServiceManager was generated empty."
+                    )
                 }
             }
         val exceptions = mutableListOf<ExceptionNameDetails>()
@@ -206,7 +218,7 @@ public class RpcProcessor(
             "dev.kilua.rpc",
             "GeneratedRpcServiceExceptions"
         ).writer().use {
-            when (codeGenerator.generatedFile.first().toString().sourceSetBelowKsp()) {
+            when (sourceSetBelowKsp()) {
                 "commonMain" -> {
                     it.write(generateCommonCodeExceptions(exceptions))
                 }
@@ -215,9 +227,25 @@ public class RpcProcessor(
         return emptyList()
     }
 
-    private fun String.sourceSetBelowKsp(): String =
-        substringAfter("${File.separator}build${File.separator}generated${File.separator}ksp${File.separator}")
-            .substringAfter(File.separatorChar).substringBefore(File.separatorChar)
+    /**
+     * The source set the file the processor is currently writing into belongs to.
+     *
+     * Deciding this by parsing the path KSP already reported is what makes a single run able to emit
+     * the common half and the platform half into different directories. [KspLayout.sourceSetOf]
+     * returns null when the path belongs to no source set the processor knows about, which is warned
+     * about rather than treated as an empty result: a silently empty file is far harder to notice
+     * than a build log that says nothing was produced.
+     */
+    private fun sourceSetBelowKsp(): String? {
+        val sourceSet = KspLayout.sourceSetOf(codeGenerator.generatedFile.first().toString())
+        if (sourceSet == null) {
+            logger.warn(
+                "Kilua RPC: the file just generated is not in a source set the processor knows about, " +
+                    "so it was left empty. Generated ${codeGenerator.generatedFile.first()}"
+            )
+        }
+        return sourceSet
+    }
 
     private fun generateCommonCode(
         packageName: String,
@@ -235,14 +263,7 @@ public class RpcProcessor(
             appendLine("import dev.kilua.rpc.RpcServiceManager")
             appendLine("import dev.kilua.rpc.registerRpcServiceExceptions")
             val types = getTypes(ksClassDeclaration.getDeclaredFunctions())
-            types.sorted().forEach {
-                appendLine("import $it")
-            }
-            if (types.contains("kotlinx.coroutines.channels.SendChannel")
-                && !types.contains("kotlinx.coroutines.channels.ReceiveChannel")
-            ) {
-                appendLine("import kotlinx.coroutines.channels.ReceiveChannel")
-            }
+            appendImports(types)
             appendLine()
             appendLine("object $managerName : RpcServiceManager<$interfaceName>($interfaceName::class) {")
             appendLine("    init {")
@@ -253,57 +274,32 @@ public class RpcProcessor(
             } catch (_: Exception) {
                 false
             }
-            val wsMethodsForMgr = mutableListOf<String>()
-            val sseMethodsForMgr = mutableListOf<String>()
-            ksClassDeclaration.getDeclaredFunctions().forEach {
-                val params = it.parameters
-                val wsMethod =
-                    if (params.size == 2)
-                        params.first().type.toString().startsWith("ReceiveChannel")
-                    else false
-                val sseMethod =
-                    if (params.size == 1)
-                        params.first().type.toString().startsWith("SendChannel")
-                    else false
-                val rpcBinding = it.getAnnotationsByType(RpcBinding::class).firstOrNull()
-                val rpcBindingMethod = it.getAnnotationsByType(RpcBindingMethod::class).firstOrNull()
-                val rpcBindingRoute = it.getAnnotationsByType(RpcBindingRoute::class).firstOrNull()
-                val [method, route] = if (rpcBinding != null) {
-                    val method = rpcBinding.method.name
-                    val route = rpcBinding.route
-                    "HttpMethod.$method" to "\"$route\""
-                } else if (rpcBindingMethod != null) {
-                    val method = rpcBindingMethod.method.name
-                    val autoRoute = if (namedRoutes) "\"$interfaceName.${it.simpleName.asString()}\"" else null
-                    "HttpMethod.$method" to autoRoute
-                } else if (rpcBindingRoute != null) {
-                    val route = rpcBindingRoute.route
-                    "HttpMethod.POST" to "\"$route\""
-                } else {
-                    val autoRoute = if (namedRoutes) "\"$interfaceName.${it.simpleName.asString()}\"" else null
-                    "HttpMethod.POST" to autoRoute
+            // Described up front and only then emitted, so that how a method is treated cannot depend
+            // on where it sits in the declaration order.
+            val functions = ksClassDeclaration.getDeclaredFunctions()
+                .map { collectFunctionInfo(it, interfaceName, namedRoutes) }
+                .toList()
+            // A streaming method is declared twice by convention: once as the raw channel function
+            // and once as the handler that receives them the other way round. The channel branch
+            // below emits the bind for the raw function, which already covers the handler, so a
+            // plain bind must not be emitted for the handler's own declaration as well.
+            val channelNames = functions.filter { it.kind.isChannel }.map { it.name }.toSet()
+            functions.forEach { info ->
+                val name = info.name
+                val route = info.route?.let { "\"$it\"" }
+                when (info.kind) {
+                    RpcMethodKind.REMOTE_DATA ->
+                        appendLine("        bindRemoteData($interfaceName::$name, $route)")
+
+                    RpcMethodKind.WEBSOCKET, RpcMethodKind.SSE ->
+                        // The cast keeps overload resolution on the two argument bind rather than the
+                        // three argument one.
+                        appendLine("        bind($interfaceName::$name, ${route ?: "null as String?"})")
+
+                    RpcMethodKind.CALL ->
+                        if (name !in channelNames)
+                            appendLine("        bind($interfaceName::$name, ${info.httpMethod}, $route)")
                 }
-                when {
-                    it.returnType.toString().startsWith("RemoteData") ->
-                        appendLine("        bindRemoteData($interfaceName::${it.simpleName.asString()}, $route)")
-
-                    wsMethod -> if (route == null) {
-                        appendLine("        bind($interfaceName::${it.simpleName.asString()}, null as String?)")
-                    } else {
-                        appendLine("        bind($interfaceName::${it.simpleName.asString()}, $route)")
-                    }
-
-                    sseMethod -> if (route == null) {
-                        appendLine("        bind($interfaceName::${it.simpleName.asString()}, null as String?)")
-                    } else {
-                        appendLine("        bind($interfaceName::${it.simpleName.asString()}, $route)")
-                    }
-
-                    else -> if (!wsMethodsForMgr.contains(it.simpleName.asString()) && !sseMethodsForMgr.contains(it.simpleName.asString()))
-                        appendLine("        bind($interfaceName::${it.simpleName.asString()}, $method, $route)")
-                }
-                if (wsMethod) wsMethodsForMgr.add(it.simpleName.asString())
-                if (sseMethod) sseMethodsForMgr.add(it.simpleName.asString())
             }
             appendLine("    }")
             appendLine("}")
@@ -336,69 +332,75 @@ public class RpcProcessor(
             }
             appendLine("import kotlinx.serialization.modules.SerializersModule")
             val types = getTypes(ksClassDeclaration.getDeclaredFunctions())
-            types.sorted().forEach {
-                appendLine("import $it")
-            }
-            if (types.contains("kotlinx.coroutines.channels.SendChannel")
-                && !types.contains("kotlinx.coroutines.channels.ReceiveChannel")
-            ) {
-                appendLine("import kotlinx.coroutines.channels.ReceiveChannel")
-            }
+            appendImports(types)
             appendLine()
             if (isExported) {
                 appendLine("@OptIn(ExperimentalJsExport::class)")
                 appendLine("@JsExport")
             }
             appendLine("class $className(baseUrl: String? = null, serializersModules: List<SerializersModule>? = null, requestFilter: (suspend $requestClassName.() -> Unit)? = null) : $interfaceName, RpcAgent<$interfaceName>(baseUrl, $managerName, serializersModules, requestFilter) {")
-            val wsMethods = mutableListOf<String>()
-            val sseMethods = mutableListOf<String>()
-            ksClassDeclaration.getDeclaredFunctions().forEach {
-                val name = it.simpleName.asString()
-                val params = it.parameters
-                val wsMethod =
-                    if (params.size == 2)
-                        params.first().type.toString().startsWith("ReceiveChannel")
-                    else false
-                val sseMethod =
-                    if (params.size == 1)
-                        params.first().type.toString().startsWith("SendChannel")
-                    else false
-                if (!wsMethod && !sseMethod) {
-                    if (!wsMethods.contains(name) && !sseMethods.contains(name)) {
-                        if (params.isNotEmpty()) {
-                            when {
-                                it.returnType.toString().startsWith("RemoteData") -> appendLine(
-                                    "    override suspend fun $name(${
-                                        getParameterList(
-                                            params
-                                        )
-                                    }) = ${getTypeString(it.returnType!!.resolve())}()"
-                                )
-
-                                else -> appendLine(
-                                    "    override suspend fun $name(${getParameterList(params)}) = call($interfaceName::$name, ${
-                                        getParameterNames(
-                                            params
-                                        )
-                                    })"
+            // workaround KSP2 issue with annotations default parameter values
+            val namedRoutes = try {
+                ksClassDeclaration.getAnnotationsByType(RpcService::class).firstOrNull()?.namedRoutes ?: false
+            } catch (_: Exception) {
+                false
+            }
+            // Described up front and only then emitted, so that how a method is overridden cannot
+            // depend on where it sits in the declaration order.
+            val functions = ksClassDeclaration.getDeclaredFunctions()
+                .map { collectFunctionInfo(it, interfaceName, namedRoutes) }
+                .toList()
+            // A streaming method is declared twice by convention: once as the raw channel function and
+            // once as the handler that receives them the other way round. The channel branch below
+            // emits an override for the handler as well, so the handler's own declaration must not
+            // turn into an additional `call` override on top of it.
+            val channelNames = functions.filter { it.kind.isChannel }.map { it.name }.toSet()
+            functions.forEach { info ->
+                val name = info.name
+                val params = info.parameters
+                when (info.kind) {
+                    RpcMethodKind.CALL ->
+                        if (name !in channelNames) {
+                            if (params.isEmpty()) {
+                                appendLine("    override suspend fun $name() = call($interfaceName::$name)")
+                            } else {
+                                appendLine(
+                                    "    override suspend fun $name(${getParameterList(params)}) = " +
+                                        "call($interfaceName::$name, ${getParameterNames(params)})"
                                 )
                             }
-                        } else {
-                            appendLine("    override suspend fun $name() = call($interfaceName::$name)")
                         }
+
+                    RpcMethodKind.REMOTE_DATA ->
+                        if (params.isEmpty()) {
+                            appendLine("    override suspend fun $name() = call($interfaceName::$name)")
+                        } else {
+                            appendLine(
+                                "    override suspend fun $name(${getParameterList(params)}) = " +
+                                    "${getTypeString(info.returnType)}()"
+                            )
+                        }
+
+                    RpcMethodKind.WEBSOCKET -> {
+                        appendLine("    override suspend fun $name(${getParameterList(params)}) {}")
+                        // The handler runs with the channels the other way round from the declaration.
+                        val outgoing = flipChannelDirection(params[0].type.resolve())
+                        val incoming = flipChannelDirection(params[1].type.resolve())
+                        appendLine(
+                            "    override suspend fun $name(handler: suspend ($outgoing, $incoming) -> Unit) = " +
+                                "webSocket($interfaceName::$name, handler)"
+                        )
                     }
-                } else if (wsMethod) {
-                    appendLine("    override suspend fun $name(${getParameterList(params)}) {}")
-                    val type1 = getTypeString(params[0].type.resolve()).replace("ReceiveChannel", "SendChannel")
-                    val type2 = getTypeString(params[1].type.resolve()).replace("SendChannel", "ReceiveChannel")
-                    appendLine("    override suspend fun $name(handler: suspend ($type1, $type2) -> Unit) = webSocket($interfaceName::$name, handler)")
-                } else {
-                    appendLine("    override suspend fun $name(${getParameterList(params)}) {}")
-                    val type = getTypeString(params[0].type.resolve()).replace("SendChannel", "ReceiveChannel")
-                    appendLine("    override suspend fun $name(handler: suspend ($type) -> Unit) = sseConnection($interfaceName::$name, handler)")
+
+                    RpcMethodKind.SSE -> {
+                        appendLine("    override suspend fun $name(${getParameterList(params)}) {}")
+                        val incoming = flipChannelDirection(params[0].type.resolve())
+                        appendLine(
+                            "    override suspend fun $name(handler: suspend ($incoming) -> Unit) = " +
+                                "sseConnection($interfaceName::$name, handler)"
+                        )
+                    }
                 }
-                if (wsMethod) wsMethods.add(name)
-                if (sseMethod) sseMethods.add(name)
             }
             appendLine("}")
         }.toString()
@@ -513,6 +515,131 @@ public class RpcProcessor(
         }.toString()
     }
 
+    /**
+     * How a remote method is transported. It is derived from the resolved types of the declaration
+     * rather than from its rendered text, so a user type that merely shares a name with one of the
+     * recognised ones is never mistaken for it.
+     */
+    private enum class RpcMethodKind {
+        /** A plain request/response call. */
+        CALL,
+
+        /** A call returning a paginated `RemoteData` slab. */
+        REMOTE_DATA,
+
+        /** A two way call over WebSockets. */
+        WEBSOCKET,
+
+        /** A one way stream of server sent events. */
+        SSE;
+
+        /**
+         * True for the kinds emitted through a channel branch, which covers both the raw declaration
+         * and the handler overload the convention asks for.
+         */
+        val isChannel: Boolean get() = this == WEBSOCKET || this == SSE
+    }
+
+    /**
+     * Everything the two emitters need about a single declared method, gathered in one pass so that
+     * the decision about a whole interface is made before anything is written out.
+     */
+    private data class FunctionInfo(
+        val name: String,
+        val kind: RpcMethodKind,
+        val parameters: List<KSValueParameter>,
+        val returnType: KSType?,
+        val httpMethod: String,
+        val route: String?
+    )
+
+    private fun collectFunctionInfo(
+        function: KSFunctionDeclaration,
+        interfaceName: String,
+        namedRoutes: Boolean
+    ): FunctionInfo {
+        val params = function.parameters
+        val kind = when {
+            function.returnType?.resolve()?.isTypeOf(REMOTE_DATA) == true -> RpcMethodKind.REMOTE_DATA
+            params.size == 2 && params[0].type.resolve().isTypeOf(RECEIVE_CHANNEL) -> RpcMethodKind.WEBSOCKET
+            params.size == 1 && params[0].type.resolve().isTypeOf(SEND_CHANNEL) -> RpcMethodKind.SSE
+            else -> RpcMethodKind.CALL
+        }
+        val (method, route) = httpMethodAndRoute(function, interfaceName, namedRoutes)
+        return FunctionInfo(
+            name = function.simpleName.asString(),
+            kind = kind,
+            parameters = params,
+            returnType = function.returnType?.resolve(),
+            httpMethod = method,
+            route = route
+        )
+    }
+
+    /**
+     * The HTTP method and route a method is served by, taking explicit bindings into account and
+     * falling back to a generated route when [namedRoutes] is on.
+     */
+    private fun httpMethodAndRoute(
+        function: KSFunctionDeclaration,
+        interfaceName: String,
+        namedRoutes: Boolean
+    ): Pair<String, String?> {
+        val autoRoute = if (namedRoutes) "$interfaceName.${function.simpleName.asString()}" else null
+        val rpcBinding = function.getAnnotationsByType(RpcBinding::class).firstOrNull()
+        if (rpcBinding != null) return "HttpMethod.${rpcBinding.method.name}" to rpcBinding.route
+        val rpcBindingMethod = function.getAnnotationsByType(RpcBindingMethod::class).firstOrNull()
+        if (rpcBindingMethod != null) return "HttpMethod.${rpcBindingMethod.method.name}" to autoRoute
+        val rpcBindingRoute = function.getAnnotationsByType(RpcBindingRoute::class).firstOrNull()
+        if (rpcBindingRoute != null) return "HttpMethod.POST" to rpcBindingRoute.route
+        return "HttpMethod.POST" to autoRoute
+    }
+
+    /**
+     * The qualified name of the declaration this type refers to, or null when it does not have one,
+     * as is the case for type parameters.
+     */
+    private val KSType.qualifiedName: String?
+        get() = declaration.qualifiedName?.asString()
+
+    /** True when this type is exactly the library type [qualifiedName], ignoring type arguments. */
+    private fun KSType.isTypeOf(qualifiedName: String): Boolean = this.qualifiedName == qualifiedName
+
+    /**
+     * Render [type] with its channel direction flipped.
+     *
+     * The declaration is resolved rather than rewritten as text: the element type comes from the
+     * actual type arguments, so a user type whose name merely contains "SendChannel" cannot be
+     * mangled by a blind string replacement.
+     */
+    private fun flipChannelDirection(type: KSType): String {
+        val other = when (type.qualifiedName) {
+            SEND_CHANNEL -> RECEIVE_CHANNEL
+            RECEIVE_CHANNEL -> SEND_CHANNEL
+            else -> error("Cannot flip the channel direction of ${type.qualifiedName ?: type}")
+        }
+        val element = type.arguments.singleOrNull()?.type?.let { getTypeString(it.resolve()) }
+        val suffix = if (type.isMarkedNullable) "?" else ""
+        val simpleName = other.substringAfterLast('.')
+        return if (element == null) "$simpleName$suffix" else "$simpleName<$element>$suffix"
+    }
+
+    /**
+     * Emit the imports a generated file needs for every type reachable from [types].
+     *
+     * A channel method names only one channel in its parameter list, but its client override flips
+     * the direction and so names the other one too. Without this, an interface whose only streaming
+     * method is SSE would generate an override referring to an unimported ReceiveChannel.
+     */
+    private fun StringBuilder.appendImports(types: Set<String>) {
+        val imports = if (SEND_CHANNEL in types || RECEIVE_CHANNEL in types) {
+            types + SEND_CHANNEL + RECEIVE_CHANNEL
+        } else {
+            types
+        }
+        imports.sorted().forEach { appendLine("import $it") }
+    }
+
     private fun getTypeString(type: KSType?): String {
         return if (type == null) {
             "Unit"
@@ -566,5 +693,12 @@ public class RpcProcessor(
                 getTypes(p.type.resolve())
             }.toSet() + (m.returnType?.let { getTypes(it.resolve()) } ?: setOf())
         }.toSet()
+    }
+
+    private companion object {
+        /** `RemoteData<T>` is recognised by its declaration, never by the name alone. */
+        const val REMOTE_DATA = "dev.kilua.rpc.RemoteData"
+        const val RECEIVE_CHANNEL = "kotlinx.coroutines.channels.ReceiveChannel"
+        const val SEND_CHANNEL = "kotlinx.coroutines.channels.SendChannel"
     }
 }
