@@ -421,7 +421,7 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
                     val mainAttributes = jarFile.manifest?.mainAttributes ?: return@use
                     jar.manifest.attributes(
                         mainAttributes
-                            .mapKeys { (key, _) -> key.toString() }
+                            .mapKeys { [key, _] -> key.toString() }
                             .filterValues { it != null }
                     )
                 }

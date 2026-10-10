@@ -161,7 +161,7 @@ private fun assertEndpointMatches(
     expectedRoute: String
 ) {
     val actualCallName = endpoint.key
-    val (actualPath, actualHttpMethod) = endpoint.value
+    val [actualPath, actualHttpMethod] = endpoint.value
 
     assertEquals(functionName, actualCallName)
     assertEquals(httpMethod, actualHttpMethod, "http method")

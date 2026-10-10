@@ -268,7 +268,7 @@ public class RpcProcessor(
                 val rpcBinding = it.getAnnotationsByType(RpcBinding::class).firstOrNull()
                 val rpcBindingMethod = it.getAnnotationsByType(RpcBindingMethod::class).firstOrNull()
                 val rpcBindingRoute = it.getAnnotationsByType(RpcBindingRoute::class).firstOrNull()
-                val (method, route) = if (rpcBinding != null) {
+                val [method, route] = if (rpcBinding != null) {
                     val method = rpcBinding.method.name
                     val route = rpcBinding.route
                     "HttpMethod.$method" to "\"$route\""

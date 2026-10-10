@@ -61,7 +61,7 @@ public open class RpcAgent<T : Any>(
     }
 
     public suspend inline fun <reified RET : Any, T> call(noinline function: suspend T.() -> RET): RET {
-        val (url, method) = serviceManager.requireCall(function)
+        val [url, method] = serviceManager.requireCall(function)
         val result = callAgent.jsonRpcCall(url, method = method, requestFilter = requestFilter)
         val serializer = json.serializersModule.serializer<RET>()
         return json.decodeFromString(serializer, result)
@@ -71,7 +71,7 @@ public open class RpcAgent<T : Any>(
     public suspend inline fun <reified RET : Any, T> call(
         noinline function: suspend T.() -> List<RET>
     ): List<RET> {
-        val (url, method) = serviceManager.requireCall(function)
+        val [url, method] = serviceManager.requireCall(function)
         val result = callAgent.jsonRpcCall(url, method = method, requestFilter = requestFilter)
         val serializer = json.serializersModule.serializer<List<RET>>()
         return json.decodeFromString(serializer, result)
@@ -81,7 +81,7 @@ public open class RpcAgent<T : Any>(
         noinline function: suspend T.(PAR) -> RET, p: PAR
     ): RET {
         val data = serialize(p)
-        val (url, method) = serviceManager.requireCall(function)
+        val [url, method] = serviceManager.requireCall(function)
         val result = callAgent.jsonRpcCall(url, listOf(data), method, requestFilter)
         val serializer = json.serializersModule.serializer<RET>()
         return json.decodeFromString(serializer, result)
@@ -92,7 +92,7 @@ public open class RpcAgent<T : Any>(
         noinline function: suspend T.(PAR) -> List<RET>, p: PAR
     ): List<RET> {
         val data = serialize(p)
-        val (url, method) = serviceManager.requireCall(function)
+        val [url, method] = serviceManager.requireCall(function)
         val result = callAgent.jsonRpcCall(url, listOf(data), method, requestFilter)
         val serializer = json.serializersModule.serializer<List<RET>>()
         return json.decodeFromString(serializer, result)
@@ -103,7 +103,7 @@ public open class RpcAgent<T : Any>(
     ): RET {
         val data1 = serialize(p1)
         val data2 = serialize(p2)
-        val (url, method) = serviceManager.requireCall(function)
+        val [url, method] = serviceManager.requireCall(function)
         val result = callAgent.jsonRpcCall(url, listOf(data1, data2), method, requestFilter)
         val serializer = json.serializersModule.serializer<RET>()
         return json.decodeFromString(serializer, result)
@@ -115,7 +115,7 @@ public open class RpcAgent<T : Any>(
     ): List<RET> {
         val data1 = serialize(p1)
         val data2 = serialize(p2)
-        val (url, method) = serviceManager.requireCall(function)
+        val [url, method] = serviceManager.requireCall(function)
         val result = callAgent.jsonRpcCall(url, listOf(data1, data2), method, requestFilter)
         val serializer = json.serializersModule.serializer<List<RET>>()
         return json.decodeFromString(serializer, result)
@@ -127,7 +127,7 @@ public open class RpcAgent<T : Any>(
         val data1 = serialize(p1)
         val data2 = serialize(p2)
         val data3 = serialize(p3)
-        val (url, method) = serviceManager.requireCall(function)
+        val [url, method] = serviceManager.requireCall(function)
         val result = callAgent.jsonRpcCall(url, listOf(data1, data2, data3), method, requestFilter)
         val serializer = json.serializersModule.serializer<RET>()
         return json.decodeFromString(serializer, result)
@@ -140,7 +140,7 @@ public open class RpcAgent<T : Any>(
         val data1 = serialize(p1)
         val data2 = serialize(p2)
         val data3 = serialize(p3)
-        val (url, method) = serviceManager.requireCall(function)
+        val [url, method] = serviceManager.requireCall(function)
         val result = callAgent.jsonRpcCall(url, listOf(data1, data2, data3), method, requestFilter)
         val serializer = json.serializersModule.serializer<List<RET>>()
         return json.decodeFromString(serializer, result)
@@ -153,7 +153,7 @@ public open class RpcAgent<T : Any>(
         val data2 = serialize(p2)
         val data3 = serialize(p3)
         val data4 = serialize(p4)
-        val (url, method) = serviceManager.requireCall(function)
+        val [url, method] = serviceManager.requireCall(function)
         val result = callAgent.jsonRpcCall(url, listOf(data1, data2, data3, data4), method, requestFilter)
         val serializer = json.serializersModule.serializer<RET>()
         return json.decodeFromString(serializer, result)
@@ -167,7 +167,7 @@ public open class RpcAgent<T : Any>(
         val data2 = serialize(p2)
         val data3 = serialize(p3)
         val data4 = serialize(p4)
-        val (url, method) = serviceManager.requireCall(function)
+        val [url, method] = serviceManager.requireCall(function)
         val result = callAgent.jsonRpcCall(url, listOf(data1, data2, data3, data4), method, requestFilter)
         val serializer = json.serializersModule.serializer<List<RET>>()
         return json.decodeFromString(serializer, result)
@@ -188,7 +188,7 @@ public open class RpcAgent<T : Any>(
         val data3 = serialize(p3)
         val data4 = serialize(p4)
         val data5 = serialize(p5)
-        val (url, method) = serviceManager.requireCall(function)
+        val [url, method] = serviceManager.requireCall(function)
         val result =
             callAgent.jsonRpcCall(url, listOf(data1, data2, data3, data4, data5), method, requestFilter)
         val serializer = json.serializersModule.serializer<RET>()
@@ -211,7 +211,7 @@ public open class RpcAgent<T : Any>(
         val data3 = serialize(p3)
         val data4 = serialize(p4)
         val data5 = serialize(p5)
-        val (url, method) = serviceManager.requireCall(function)
+        val [url, method] = serviceManager.requireCall(function)
         val result =
             callAgent.jsonRpcCall(url, listOf(data1, data2, data3, data4, data5), method, requestFilter)
         val serializer = json.serializersModule.serializer<List<RET>>()
@@ -235,7 +235,7 @@ public open class RpcAgent<T : Any>(
         val data4 = serialize(p4)
         val data5 = serialize(p5)
         val data6 = serialize(p6)
-        val (url, method) = serviceManager.requireCall(function)
+        val [url, method] = serviceManager.requireCall(function)
         val result =
             callAgent.jsonRpcCall(url, listOf(data1, data2, data3, data4, data5, data6), method, requestFilter)
         val serializer = json.serializersModule.serializer<RET>()
@@ -260,7 +260,7 @@ public open class RpcAgent<T : Any>(
         val data4 = serialize(p4)
         val data5 = serialize(p5)
         val data6 = serialize(p6)
-        val (url, method) = serviceManager.requireCall(function)
+        val [url, method] = serviceManager.requireCall(function)
         val result =
             callAgent.jsonRpcCall(url, listOf(data1, data2, data3, data4, data5, data6), method, requestFilter)
         val serializer = json.serializersModule.serializer<List<RET>>()
@@ -272,12 +272,11 @@ public open class RpcAgent<T : Any>(
      * call. The [function] reference is kept in the signature because the route is derived from
      * its name via [RpcServiceMgr.requireCall].
      */
-    @OptIn(DelicateCoroutinesApi::class)
     public suspend inline fun <reified PAR1 : Any, reified PAR2 : Any> webSocket(
         noinline function: suspend T.(ReceiveChannel<PAR1>, SendChannel<PAR2>) -> Unit,
         noinline handler: suspend (SendChannel<PAR1>, ReceiveChannel<PAR2>) -> Unit
     ) {
-        val (url, _) = serviceManager.requireCall(function)
+        val [url, _] = serviceManager.requireCall(function)
         webSocketCall(
             callAgent, json, logger, url,
             json.serializersModule.serializer<PAR1>(), json.serializersModule.serializer<PAR2>(),
@@ -289,13 +288,12 @@ public open class RpcAgent<T : Any>(
      * Websocket variant where the server streams a list of objects for every request. Shares the
      * [webSocketLoop] body with the single object overload; only the response serializer differs.
      */
-    @OptIn(DelicateCoroutinesApi::class)
     @JvmName("webSocketList")
     public suspend inline fun <reified PAR1 : Any, reified PAR2 : Any> webSocket(
         noinline function: suspend T.(ReceiveChannel<PAR1>, SendChannel<List<PAR2>>) -> Unit,
         noinline handler: suspend (SendChannel<PAR1>, ReceiveChannel<List<PAR2>>) -> Unit
     ) {
-        val (url, _) = serviceManager.requireCall(function)
+        val [url, _] = serviceManager.requireCall(function)
         webSocketCall(
             callAgent, json, logger, url,
             json.serializersModule.serializer<PAR1>(),
@@ -353,12 +351,11 @@ public open class RpcAgent<T : Any>(
     /**
      * Executes defined server-sent events connection
      */
-    @OptIn(DelicateCoroutinesApi::class)
     public suspend inline fun <reified PAR : Any> sseConnection(
         noinline function: suspend T.(SendChannel<PAR>) -> Unit,
         noinline handler: suspend (ReceiveChannel<PAR>) -> Unit
     ) {
-        val (url, _) = serviceManager.requireCall(function)
+        val [url, _] = serviceManager.requireCall(function)
         sseConnectionCall(callAgent, json, logger, url, json.serializersModule.serializer<PAR>(), handler)
     }
 
@@ -366,13 +363,12 @@ public open class RpcAgent<T : Any>(
      * Server-sent events variant where every event carries a list of objects. Shares the
      * [sseConnectionLoop] body with the single object overload; only the event serializer differs.
      */
-    @OptIn(DelicateCoroutinesApi::class)
     @JvmName("sseConnectionList")
     public suspend inline fun <reified PAR : Any> sseConnection(
         noinline function: suspend T.(SendChannel<List<PAR>>) -> Unit,
         noinline handler: suspend (ReceiveChannel<List<PAR>>) -> Unit
     ) {
-        val (url, _) = serviceManager.requireCall(function)
+        val [url, _] = serviceManager.requireCall(function)
         sseConnectionCall(
             callAgent, json, logger, url,
             ListSerializer(json.serializersModule.serializer<PAR>()),
@@ -407,7 +403,7 @@ public open class RpcAgent<T : Any>(
 /**
  * Runs the three websocket pumps until the first one finishes.
  *
- * The jobs are registered before any of them starts, which is what allows a single [teardown]
+ * The jobs are registered before any of them starts, which is what allows a single teardown
  * lambda to cancel all of them without any `lateinit` reference. Lazy start mirrors this shape
  * across the JVM and web targets.
  */

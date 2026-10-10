@@ -196,12 +196,12 @@ public fun <T : Any> Route.applyRoutes(
             HttpMethod.OPTIONS -> options(path, handler)
         }
     }
-    serviceManager.webSocketRequests.forEach { (path, handler) ->
+    serviceManager.webSocketRequests.forEach { [path, handler] ->
         this.webSocket(path) {
             handler()
         }
     }
-    serviceManager.sseRequests.forEach { (path, handler) ->
+    serviceManager.sseRequests.forEach { [path, handler] ->
         this.route(path) { handle(handler) }
     }
 }
