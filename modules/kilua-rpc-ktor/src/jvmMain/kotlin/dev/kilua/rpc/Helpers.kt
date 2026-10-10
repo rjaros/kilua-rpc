@@ -32,7 +32,7 @@ import kotlin.coroutines.CoroutineContext
 /**
  * @suppress internal class
  */
-@Suppress("UNUSED_PARAMETER", "OverridingDeprecatedMember")
+@Suppress("UNUSED_PARAMETER")
 public class DummyWebSocketServerSession : WebSocketServerSession {
     override val call: ApplicationCall
         get() = throw UnsupportedOperationException()

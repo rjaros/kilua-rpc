@@ -432,7 +432,7 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
     private val TaskContainer.all: TaskCollections get() = TaskCollections(this)
 
     /** Lazy task collections */
-    private inner class TaskCollections(private val tasks: TaskContainer) {
+    private class TaskCollections(private val tasks: TaskContainer) {
 
         val compileKotlinJs: TaskCollection<KotlinCompilationTask<*>>
             get() = collection("compileKotlinJs")

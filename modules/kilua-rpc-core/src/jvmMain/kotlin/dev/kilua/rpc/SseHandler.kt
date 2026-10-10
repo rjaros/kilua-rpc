@@ -90,7 +90,7 @@ public suspend fun <T, RAW_OUT, OBJECTS_OUT> handleSseConnection(
 }
 
 @OptIn(DelicateCoroutinesApi::class)
-private suspend fun <T> Flow<T>.pipe(scope: CoroutineScope, channel: SendChannel<T>) {
+private fun <T> Flow<T>.pipe(scope: CoroutineScope, channel: SendChannel<T>) {
     scope.launch {
         onCompletion {
             if (!channel.isClosedForSend) channel.close(it)
@@ -98,7 +98,7 @@ private suspend fun <T> Flow<T>.pipe(scope: CoroutineScope, channel: SendChannel
             if (!channel.isClosedForSend) {
                 channel.send(it)
             } else {
-                cancel("Channel was closed")
+                this@launch.cancel("Channel was closed")
             }
         }
     }

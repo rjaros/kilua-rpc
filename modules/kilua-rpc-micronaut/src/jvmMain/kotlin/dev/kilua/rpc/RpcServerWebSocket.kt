@@ -97,7 +97,7 @@ public class RpcServerWebSocket {
     }
 
     @OnClose
-    public suspend fun onClose(
+    public fun onClose(
         path: String,
         session: WebSocketSession
     ) {

@@ -34,7 +34,7 @@ internal fun getCallName(function: Function<*>): String =
 /**
  * Client side route registry.
  *
- * A fullstack build needs an [RpcServiceManager] on every target, but only the server actually
+ * A fullstack build needs an RpcServiceManager on every target, but only the server actually
  * routes anything - the client only has to know which route and HTTP method a call maps to, so it
  * can be pointed at the right endpoint. This is that bookkeeping half, and it is target agnostic
  * on purpose: the browser and the android client both use it as a null object, and neither pulls
