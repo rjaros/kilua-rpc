@@ -85,6 +85,37 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
 
         val kotlinMppExtension = project.extensions.getByType(KotlinMultiplatformExtension::class.java)
 
+        // Kilua RPC's generated code always comes in two halves: a common one holding the shared
+        // declarations, and one per platform target. The common half can only be produced by the KSP
+        // task that runs the metadata compilation, and KSP registers that task only for a project
+        // with at least two real platform targets. A project with a single platform target therefore
+        // cannot build no matter how the dependsOn edges are wired - so fail here with something
+        // actionable instead of letting the compiler report a bare ACTUAL_WITHOUT_EXPECT later.
+        val platformTypes = setOf(
+            KotlinPlatformType.jvm,
+            KotlinPlatformType.js,
+            KotlinPlatformType.wasm,
+            // The android target of a multiplatform module is contributed by AGP rather than by a
+            // KotlinGradlePlugin target, but it still reports a platform type.
+            KotlinPlatformType.androidJvm
+        )
+        if (enableKsp) {
+            project.afterEvaluate {
+                val platformTargets = kotlinMppExtension.targets.filter { it.platformType in platformTypes }
+                if (platformTargets.size < 2) {
+                    error(
+                        "The dev.kilua.rpc plugin needs at least two Kotlin multiplatform targets, but " +
+                            "project '${project.name}' declares ${platformTargets.size}: " +
+                            "${platformTargets.map { it.name }}. The generated service code is split " +
+                            "into a common half and one half per platform, and the common half is " +
+                            "produced by a KSP task that only exists once a project has two or more " +
+                            "targets. Add a second target (for example js() or wasmJs()) instead of " +
+                            "leaving the project with a single platform."
+                    )
+                }
+            }
+        }
+
         kotlinMppExtension.targets.configureEach { target ->
             val targetName = target.name
             target.compilations.configureEach { compilation ->
@@ -101,28 +132,23 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
         }
 
         if (enableKsp) {
+            // Matched by name and used as a collection, never as a name string: KSP only creates
+            // kspCommonMainKotlinMetadata once a project has at least two KMP targets, so a single
+            // target project leaves this empty and contributes no dependency, whereas depending on
+            // the task name itself would fail the build when the compile task finally runs.
+            val commonMetadataKspTask = project.tasks.matching { it.name == "kspCommonMainKotlinMetadata" }
             project.tasks.all.compileKotlinJs.configureEach {
-                it.dependsOn("kspCommonMainKotlinMetadata")
+                it.dependsOn(commonMetadataKspTask)
             }
             project.tasks.all.compileKotlinWasmJs.configureEach {
-                it.dependsOn("kspCommonMainKotlinMetadata")
+                it.dependsOn(commonMetadataKspTask)
             }
             project.tasks.all.compileKotlinJvm.configureEach {
-                it.dependsOn("kspCommonMainKotlinMetadata")
+                it.dependsOn(commonMetadataKspTask)
             }
             project.dependencies.add("kspCommonMainMetadata", "dev.kilua:kilua-rpc-ksp-processor:${kiluaRpcVersion}")
             kotlinMppExtension.targets
-                .matching {
-                    it.platformType in setOf(
-                        KotlinPlatformType.jvm,
-                        KotlinPlatformType.js,
-                        KotlinPlatformType.wasm,
-                        // The android target of a multiplatform module is contributed by AGP rather
-                        // than by a KotlinGradlePlugin target, but it still reports a platform type,
-                        // so the processor reaches it exactly the way it reaches the others.
-                        KotlinPlatformType.androidJvm
-                    )
-                }.configureEach {
+                .matching { it.platformType in platformTypes }.configureEach {
                     project.dependencies.add(
                         "ksp${
                             it.targetName.replaceFirstChar {
@@ -133,138 +159,150 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
                         }", "dev.kilua:kilua-rpc-ksp-processor:${kiluaRpcVersion}"
                     )
                 }
+            // Only the commonMain half has to be pointed at a directory by hand. KSP registers its
+            // own output for the js, wasmJs, jvm and android compilations, so adding those source
+            // directories here would be redundant; adding them anyway is what made it easy to
+            // assume otherwise when the output layout changed.
+            //
+            // The common half is written by a separate task, the metadata one, and nothing wires
+            // that output into the commonMain source set automatically - which is why a consumer
+            // that forgot this sees "has no corresponding 'expect' declaration" from every platform.
             kotlinMppExtension.sourceSets.configureEach {
-                when (it.name) {
-                    "commonMain" -> it.kotlin.srcDir("build/generated/ksp/metadata/commonMain/kotlin")
-                    "jsMain" -> it.kotlin.srcDir("build/generated/ksp/js/jsMain/kotlin")
-                    "wasmJsMain" -> it.kotlin.srcDir("build/generated/ksp/wasmJs/wasmJsMain/kotlin")
-                    "jvmMain" -> it.kotlin.srcDir("build/generated/ksp/jvm/jvmMain/kotlin")
-                    // androidMain deliberately has no entry: KSP already adds its own output to the
-                    // android compilation, and the shared declarations the android code refers to
-                    // (the getService expect, the per service managers) are the commonMain ones
-                    // mapped just above.
-                }
+                if (it.name == "commonMain") it.kotlin.srcDir("build/generated/ksp/metadata/commonMain/kotlin")
             }
             project.tasks.all.kspKotlinJs.configureEach {
-                it.dependsOn("kspCommonMainKotlinMetadata")
+                it.dependsOn(commonMetadataKspTask)
             }
             project.tasks.all.kspKotlinWasmJs.configureEach {
-                it.dependsOn("kspCommonMainKotlinMetadata")
+                it.dependsOn(commonMetadataKspTask)
             }
             project.tasks.all.kspKotlinJvm.configureEach {
-                it.dependsOn("kspCommonMainKotlinMetadata")
+                it.dependsOn(commonMetadataKspTask)
             }
             // The android compilation reaches the commonMain ksp output through kspAndroidMain, and
             // unlike the jvm/js/wasm compilations that edge is not wired anywhere else. The task is
             // matched by name because AGP is not on this plugin's classpath, so there is no typed
-            // accessor to attach it to.
-            //
-            // Depending on a *matching collection* rather than on the task name avoids a hard build
-            // failure: kspCommonMainKotlinMetadata only exists when the project has at least two KMP
-            // targets, so an android only project has none and naming it would fail. Such a project
-            // is not supported by the code generator anyway (with a single target KSP folds the
-            // common sources into the android compilation and never emits the shared expect
-            // declarations), so an empty collection simply contributes nothing here.
-            val commonMetadataKspTask = project.tasks.matching { it.name == "kspCommonMainKotlinMetadata" }
+            // accessor to attach it to. See the comment on commonMetadataKspTask above: relying on the
+            // empty collection rather than on the task name is what keeps a single target project,
+            // where KSP creates no metadata task at all, from failing the build.
             project.tasks.matching { it.name == "kspAndroidMain" }.configureEach {
                 it.dependsOn(commonMetadataKspTask)
             }
 
-            if (kiluaRpcExtension.enableGradleTasks.get()) {
-                project.tasks.register("generateKiluaRpcSources") {
-                    it.group = KILUA_RPC_TASK_GROUP
-                    it.description = "Generates Kilua RPC sources"
-                    it.dependsOn("kspCommonMainKotlinMetadata")
-                }
-            }
-        }
-
-        if (kiluaRpcExtension.enableGradleTasks.get()) {
-            project.afterEvaluate outer@{
-                // Everything below assembles a server distribution: boot jars, shadow jars, web
-                // archives and the resource handling that goes with them. A consumer that has no JVM
-                // target - an android only client - has no jvmProcessResources, no jvmRun and no jar
-                // to assemble, so every one of those lookups would fail the build for no reason.
-                if (kotlinMppExtension.targets.none { it.platformType == KotlinPlatformType.jvm }) {
-                    return@outer
-                }
-                it.afterEvaluate {
-                    val serverType = getServerType(project)
-                    val assetsPath = when (serverType) {
-                        RpcServerType.Micronaut, RpcServerType.SpringBoot -> "/public"
-                        RpcServerType.Quarkus -> "/META-INF/resources"
-                        RpcServerType.VertX -> "/webroot"
-                        else -> "/assets"
-                    }
-                    val isJsTarget = kotlinMppExtension.targets.any { it.platformType == KotlinPlatformType.js }
-                    val isWasmJsTarget = kotlinMppExtension.targets.any { it.platformType == KotlinPlatformType.wasm }
-                    if (isJsTarget) createWebArchiveTask("js", "js", assetsPath, false)
-                    if (isWasmJsTarget) createWebArchiveTask("wasmJs", "wasm-js", assetsPath, isJsTarget)
-                    (project.tasks.getByName("jvmProcessResources") as Copy).apply {
-                        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-                    }
-                    when (serverType) {
-                        RpcServerType.Javalin, RpcServerType.Jooby, RpcServerType.Ktor -> {
-                            if (isJsTarget) createShadowJarTask("jarWithJs", "js")
-                            if (isWasmJsTarget) createShadowJarTask("jarWithWasmJs", "wasmJs")
-                            it.tasks.findByName("jar")?.enabled = false
-                        }
-
-                        RpcServerType.SpringBoot -> {
-                            val mainClassName = it.extra["mainClassName"].toString()
-                            if (isJsTarget)
-                                createBootJarTask("jarWithJs", "js", mainClassName, kotlinMppExtension)
-                            if (isWasmJsTarget)
-                                createBootJarTask("jarWithWasmJs", "wasmJs", mainClassName, kotlinMppExtension)
-                            it.tasks.findByName("jar")?.enabled = false
-                            it.tasks.getByName("jvmRun").apply {
-                                it.subprojects.forEach {
-                                    if (it.name == "application") {
-                                        dependsOn("${it.path}:bootRun")
-                                    }
-                                }
-                            }
-                        }
-
-                        RpcServerType.Micronaut -> {
-                            if (isJsTarget) createShadowJarTask("jarWithJs", "js")
-                            if (isWasmJsTarget) createShadowJarTask("jarWithWasmJs", "wasmJs")
-                            it.tasks.findByName("jar")?.enabled = false
-                            it.tasks.getByName("jvmRun").apply {
-                                it.subprojects.forEach {
-                                    if (it.name == "application") {
-                                        dependsOn("${it.path}:run")
-                                    }
-                                }
-                            }
-                        }
-
-                        RpcServerType.Quarkus -> {
-                            if (isJsTarget) createQuarkusJarTask("jarWithJs", "js")
-                            if (isWasmJsTarget) createQuarkusJarTask("jarWithWasmJs", "wasmJs")
-                            it.tasks.getByName("jvmRun").apply {
-                                it.subprojects.forEach { subproject ->
-                                    if (subproject.name == "application") {
-                                        dependsOn("${subproject.path}:quarkusDev")
-                                    }
-                                }
-                            }
-                        }
-
-                        RpcServerType.VertX -> {
-                            val mainClassName = it.extra["mainClassName"].toString()
-                            if (isJsTarget)
-                                createShadowJarTask("jarWithJs", "js", mapOf("Main-Verticle" to mainClassName))
-                            if (isWasmJsTarget)
-                                createShadowJarTask("jarWithWasmJs", "wasmJs", mapOf("Main-Verticle" to mainClassName))
-                            it.tasks.findByName("jar")?.enabled = false
-                        }
-
-                        else -> {}
+            // Registered afterEvaluate for the same reason the packaging block below is: reading the
+            // extension any earlier happens while the kotlin("multiplatform") plugin is still being
+            // applied, which is before the build script body - and therefore before any `kilua-rpc { }`
+            // DSL block - has run, so a value configured there would be silently ignored.
+            project.afterEvaluate {
+                if (kiluaRpcExtension.enableGradleTasks.get()) {
+                    project.tasks.register("generateKiluaRpcSources") {
+                        it.group = KILUA_RPC_TASK_GROUP
+                        it.description = "Generating Kilua RPC sources"
+                        it.dependsOn(commonMetadataKspTask)
                     }
                 }
             }
         }
+
+        project.afterEvaluate outer@{
+            if (!kiluaRpcExtension.enableGradleTasks.get()) return@outer
+            // Everything below assembles a server distribution: boot jars, shadow jars, web
+            // archives and the resource handling that goes with them. A consumer that has no JVM
+            // target - an android only client - has no jvmProcessResources, no jvmRun and no jar
+            // to assemble, so every one of those lookups would fail the build for no reason.
+            if (kotlinMppExtension.targets.none { it.platformType == KotlinPlatformType.jvm }) {
+                return@outer
+            }
+            it.afterEvaluate {
+                val serverType = getServerType(project)
+                val assetsPath = when (serverType) {
+                    RpcServerType.Micronaut, RpcServerType.SpringBoot -> "/public"
+                    RpcServerType.Quarkus -> "/META-INF/resources"
+                    RpcServerType.VertX -> "/webroot"
+                    else -> "/assets"
+                }
+                val isJsTarget = kotlinMppExtension.targets.any { it.platformType == KotlinPlatformType.js }
+                val isWasmJsTarget = kotlinMppExtension.targets.any { it.platformType == KotlinPlatformType.wasm }
+                if (isJsTarget) createWebArchiveTask("js", "js", assetsPath, false)
+                if (isWasmJsTarget) createWebArchiveTask("wasmJs", "wasm-js", assetsPath, isJsTarget)
+                (project.tasks.getByName("jvmProcessResources") as Copy).apply {
+                    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+                }
+                when (serverType) {
+                    RpcServerType.Javalin, RpcServerType.Jooby, RpcServerType.Ktor -> {
+                        if (isJsTarget) createShadowJarTask("jarWithJs", "js")
+                        if (isWasmJsTarget) createShadowJarTask("jarWithWasmJs", "wasmJs")
+                        it.tasks.findByName("jar")?.enabled = false
+                    }
+
+                    RpcServerType.SpringBoot -> {
+                        val mainClassName = it.requireExtraMainClassName()
+                        if (isJsTarget)
+                            createBootJarTask("jarWithJs", "js", mainClassName, kotlinMppExtension)
+                        if (isWasmJsTarget)
+                            createBootJarTask("jarWithWasmJs", "wasmJs", mainClassName, kotlinMppExtension)
+                        it.tasks.findByName("jar")?.enabled = false
+                        it.runApplicationSubproject("bootRun")
+                    }
+
+                    RpcServerType.Micronaut -> {
+                        if (isJsTarget) createShadowJarTask("jarWithJs", "js")
+                        if (isWasmJsTarget) createShadowJarTask("jarWithWasmJs", "wasmJs")
+                        it.tasks.findByName("jar")?.enabled = false
+                        it.runApplicationSubproject("run")
+                    }
+
+                    RpcServerType.Quarkus -> {
+                        if (isJsTarget) createQuarkusJarTask("jarWithJs", "js")
+                        if (isWasmJsTarget) createQuarkusJarTask("jarWithWasmJs", "wasmJs")
+                        it.runApplicationSubproject("quarkusDev")
+                    }
+
+                    RpcServerType.VertX -> {
+                        val mainClassName = it.requireExtraMainClassName()
+                        if (isJsTarget)
+                            createShadowJarTask("jarWithJs", "js", mapOf("Main-Verticle" to mainClassName))
+                        if (isWasmJsTarget)
+                            createShadowJarTask("jarWithWasmJs", "wasmJs", mapOf("Main-Verticle" to mainClassName))
+                        it.tasks.findByName("jar")?.enabled = false
+                    }
+
+                    else -> {}
+                }
+            }
+        }
+    }
+
+    /**
+     * Read the `mainClassName` extra property Spring Boot and Vert.x consumers set, and fail with a
+     * message naming the project rather than letting a bare MissingPropertyException surface.
+     */
+    private fun Project.requireExtraMainClassName(): String =
+        if (extra.has("mainClassName")) {
+            extra.get("mainClassName")?.toString()
+                ?: error("The \"mainClassName\" extra property of project $name is set to null.")
+        } else {
+            error(
+                "The dev.kilua.rpc plugin packages a server distribution for project $name but no " +
+                    "\"mainClassName\" extra property is set. Add `extra[\"mainClassName\"] = \"<fully " +
+                    "qualified class>\"` to this build script."
+            )
+        }
+
+    /**
+     * Point `jvmRun` at the dedicated application subproject some frameworks need to actually start
+     * the server, warning instead of silently doing nothing when that subproject is absent.
+     */
+    private fun Project.runApplicationSubproject(taskName: String) {
+        val applications = subprojects.filter { it.name == "application" }
+        if (applications.isEmpty()) {
+            logger.warn(
+                "The dev.kilua.rpc plugin expected an \"application\" subproject to delegate `jvmRun` " +
+                    "to `$taskName`, but found none, so `jvmRun` will not start the server."
+            )
+            return
+        }
+        applications.forEach { tasks.getByName("jvmRun").dependsOn("${it.path}:$taskName") }
     }
 
     private fun KiluaRpcPluginContext.createWebArchiveTask(
@@ -459,53 +497,62 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
     private fun getServerType(project: Project): RpcServerType? {
         // A consumer does not have to be a fullstack project: a pure android client has no
         // jvmMain source set at all, so neither configuration can be assumed to exist.
-        val commonMainDependencies =
-            project.configurations.findByName("commonMainImplementation")?.dependencies?.map { it.name }.orEmpty()
-        val kiluaRpcDependency = commonMainDependencies.firstOrNull { it.startsWith("kilua-rpc-") }
-        when (kiluaRpcDependency) {
-            "kilua-rpc-javalin", "kilua-rpc-javalin-koin", "kilua-rpc-javalin-metro" -> return RpcServerType.Javalin
-            "kilua-rpc-jooby", "kilua-rpc-jooby-koin", "kilua-rpc-jooby-metro" -> return RpcServerType.Jooby
-            "kilua-rpc-ktor", "kilua-rpc-ktor-koin", "kilua-rpc-ktor-metro" -> return RpcServerType.Ktor
-            "kilua-rpc-micronaut" -> return RpcServerType.Micronaut
-            "kilua-rpc-quarkus" -> return RpcServerType.Quarkus
-            "kilua-rpc-spring-boot" -> return RpcServerType.SpringBoot
-            "kilua-rpc-vertx", "kilua-rpc-vertx-koin", "kilua-rpc-vertx-metro" -> return RpcServerType.VertX
+        //
+        // The kilua backbone artifacts are identified by group and name rather than by name alone,
+        // so that an unrelated module merely called kilua-rpc-* in some other group is not mistaken
+        // for one.
+        val commonMainModules = project.dependencyModules("commonMainImplementation")
+        when (commonMainModules.firstOrNull { it.isKiluaRpcServer() }?.suffixAfter("dev.kilua:kilua-rpc-")) {
+            "javalin", "javalin-koin", "javalin-metro" -> return RpcServerType.Javalin
+            "jooby", "jooby-koin", "jooby-metro" -> return RpcServerType.Jooby
+            "ktor", "ktor-koin", "ktor-metro" -> return RpcServerType.Ktor
+            "micronaut" -> return RpcServerType.Micronaut
+            "quarkus" -> return RpcServerType.Quarkus
+            "spring-boot" -> return RpcServerType.SpringBoot
+            "vertx", "vertx-koin", "vertx-metro" -> return RpcServerType.VertX
         }
-        val jvmMainDependencies =
-            project.configurations.findByName("jvmMainImplementation")?.dependencies?.map { it.name }.orEmpty()
-        val kiluaSsrDependency = jvmMainDependencies.firstOrNull { it.startsWith("kilua-ssr-server-") }
-        when (kiluaSsrDependency) {
-            "kilua-ssr-server-javalin" -> return RpcServerType.Javalin
-            "kilua-ssr-server-jooby" -> return RpcServerType.Jooby
-            "kilua-ssr-server-ktor" -> return RpcServerType.Ktor
-            "kilua-ssr-server-micronaut" -> return RpcServerType.Micronaut
-            "kilua-ssr-server-quarkus" -> return RpcServerType.Quarkus
-            "kilua-ssr-server-spring-boot" -> return RpcServerType.SpringBoot
-            "kilua-ssr-server-vertx" -> return RpcServerType.VertX
+        val jvmMainModules = project.dependencyModules("jvmMainImplementation")
+        when (jvmMainModules.firstOrNull { it.isKiluaSsrServer() }?.suffixAfter("dev.kilua:kilua-ssr-server-")) {
+            "javalin" -> return RpcServerType.Javalin
+            "jooby" -> return RpcServerType.Jooby
+            "ktor" -> return RpcServerType.Ktor
+            "micronaut" -> return RpcServerType.Micronaut
+            "quarkus" -> return RpcServerType.Quarkus
+            "spring-boot" -> return RpcServerType.SpringBoot
+            "vertx" -> return RpcServerType.VertX
         }
-        if (jvmMainDependencies.contains("javalin")) {
-            return RpcServerType.Javalin
-        }
-        if (jvmMainDependencies.contains("jooby-kotlin")) {
-            return RpcServerType.Jooby
-        }
-        if (jvmMainDependencies.contains("ktor-server-core") || jvmMainDependencies.contains("ktor-server-core-jvm")) {
-            return RpcServerType.Ktor
-        }
-        if (jvmMainDependencies.contains("micronaut-runtime")) {
-            return RpcServerType.Micronaut
-        }
-        if (jvmMainDependencies.contains("quarkus-rest") || jvmMainDependencies.contains("quarkus-rest-jvm")) {
-            return RpcServerType.Quarkus
-        }
-        if (jvmMainDependencies.contains("spring-boot-starter-web") || jvmMainDependencies.contains("spring-boot-starter-webflux")) {
-            return RpcServerType.SpringBoot
-        }
-        if (jvmMainDependencies.contains("vertx-web")) {
-            return RpcServerType.VertX
+        // Fallbacks on framework coordinates, matched by artifact name only. These are third party
+        // coordinates no other plugin produces, so the name is enough to be unambiguous.
+        val jvmMainNames = project.dependencyNames("jvmMainImplementation")
+        when {
+            "javalin" in jvmMainNames -> return RpcServerType.Javalin
+            "jooby-kotlin" in jvmMainNames -> return RpcServerType.Jooby
+            "ktor-server-core" in jvmMainNames || "ktor-server-core-jvm" in jvmMainNames ->
+                return RpcServerType.Ktor
+            "micronaut-runtime" in jvmMainNames -> return RpcServerType.Micronaut
+            "quarkus-rest" in jvmMainNames || "quarkus-rest-jvm" in jvmMainNames ->
+                return RpcServerType.Quarkus
+            "spring-boot-starter-web" in jvmMainNames || "spring-boot-starter-webflux" in jvmMainNames ->
+                return RpcServerType.SpringBoot
+            "vertx-web" in jvmMainNames -> return RpcServerType.VertX
         }
         return null
     }
+
+    private fun Project.dependencyModules(configurationName: String): List<String> =
+        configurations.findByName(configurationName)?.dependencies?.map { "${it.group ?: ""}:${it.name}" }.orEmpty()
+
+    private fun Project.dependencyNames(configurationName: String): List<String> =
+        configurations.findByName(configurationName)?.dependencies?.map { it.name }.orEmpty()
+
+    /** True for `dev.kilua:kilua-rpc-<suffix>` server backbone artifacts. */
+    private fun String.isKiluaRpcServer(): Boolean = startsWith("dev.kilua:kilua-rpc-")
+
+    /** True for `dev.kilua:kilua-ssr-server-<suffix>` server artifacts. */
+    private fun String.isKiluaSsrServer(): Boolean = startsWith("dev.kilua:kilua-ssr-server-")
+
+    /** The part of `"<group>:<name>"` after the given prefix, or null when the prefix does not match. */
+    private fun String.suffixAfter(prefix: String): String? = takeIf { it.startsWith(prefix) }?.removePrefix(prefix)
 
     public companion object {
 
