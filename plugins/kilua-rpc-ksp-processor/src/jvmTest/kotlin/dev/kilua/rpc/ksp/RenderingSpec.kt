@@ -113,13 +113,18 @@ val FlavourRenderingSpec by testSuite {
             isExported = false
         )
         assertTrue(!client.contains("@JsExport"), client)
-        assertTrue(!client.contains("kotlin.js."), client)
-        assertTrue(!client.contains("@OptIn"), client)
+        assertTrue(!client.contains("@OptIn(ExperimentalJsExport::class)"), client)
+        assertTrue(!client.contains("import kotlin.js."), client)
     }
 
-    test("the export annotation of the interface survives into the web flavour only") {
-        // The other half of the same rule: whatever the caller says is what comes out.
-        assertTrue(renderClient(interfaceInfo(), JVM_REQUEST, null, isExported = true).contains("@JsExport"))
+    test("the renderer exports exactly when the caller says to, not by flavour") {
+        // The renderer holds no opinion of its own: the flag it is handed is the only thing that
+        // decides, which is what lets the processor keep the Kotlin/JS annotation off the JVM flavour.
+        val exported = renderClient(interfaceInfo(), JVM_REQUEST, null, isExported = true)
+        assertTrue(exported.contains("@OptIn(ExperimentalJsExport::class)"), exported)
+        assertTrue(exported.contains("@JsExport"), exported)
+        assertTrue(exported.contains("import kotlin.js.ExperimentalJsExport"), exported)
+        assertTrue(exported.contains("import kotlin.js.JsExport"), exported)
     }
 
     test("the client factory declares the expect in common and the actual elsewhere") {

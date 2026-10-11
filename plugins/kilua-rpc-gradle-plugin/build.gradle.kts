@@ -50,7 +50,6 @@ dependencies {
     implementation(libs.shadow.gradle.plugin)
     implementation(libs.spring.boot.gradle.plugin)
     implementation(libs.quarkus.gradle.plugin)
-    testImplementation(gradleTestKit())
     testImplementation(kotlin("test"))
     testImplementation(libs.test.balloon)
 }
@@ -74,7 +73,11 @@ tasks {
 // The copy is verbatim rather than version-substituted: that substitution exists so a published
 // plugin pins the processor coordinate to its own version, and tests never resolve that coordinate,
 // so rewriting the file here would only add a configuration-cache-hostile filter for no gain.
-val versionsResourceForTests = tasks.register<Sync>("versionsResourceForTests") {
+//
+// A Copy rather than a Sync, deliberately: it writes into the directory processTestResources owns,
+// and a Sync would strip anything else already written there, so adding test resources later would
+// silently delete them depending on task ordering.
+val versionsResourceForTests = tasks.register<Copy>("versionsResourceForTests") {
     from(rootProject.layout.projectDirectory.file("gradle/libs.versions.toml"))
     rename { "dev.kilua.rpc.versions.toml" }
     into(layout.buildDirectory.dir("resources/test"))

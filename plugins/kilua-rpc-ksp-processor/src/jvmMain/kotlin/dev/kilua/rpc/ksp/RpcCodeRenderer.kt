@@ -89,7 +89,10 @@ internal data class InterfaceInfo(
     val className: String,
     val managerName: String,
     val functions: List<FunctionInfo>,
-    /** Fully qualified names of every type the interface touches, to be imported. */
+    /**
+     * Fully qualified names of the types the client override signatures need imported, walked from
+     * the declared parameters. The manager needs none of these: its body names no parameter type.
+     */
     val types: Set<String>
 )
 
@@ -103,6 +106,8 @@ internal object RpcCodeRenderer {
 
     /** The service manager object: what binds every method of an interface to a route. */
     fun renderManager(info: InterfaceInfo): String {
+        // The manager body never names a parameter or return type, only the same-package interface
+        // and the fixed dev.kilua.rpc imports, so there are no collected types to import here.
         return StringBuilder().apply {
             appendGeneratedHeader()
             appendLine("package ${info.packageName}")
@@ -110,7 +115,6 @@ internal object RpcCodeRenderer {
             appendLine("import dev.kilua.rpc.HttpMethod")
             appendLine("import dev.kilua.rpc.RpcServiceManager")
             appendLine("import dev.kilua.rpc.registerRpcServiceExceptions")
-            appendImports(info.types)
             appendLine()
             appendLine("object ${info.managerName} : RpcServiceManager<${info.interfaceName}>(${info.interfaceName}::class) {")
             appendLine("    init {")
@@ -167,7 +171,7 @@ internal object RpcCodeRenderer {
             info.functions.forEach { function ->
                 val name = function.name
                 when (function.kind) {
-                    RpcMethodKind.CALL ->
+                    RpcMethodKind.CALL, RpcMethodKind.REMOTE_DATA ->
                         if (name !in channelNames) {
                             if (function.parameters.isEmpty()) {
                                 appendLine("    override suspend fun $name() = call(${info.interfaceName}::$name)")
@@ -177,16 +181,6 @@ internal object RpcCodeRenderer {
                                         "call(${info.interfaceName}::$name, ${parameterNames(function)})"
                                 )
                             }
-                        }
-
-                    RpcMethodKind.REMOTE_DATA ->
-                        if (function.parameters.isEmpty()) {
-                            appendLine("    override suspend fun $name() = call(${info.interfaceName}::$name)")
-                        } else {
-                            appendLine(
-                                "    override suspend fun $name(${parameterList(function)}) = " +
-                                    "${function.returnType}()"
-                            )
                         }
 
                     RpcMethodKind.WEBSOCKET -> {

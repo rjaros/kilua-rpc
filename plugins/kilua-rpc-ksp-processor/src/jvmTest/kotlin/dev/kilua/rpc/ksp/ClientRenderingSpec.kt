@@ -176,7 +176,9 @@ val ClientRenderingSpec by testSuite {
         )
     }
 
-    test("a RemoteData return is bound as remote data and constructed as one") {
+    test("a RemoteData return is bound as remote data and called like any other method") {
+        // Remote data changes how the manager binds the method, not how the client overrides it: the
+        // client issues a plain call and the returned slab drives the pagination from there.
         val info = interfaceInfo(
             functions = listOf(
                 function(
@@ -198,20 +200,8 @@ val ClientRenderingSpec by testSuite {
         assertTrue(
             renderClient(info, JVM_REQUEST, null, false).contains(
                 "    override suspend fun rowData(page: Int?, filter: List<RemoteFilter>?) = " +
-                    "$REMOTE_DATA<Row>()"
+                    "call(PingService::rowData, page, filter)"
             )
-        )
-    }
-
-    test("a parameter-less RemoteData method still falls back to a call override") {
-        // Recorded behaviour rather than intended behaviour: the empty-parameter branch short-circuits
-        // the kind. Kept as it is so a change here is a visible diff.
-        val info = interfaceInfo(
-            functions = listOf(function("rows", RpcMethodKind.REMOTE_DATA, returnType = "$REMOTE_DATA<Row>"))
-        )
-        assertTrue(
-            renderClient(info, JVM_REQUEST, null, false)
-                .contains("    override suspend fun rows() = call(PingService::rows)")
         )
     }
 

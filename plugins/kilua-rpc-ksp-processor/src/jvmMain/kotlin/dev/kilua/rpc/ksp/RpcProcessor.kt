@@ -259,14 +259,17 @@ public class RpcProcessor(
     }
 
     /**
-     * The fully qualified names of every type the declared functions touch, through a parameter or a
-     * return type, so generated code knows what to import.
+     * The fully qualified names of every type the client needs imported, walked from the declared
+     * parameters only.
+     *
+     * Return types are deliberately not collected: the generated client never writes a return type
+     * (overrides infer it from the interface), so importing them would only produce unused imports.
      */
     private fun getTypes(methods: Sequence<KSFunctionDeclaration>): Set<String> {
         return methods.flatMap { m ->
             m.parameters.flatMap { p ->
                 getTypes(p.type.resolve())
-            }.toSet() + (m.returnType?.let { getTypes(it.resolve()) } ?: setOf())
+            }.toSet()
         }.toSet()
     }
 

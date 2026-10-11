@@ -81,7 +81,12 @@ private fun kiluaProject(
     return project
 }
 
-/** Declares a dependency by coordinates, as a consumer's build script would. */
+/**
+ * Declares a dependency by coordinates, as a consumer's build script would.
+ *
+ * The version is irrelevant: the plugin only ever inspects `group:name` to tell a server backbone
+ * from an imposter, and nothing is resolved. Callers pass an obviously fake one on purpose.
+ */
 private fun Project.declare(coordinates: String) {
     configurations.findByName("commonMainImplementation")?.dependencies?.add(
         dependencies.create(coordinates)
@@ -153,7 +158,7 @@ val KiluaRpcPluginSpec by testSuite {
     }
 
     test("the server backbone is recognized by group as well as by artifact name") {
-        val ktor = kiluaProject { declare("dev.kilua:kilua-rpc-ktor:0.0.47-SNAPSHOT") }
+        val ktor = kiluaProject { declare("dev.kilua:kilua-rpc-ktor:1.0") }
         assertNotNull(ktor.tasks.findByName("jarWithJs"), "a dev.kilua ktor backbone should be packaged")
 
         val imposter = kiluaProject { declare("com.example:kilua-rpc-ktor:1.0") }
@@ -166,7 +171,7 @@ val KiluaRpcPluginSpec by testSuite {
     test("a Spring Boot consumer with no main class name fails naming the problem") {
         val failure = assertFailsWith<Exception> {
             kiluaProject {
-                declare("dev.kilua:kilua-rpc-spring-boot:0.0.47-SNAPSHOT")
+                declare("dev.kilua:kilua-rpc-spring-boot:1.0")
             }
         }
         val message = rootCause(failure).message.orEmpty()
@@ -181,14 +186,14 @@ val KiluaRpcPluginSpec by testSuite {
         // warning itself is not asserted: ProjectBuilder exposes no handle on the build output, and
         // the observable half is that configuration succeeds instead of failing.
         val project = kiluaProject(mainClassName = "example.MainKt") {
-            declare("dev.kilua:kilua-rpc-spring-boot:0.0.47-SNAPSHOT")
+            declare("dev.kilua:kilua-rpc-spring-boot:1.0")
         }
         assertNotNull(project.tasks.findByName("jarWithJs"))
     }
 
     test("a project with no JVM target skips the whole server distribution block") {
         val project = kiluaProject(withJvm = false, withJs = true, withWasmJs = true) {
-            declare("dev.kilua:kilua-rpc-ktor:0.0.47-SNAPSHOT")
+            declare("dev.kilua:kilua-rpc-ktor:1.0")
         }
         // Each of these would throw during configuration without the guard that skips the block.
         assertNull(project.tasks.findByName("jvmProcessResources"))
