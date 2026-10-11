@@ -1,0 +1,216 @@
+name: CI
+
+# A PR is verified before it merges, and main again afterwards. The PR run is the gate; the main
+# run catches a merge that resolved differently from the branch it came from.
+#
+# The `kotlin.native.ignoreDisabledTargets` warning silencer lives in gradle.properties rather than
+# here: KGP reads it as a Gradle property, which `GRADLE_OPTS` cannot set - that only injects `-D`
+# system properties, which the flag resolver never looks at.
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+# A newer push to the same branch or PR makes an in-flight run pointless.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and test (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The modules compile against jvmToolchain(25), so a 25 is required rather than merely
+      # convenient - Gradle's toolchain resolution will not silently accept an older JDK.
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # Kotlin/Native downloads its compiler, LLVM and sysroot into ~/.konan on first use and is
+      # not covered by the Gradle cache. Keyed on the catalog so a Kotlin bump re-downloads it.
+      - name: Cache the Kotlin/Native toolchain
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: konan-${{ runner.os }}-
+
+      # compileSdk is 37, which the runner images do not ship, and `build` assembles the Android
+      # AARs as part of `assemble`.
+      - name: Install the Android platform
+        uses: ./.github/actions/android-sdk
+
+      # Karma locates Chrome through CHROME_BIN rather than a well known path, so the browser tests
+      # fail with "No binary for ChromeBrowser" without it even though Chrome is installed.
+      - name: Point Karma at Chrome
+        run: echo "CHROME_BIN=$(which google-chrome)" >> "$GITHUB_ENV"
+
+      # `build` rather than a hand written task list: it reaches every module's check, which reaches
+      # allTests, which covers jvmTest, testAndroidHostTest, linuxX64Test and both Karma suites, and
+      # assembles every declared target. Verified green locally.
+      #
+      # The sixteen example projects are gated out of `build` by default (see the root build script);
+      # the representative one below is the end to end coverage that gate would otherwise cost.
+      - name: Build and test
+        run: ./gradlew build --console=plain
+
+      # The only place the KSP plugin is exercised for real: generated client code compiling in an
+      # actual consumer, and a consumer resolving this project's published variants. Nothing else in
+      # the repo covers that gap. `check` rather than `build` because `build` is the gated task, and
+      # `check` reaches every target and the generator without it.
+      - name: Check one example end to end
+        run: ./gradlew :examples:fullstack-ktor:check --console=plain
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-linux
+          path: '**/build/test-results/**/*.xml'
+          retention-days: 7
+
+  apple:
+    name: Apple targets (macOS)
+    # Pinned rather than macos-latest: that label has changed meaning twice (macos-15, then macos-26)
+    # and a move is not something to inherit silently. macos-26 is Apple silicon, which is what both
+    # macosArm64 and the iOS targets need - no Rosetta anywhere in this job.
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Cache the Kotlin/Native toolchain
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: konan-${{ runner.os }}-
+
+      # The `publishToMavenLocal` below publishes the Android AARs as well as the Apple ones, and
+      # that needs the platform regardless of which targets this job exists to prove.
+      - name: Install the Android platform
+        uses: ./.github/actions/android-sdk
+
+      - name: Report toolchain versions
+        run: |
+          xcodebuild -version
+          xcrun --sdk macosx --show-sdk-version
+          ./gradlew --version
+
+      # Only the Apple targets are compiled here. The JVM and Android compilations are the Linux
+      # job's, and the browser suites would need Chrome wired up for no extra coverage.
+      - name: Compile the Apple targets
+        run: |
+          ./gradlew --console=plain \
+            :modules:kilua-rpc-annotations:compileKotlinMacosArm64 \
+            :modules:kilua-rpc-annotations:compileKotlinIosArm64 \
+            :modules:kilua-rpc-annotations:compileKotlinIosSimulatorArm64 \
+            :modules:kilua-rpc-annotations:compileKotlinIosX64 \
+            :modules:kilua-rpc-types:compileKotlinMacosArm64 \
+            :modules:kilua-rpc-types:compileKotlinIosArm64 \
+            :modules:kilua-rpc-types:compileKotlinIosSimulatorArm64 \
+            :modules:kilua-rpc-types:compileKotlinIosX64 \
+            :modules:kilua-rpc-core:compileKotlinMacosArm64 \
+            :modules:kilua-rpc-core:compileKotlinIosArm64 \
+            :modules:kilua-rpc-core:compileKotlinIosSimulatorArm64 \
+            :modules:kilua-rpc-core:compileKotlinIosX64 \
+            :modules:kilua-rpc-ktor:compileKotlinMacosArm64 \
+            :modules:kilua-rpc-ktor:compileKotlinIosArm64 \
+            :modules:kilua-rpc-ktor:compileKotlinIosSimulatorArm64 \
+            :modules:kilua-rpc-ktor:compileKotlinIosX64
+
+      # A simulator test binary runs directly on the host, so this genuinely executes rather than
+      # only compiling - it is the only place any Apple target's tests ever run.
+      - name: Run the Apple tests
+        run: |
+          ./gradlew --console=plain \
+            :modules:kilua-rpc-core:macosArm64Test \
+            :modules:kilua-rpc-core:iosSimulatorArm64Test
+
+      # Published from here because it is the only host where the Apple variants are declared, so
+      # this is the only job that can prove they are real artifacts and not just metadata.
+      - name: Publish to the local repository
+        run: ./gradlew publishToMavenLocal -PSNAPSHOT=true --console=plain
+
+      - name: Assert the published variants
+        run: bash .github/scripts/assert-variants.sh --apple
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-apple
+          path: '**/build/test-results/**/*.xml'
+          retention-days: 7
+
+  variants:
+    name: Published variants (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Cache the Kotlin/Native toolchain
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: konan-${{ runner.os }}-
+
+      # The publication includes the Android AARs, which need the platform this image does not ship.
+      - name: Install the Android platform
+        uses: ./.github/actions/android-sdk
+
+      # Publishing is what makes the missing-variant case visible. A module that declares a target
+      # it cannot produce an artifact for still publishes its metadata happily; the consumer only
+      # discovers it when resolution fails with "No matching variant", pointing at their build
+      # rather than at this one.
+      - name: Publish to the local repository
+        run: ./gradlew publishToMavenLocal -PSNAPSHOT=true --console=plain
+
+      - name: Assert the published variants
+        run: bash .github/scripts/assert-variants.sh
+
+      # `upload-artifact` resolves its paths under the workspace, and the local repository is in
+      # `$HOME`, so the metadata has to be staged in before it can be uploaded.
+      - name: Stage the published module metadata
+        if: always()
+        run: |
+          mkdir -p artifacts
+          if [ -d "$HOME/.m2/repository/dev/kilua" ]; then
+            cp -r "$HOME/.m2/repository/dev/kilua" artifacts/
+          fi
+
+      - name: Upload the published module metadata
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: published-metadata
+          path: 'artifacts/dev/kilua/**/*.module'
+          retention-days: 7

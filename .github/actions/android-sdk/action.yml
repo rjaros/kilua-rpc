@@ -1,0 +1,30 @@
+name: Android SDK platform
+description: >
+  Accepts the SDK licences and installs the platform the Android publications are assembled
+  against. Needed by every job that runs `publishToMavenLocal`, not just the one that compiles:
+  a module publishes a real `-android` AAR, and assembling it needs a platform matching
+  `androidCompileSdk`, which the runner images do not ship. AGP 9 does not download it either.
+
+runs:
+  using: composite
+  steps:
+    # The command is not always on PATH (the macOS image in particular), so it is resolved from the
+    # SDK root before falling back to the plain name.
+    #
+    # Licences are accepted before the install, not after: installing a package whose licence has not
+    # been accepted prompts, and there is no stdin to answer it.
+    - name: Accept the SDK licences
+      shell: bash
+      run: |
+        sdkmanager="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}/cmdline-tools/latest/bin/sdkmanager"
+        [ -x "$sdkmanager" ] || sdkmanager=sdkmanager
+        yes | "$sdkmanager" --licenses > /dev/null
+
+    # The id is minor-versioned. If the runner's default (stable) channel does not offer it yet, the
+    # failure here is a "package not found", and the fix is adding `--channel=3`.
+    - name: Install the platform
+      shell: bash
+      run: |
+        sdkmanager="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}/cmdline-tools/latest/bin/sdkmanager"
+        [ -x "$sdkmanager" ] || sdkmanager=sdkmanager
+        "$sdkmanager" "platforms;android-37.0"
