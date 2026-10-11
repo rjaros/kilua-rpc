@@ -165,6 +165,7 @@ fun KotlinMultiplatformExtension.kotlinNativeTargets() {
         iosArm64()
         iosX64()
         iosSimulatorArm64()
+        macosArm64()
     }
     linuxX64()
     linuxArm64()
