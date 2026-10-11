@@ -1,5 +1,6 @@
 plugins {
     kotlin("multiplatform")
+    id("com.android.kotlin.multiplatform.library")
     alias(libs.plugins.kotlinx.serialization)
     alias(libs.plugins.nmcp)
     id("org.jetbrains.dokka")
@@ -13,6 +14,14 @@ kotlin {
     kotlinJsTargets()
     kotlinWasmTargets()
     kotlinJvmTargets()
+    android {
+        namespace = "dev.kilua.rpc.annotations"
+        compileSdk = androidCompileSdk
+        minSdk = androidMinSdk
+        compilerOptions {
+            jvmTarget.set(androidJvmTarget)
+        }
+    }
     kotlinNativeTargets()
     sourceSets {
         getByName("commonMain") {
