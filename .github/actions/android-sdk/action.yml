@@ -18,6 +18,10 @@ runs:
       run: |
         sdkmanager="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}/cmdline-tools/latest/bin/sdkmanager"
         [ -x "$sdkmanager" ] || sdkmanager=sdkmanager
+        # `yes` is killed by SIGPIPE the moment sdkmanager stops reading, and GitHub runs bash
+        # steps with `-eo pipefail`, which would turn that 141 into a failed step even though
+        # sdkmanager succeeded.
+        set +o pipefail
         yes | "$sdkmanager" --licenses > /dev/null
 
     # The id is minor-versioned. If the runner's default (stable) channel does not offer it yet, the
