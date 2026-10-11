@@ -20,6 +20,39 @@ allprojects {
     }
 }
 
+// The examples are integration tests for the Gradle plugin rather than part of the library, and
+// they are most of the build: sixteen projects whose tasks are webpack bundles, browser
+// distributions, wasm binary optimisation, boot and shadow jars, a Quarkus uber-jar and Micronaut
+// optimised runners, against a modules graph that finishes in seconds. Twelve of them are the same
+// service interface behind seven frameworks and two DI flavours.
+//
+// They are skipped by default so that `build` means the library. `-Pkilua.examples=true` brings
+// them back for the runs that are meant to check them. Nothing is removed from the build: every
+// example still configures and still resolves its dependencies, so `:examples:fullstack-ktor:check`
+// compiles every one of its targets and runs the generator over the service, and it is not gated -
+// which is how the single example CI keeps stays a real end to end check.
+//
+// The dependencies are removed rather than the task being disabled, because `enabled = false` only
+// stops a task's own actions: everything it depends on still runs, so a disabled `build` left
+// `assemble` and `check` - and the wasm optimiser behind them - to do the bulk of the work anyway.
+//
+// This is done once every project has been evaluated rather than through `configureEach`, because
+// the lifecycle plugin sets `build`'s own dependencies while it is being applied - an action
+// registered before that is quietly overwritten, which is what made the first attempt a no-op.
+//
+// The task container is walked rather than gated on the Kotlin plugin because three of the example
+// subprojects apply kotlin("jvm") or a framework plugin instead of the multiplatform one, and
+// their packaging is the expensive part.
+val buildExamples = providers.gradleProperty("kilua.examples").map { it.toBoolean() }.getOrElse(false)
+
+if (!buildExamples) {
+    gradle.projectsEvaluated {
+        subprojects.filter { it.path.startsWith(":examples") }.forEach { example ->
+            example.tasks.findByName("build")?.setDependsOn(emptyList<Any>())
+        }
+    }
+}
+
 nmcpAggregation {
     centralPortal {
         username = findProperty("mavenCentralUsername")?.toString()
