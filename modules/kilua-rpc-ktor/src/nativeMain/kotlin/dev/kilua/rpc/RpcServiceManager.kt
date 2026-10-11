@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Robert Jaros
+ * Copyright (c) 2024 Robert Jaros
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,11 +22,15 @@
 
 package dev.kilua.rpc
 
-public fun getRpcUrlPrefix(): String {
-    return System.getProperty("kilua.rpc.url")
-        ?: error("URL must be provided for JVM client. Set it as parameter or use -Dkilua.rpc.url system property.")
-}
+import kotlin.reflect.KClass
 
-public fun getWebSocketUrl(url: String): String {
-    return httpToWebSocketUrl(url) ?: url
-}
+/**
+ * Fullstack RPC service manager.
+ *
+ * A native build only ever acts as a client, so this is the same null-object route registry the
+ * browser uses. The routing half of the JVM implementation would drag the whole Ktor server stack
+ * onto the device, so the server actual stays in jvmMain and is not published for native.
+ */
+public actual open class RpcServiceManager<out T : Any> actual constructor(
+    serviceClass: KClass<T>
+) : RpcServiceManagerBase<T>(), RpcServiceMgr<T>

@@ -120,26 +120,55 @@ const val androidMinSdk = 21
 val androidJvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
 
 /**
- * The default hierarchy template extended with a `jvmAndAndroid` group.
+ * The default hierarchy template extended with a `client` group holding every Ktor-backed target.
  *
  * The default template keeps the Android target out of the `jvm` group, so without this the
- * android target would not see a single line of the JVM client implementation. Sharing the
- * client half is what keeps the android flavour from becoming a third copy of it - the server
- * half stays in `jvmMain` and is therefore not published for android.
+ * android target would not see a single line of the JVM client implementation. Sharing the client
+ * half is what keeps the android and native flavours from becoming further copies of it - the
+ * server half stays in `jvmMain` and is therefore not published for either.
+ *
+ * Inside the group `jvmAndAndroid` narrows further to the two JVM-flavoured targets, because they
+ * are the only ones with `java.math.BigDecimal` and system properties available to them.
  */
 @OptIn(ExperimentalKotlinGradlePluginApi::class)
 fun KotlinMultiplatformExtension.kiluaHierarchyTemplate() {
     applyDefaultHierarchyTemplate {
         common {
-            group("jvmAndAndroid") {
-                withJvm()
-                // Not the built-in withAndroidTarget(): the android target of a multiplatform
-                // module is created by AGP and is not a KGP KotlinAndroidTarget.
-                @Suppress("UnstableApiUsage")
-                withAndroid()
+            group("client") {
+                group("jvmAndAndroid") {
+                    withJvm()
+                    // Not the built-in withAndroidTarget(): the android target of a multiplatform
+                    // module is created by AGP and is not a KGP KotlinAndroidTarget.
+                    @Suppress("UnstableApiUsage")
+                    withAndroid()
+                }
+                group("native") {
+                    withLinux()
+                }
             }
         }
     }
+}
+
+/**
+ * The Kotlin/Native targets a module publishes, as far as the host running the build supports.
+ *
+ * Declaring an apple target on a host that cannot build it fails the build outright, so the apple
+ * targets are only registered where Xcode is available. Linux and mingw cross-compile klibs from
+ * any host, which is what lets the common case of a linux-only client be developed anywhere.
+ */
+@OptIn(ExperimentalKotlinGradlePluginApi::class)
+fun KotlinMultiplatformExtension.kotlinNativeTargets() {
+    val host = System.getProperty("os.name").orEmpty()
+    val onAppleHost = host.contains("Mac") || host.contains("Darwin")
+    if (onAppleHost) {
+        iosArm64()
+        iosX64()
+        iosSimulatorArm64()
+    }
+    linuxX64()
+    linuxArm64()
+    mingwX64()
 }
 
 const val kiluaRpcProjectName = "Kilua RPC"

@@ -35,6 +35,7 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.serializer
+import kotlin.jvm.JvmName
 
 /**
  * Client side agent for JSON-RPC remote calls using Ktor client for JVM.

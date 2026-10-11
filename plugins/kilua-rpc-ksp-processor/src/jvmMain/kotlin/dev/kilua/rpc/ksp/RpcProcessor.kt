@@ -89,47 +89,43 @@ public class RpcProcessor(
                 val info = interfaceInfo(classDeclaration, interfaceName, className, managerName)
                 when (sourceSet) {
                     "commonMain" -> writer.write(RpcCodeRenderer.renderManager(info))
-
-                    "jsMain", "wasmJsMain" -> writer.write(
-                        RpcCodeRenderer.renderClient(info, "web.http.Request", null, isExported)
-                    )
-
-                    "jvmMain", "androidMain" -> writer.write(
-                        RpcCodeRenderer.renderClient(
-                            info,
-                            "io.ktor.client.request.HttpRequestBuilder",
-                            "${className}Client",
-                            isExported = false
-                        )
-                    )
-
-                    else -> logger.warn(
-                        "Kilua RPC: source set \"$sourceSet\" has no client flavour, so " +
-                            "$className was generated empty."
-                    )
+                    null -> writer.writeNothing(sourceSet, className)
+                    else -> {
+                        val flavour = ClientFlavour.of(sourceSet)
+                        if (flavour == null) {
+                            writer.writeNothing(sourceSet, className)
+                        } else {
+                            writer.write(
+                                RpcCodeRenderer.renderClient(
+                                    info,
+                                    flavour.requestClass,
+                                    flavour.fileJvmNameOf(className),
+                                    isExported && flavour.honoursJsExport
+                                )
+                            )
+                        }
+                    }
                 }
             }
         }
         createNewFile(Dependencies(true, *deps), "dev.kilua.rpc", "GeneratedRpcServiceManager") { writer, sourceSet ->
             when (sourceSet) {
                 "commonMain" -> writer.write(RpcCodeRenderer.renderManagerFunctions(services))
-
-                "jsMain", "wasmJsMain" -> writer.write(
-                    RpcCodeRenderer.renderClientFunctions(services, "web.http.Request", null)
-                )
-
-                "jvmMain", "androidMain" -> writer.write(
-                    RpcCodeRenderer.renderClientFunctions(
-                        services,
-                        "io.ktor.client.request.HttpRequestBuilder",
-                        "GeneratedRpcServiceManagerFunctions"
-                    )
-                )
-
-                else -> logger.warn(
-                    "Kilua RPC: source set \"$sourceSet\" has no service manager functions flavour, " +
-                        "so GeneratedRpcServiceManager was generated empty."
-                )
+                null -> writer.writeNothing(sourceSet, "GeneratedRpcServiceManager")
+                else -> {
+                    val flavour = ClientFlavour.of(sourceSet)
+                    if (flavour == null) {
+                        writer.writeNothing(sourceSet, "GeneratedRpcServiceManager")
+                    } else {
+                        writer.write(
+                            RpcCodeRenderer.renderClientFunctions(
+                                services,
+                                flavour.requestClass,
+                                flavour.managerFunctionsJvmName
+                            )
+                        )
+                    }
+                }
             }
         }
         // Same shape as the services above: register every declaration, and derive the dependencies
@@ -157,6 +153,20 @@ public class RpcProcessor(
             }
         }
         return emptyList()
+    }
+
+    /**
+     * Leave a generated file empty and say so.
+     *
+     * KSP has already created the file by the time the flavour is known, so the only choice left
+     * between writing nothing and failing the build is which of the two. Warning is deliberate: an
+     * unrecognised source set is almost always a target this processor has not been taught about
+     * yet, and that is worth saying out loud rather than surfacing later as a missing symbol.
+     */
+    private fun Writer.writeNothing(sourceSet: String?, fileName: String) {
+        logger.warn(
+            "Kilua RPC: source set \"$sourceSet\" has no client flavour, so $fileName was generated empty."
+        )
     }
 
     /**

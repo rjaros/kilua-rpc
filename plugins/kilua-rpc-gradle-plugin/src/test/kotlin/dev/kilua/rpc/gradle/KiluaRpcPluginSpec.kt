@@ -56,6 +56,7 @@ private fun kiluaProject(
     withJvm: Boolean = true,
     withJs: Boolean = true,
     withWasmJs: Boolean = false,
+    withLinux: Boolean = false,
     withMainClass: Boolean = true,
     mainClassName: String? = null,
     configure: Project.() -> Unit = {}
@@ -73,6 +74,8 @@ private fun kiluaProject(
     }
     if (withJs) kotlin.js { nodejs() }
     if (withWasmJs) kotlin.wasmJs { nodejs() }
+    // A library target, so no binaries: declaring the target is all the plugin has to react to.
+    if (withLinux) kotlin.linuxX64()
     // Spring Boot and Vert.x read the entry point from an extra property rather than from the jvm
     // run task, which is what makes it a property of the consumer's build script.
     if (mainClassName != null) project.extensions.extraProperties.set("mainClassName", mainClassName)
@@ -214,5 +217,44 @@ val KiluaRpcPluginSpec by testSuite {
             )
         }
         assertEquals("Kilua RPC", project.tasks.findByName("generateKiluaRpcSources")?.group)
+    }
+
+    test("a native target counts as a platform and is wired like any other") {
+        // The wiring is driven off the targets rather than a list of task names, so a target added
+        // after this was written has to arrive already working. Both halves are checked: the ksp
+        // configuration the processor is added to, and the dependency on the common half.
+        val project = kiluaProject(withLinux = true)
+        assertNotNull(
+            project.configurations.findByName("kspLinuxX64"),
+            "the processor should be added to a kspLinuxX64 configuration"
+        )
+        for (name in listOf("kspKotlinLinuxX64", "compileKotlinLinuxX64")) {
+            val task = project.tasks.findByName(name)
+            assertNotNull(task, "$name should exist")
+            val dependencies = task.taskDependencies.getDependencies(task).map { it.name }
+            assertContains(
+                dependencies,
+                "kspCommonMainKotlinMetadata",
+                "$name should depend on the common half task"
+            )
+        }
+    }
+
+    test("a native-only client passes the two target guard") {
+        // jvm + linuxX64 is two targets, which is the minimum the generated code splits against.
+        val project = kiluaProject(withJs = false, withLinux = true)
+        assertNotNull(project.tasks.findByName("kspCommonMainKotlinMetadata"))
+    }
+
+    test("a single native target alone fails naming how many it found") {
+        val failure = assertFailsWith<Exception> {
+            kiluaProject(withJvm = false, withJs = false, withLinux = true)
+        }
+        val message = rootCause(failure).message.orEmpty()
+        assertTrue(
+            message.contains("at least two Kotlin multiplatform targets"),
+            "expected the guard's message, was: $message"
+        )
+        assertTrue(message.contains("linuxX64"), "expected the target name to be listed, was: $message")
     }
 }

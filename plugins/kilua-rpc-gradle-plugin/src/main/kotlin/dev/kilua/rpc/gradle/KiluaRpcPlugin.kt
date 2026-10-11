@@ -97,7 +97,10 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
             KotlinPlatformType.wasm,
             // The android target of a multiplatform module is contributed by AGP rather than by a
             // KotlinGradlePlugin target, but it still reports a platform type.
-            KotlinPlatformType.androidJvm
+            KotlinPlatformType.androidJvm,
+            // Every Kotlin/Native target reports this one, which is what lets the processor
+            // dependency and the common-half wiring below reach all of them without naming each.
+            KotlinPlatformType.native
         )
         if (enableKsp) {
             project.afterEvaluate {
@@ -137,15 +140,17 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
             // target project leaves this empty and contributes no dependency, whereas depending on
             // the task name itself would fail the build when the compile task finally runs.
             val commonMetadataKspTask = project.tasks.matching { it.name == "kspCommonMainKotlinMetadata" }
-            project.tasks.byName.compileKotlinJs.configureEach {
-                it.dependsOn(commonMetadataKspTask)
-            }
-            project.tasks.byName.compileKotlinWasmJs.configureEach {
-                it.dependsOn(commonMetadataKspTask)
-            }
-            project.tasks.byName.compileKotlinJvm.configureEach {
-                it.dependsOn(commonMetadataKspTask)
-            }
+            // Attached through the targets rather than by naming tasks: a new platform would
+            // otherwise need another line here, and forgetting one costs a build that fails with a
+            // missing `expect`. The metadata target is excluded by `platformTypes`, because the
+            // task being depended on is its own KSP task and would be a cycle.
+            kotlinMppExtension.targets
+                .matching { it.platformType in platformTypes }
+                .configureEach { target ->
+                    target.compilations.configureEach { compilation ->
+                        compilation.compileTaskProvider.configure { it.dependsOn(commonMetadataKspTask) }
+                    }
+                }
             project.dependencies.add("kspCommonMainMetadata", "dev.kilua:kilua-rpc-ksp-processor:${kiluaRpcVersion}")
             kotlinMppExtension.targets
                 .matching { it.platformType in platformTypes }.configureEach {
@@ -170,22 +175,14 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
             kotlinMppExtension.sourceSets.configureEach {
                 if (it.name == "commonMain") it.kotlin.srcDir("build/generated/ksp/metadata/commonMain/kotlin")
             }
-            project.tasks.byName.kspKotlinJs.configureEach {
-                it.dependsOn(commonMetadataKspTask)
-            }
-            project.tasks.byName.kspKotlinWasmJs.configureEach {
-                it.dependsOn(commonMetadataKspTask)
-            }
-            project.tasks.byName.kspKotlinJvm.configureEach {
-                it.dependsOn(commonMetadataKspTask)
-            }
-            // The android compilation reaches the commonMain ksp output through kspAndroidMain, and
-            // unlike the jvm/js/wasm compilations that edge is not wired anywhere else. The task is
-            // matched by name because AGP is not on this plugin's classpath, so there is no typed
-            // accessor to attach it to. See the comment on commonMetadataKspTask above: relying on the
-            // empty collection rather than on the task name is what keeps a single target project,
-            // where KSP creates no metadata task at all, from failing the build.
-            project.tasks.matching { it.name == "kspAndroidMain" }.configureEach {
+            // Every per-target KSP task has to wait for the common half, because that is where the
+            // `expect` declarations are written. They are matched rather than named because KSP
+            // names them after the compilation - `kspKotlinJvm`, `kspAndroidMain`, `kspKotlinLinuxX64`
+            // - and those names differ per platform and per whether the target came from AGP.
+            // The metadata task is excluded because it is the producer, not a consumer.
+            project.tasks.matching {
+                it.name.startsWith("ksp") && it.name != "kspCommonMainKotlinMetadata"
+            }.configureEach {
                 it.dependsOn(commonMetadataKspTask)
             }
 

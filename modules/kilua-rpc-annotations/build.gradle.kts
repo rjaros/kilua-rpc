@@ -13,6 +13,7 @@ kotlin {
     kotlinJsTargets()
     kotlinWasmTargets()
     kotlinJvmTargets()
+    kotlinNativeTargets()
     sourceSets {
         getByName("commonMain") {
             dependencies {

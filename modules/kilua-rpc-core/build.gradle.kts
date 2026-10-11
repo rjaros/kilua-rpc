@@ -15,6 +15,7 @@ kotlin {
     kotlinJsTargets()
     kotlinWasmTargets()
     kotlinJvmTargets()
+    kotlinNativeTargets()
     android {
         namespace = "dev.kilua.rpc"
         compileSdk = androidCompileSdk
@@ -46,7 +47,7 @@ kotlin {
                 api(libs.wrappers.browser)
             }
         }
-        getByName("jvmAndAndroidMain") {
+        getByName("clientMain") {
             dependencies {
                 api(libs.ktor.client.core)
                 api(libs.ktor.client.content.negotiation)

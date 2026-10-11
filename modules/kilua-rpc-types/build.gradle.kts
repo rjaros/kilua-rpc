@@ -14,6 +14,7 @@ kotlin {
     kotlinJsTargets()
     kotlinWasmTargets()
     kotlinJvmTargets()
+    kotlinNativeTargets()
     android {
         namespace = "dev.kilua.rpc.types"
         compileSdk = androidCompileSdk

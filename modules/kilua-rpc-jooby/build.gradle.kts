@@ -14,6 +14,7 @@ kotlin {
     kotlinJsTargets()
     kotlinWasmTargets()
     kotlinJvmTargets()
+    kotlinNativeTargets()
     // The android flavour of this module is client only: androidMain holds a null-object route
     // registry and nothing else, so none of the Jooby server dependencies in jvmMain are published
     // for it. Everything the client needs comes from commonMain via kilua-rpc-core.
