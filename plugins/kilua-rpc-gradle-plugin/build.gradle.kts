@@ -6,6 +6,7 @@ plugins {
     id("maven-publish")
     id("signing")
     alias(libs.plugins.gradle.plugin.publish)
+    alias(libs.plugins.test.balloon)
 }
 
 repositories {
@@ -49,6 +50,9 @@ dependencies {
     implementation(libs.shadow.gradle.plugin)
     implementation(libs.spring.boot.gradle.plugin)
     implementation(libs.quarkus.gradle.plugin)
+    testImplementation(gradleTestKit())
+    testImplementation(kotlin("test"))
+    testImplementation(libs.test.balloon)
 }
 
 tasks {
@@ -61,6 +65,23 @@ tasks {
             filter { line -> line.replaceAfter("kilua-rpc = ", "\"${version}\"") }
         }
     }
+}
+
+// The plugin reads its version out of this resource, which the jar task above injects into the jar
+// alone. Tests run against the classes directory rather than the jar, so without this the read
+// returns null and applying the plugin fails outright.
+//
+// The copy is verbatim rather than version-substituted: that substitution exists so a published
+// plugin pins the processor coordinate to its own version, and tests never resolve that coordinate,
+// so rewriting the file here would only add a configuration-cache-hostile filter for no gain.
+val versionsResourceForTests = tasks.register<Sync>("versionsResourceForTests") {
+    from(rootProject.layout.projectDirectory.file("gradle/libs.versions.toml"))
+    rename { "dev.kilua.rpc.versions.toml" }
+    into(layout.buildDirectory.dir("resources/test"))
+}
+
+tasks.withType<Test>().configureEach {
+    dependsOn(versionsResourceForTests)
 }
 
 publishing {

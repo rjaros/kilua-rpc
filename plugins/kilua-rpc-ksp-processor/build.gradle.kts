@@ -1,5 +1,6 @@
 plugins {
     kotlin("multiplatform")
+    alias(libs.plugins.test.balloon)
     alias(libs.plugins.nmcp)
     id("org.jetbrains.dokka")
     id("maven-publish")
@@ -19,6 +20,14 @@ kotlin {
         getByName("jvmMain") {
             dependencies {
                 implementation(libs.ksp.symbol.processing.api)
+            }
+        }
+        getByName("jvmTest") {
+            dependencies {
+                implementation(kotlin("test"))
+                implementation(kotlin("test-common"))
+                implementation(kotlin("test-annotations-common"))
+                implementation(libs.test.balloon)
             }
         }
     }
