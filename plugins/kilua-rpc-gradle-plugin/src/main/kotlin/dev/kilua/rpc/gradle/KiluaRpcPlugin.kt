@@ -23,6 +23,7 @@
 package dev.kilua.rpc.gradle
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import com.google.devtools.ksp.gradle.KspExtension
 import io.quarkus.gradle.extension.QuarkusPluginExtension
 import io.quarkus.gradle.tasks.QuarkusBuild
 import org.gradle.api.JavaVersion
@@ -85,12 +86,17 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
 
         val kotlinMppExtension = project.extensions.getByType(KotlinMultiplatformExtension::class.java)
 
-        // Kilua RPC's generated code always comes in two halves: a common one holding the shared
+        // Kilua RPC's generated code normally comes in two halves: a common one holding the shared
         // declarations, and one per platform target. The common half can only be produced by the KSP
         // task that runs the metadata compilation, and KSP registers that task only for a project
         // with at least two real platform targets. A project with a single platform target therefore
-        // cannot build no matter how the dependsOn edges are wired - so fail here with something
-        // actionable instead of letting the compiler report a bare ACTUAL_WITHOUT_EXPECT later.
+        // has no metadata half to build against, so the processor is told to emit a self-contained
+        // platform half instead - managers, client, lookups and exceptions all in the target's source
+        // set, with no `expect`/`actual` pair.
+        //
+        // That mode is signalled through a KSP argument rather than inferred, because the platform
+        // source set a generated file lands in has the same name in both modes, and nothing else the
+        // processor is handed says how many targets the project has.
         val platformTypes = setOf(
             KotlinPlatformType.jvm,
             KotlinPlatformType.js,
@@ -105,16 +111,16 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
         if (enableKsp) {
             project.afterEvaluate {
                 val platformTargets = kotlinMppExtension.targets.filter { it.platformType in platformTypes }
-                if (platformTargets.size < 2) {
-                    error(
-                        "The dev.kilua.rpc plugin needs at least two Kotlin multiplatform targets, but " +
-                            "project '${project.name}' declares ${platformTargets.size}: " +
-                            "${platformTargets.map { it.name }}. The generated service code is split " +
-                            "into a common half and one half per platform, and the common half is " +
-                            "produced by a KSP task that only exists once a project has two or more " +
-                            "targets. Add a second target (for example js() or wasmJs()) instead of " +
-                            "leaving the project with a single platform."
+                when {
+                    platformTargets.isEmpty() -> error(
+                        "The dev.kilua.rpc plugin needs at least one Kotlin multiplatform target, but " +
+                            "project '${project.name}' declares none of the supported platform types " +
+                            "(jvm, js, wasmJs, android or native)."
                     )
+
+                    platformTargets.size == 1 ->
+                        project.extensions.findByType(KspExtension::class.java)
+                            ?.arg(SINGLE_TARGET_KSP_OPTION, "true")
                 }
             }
         }
@@ -151,7 +157,12 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
                         compilation.compileTaskProvider.configure { it.dependsOn(commonMetadataKspTask) }
                     }
                 }
-            project.dependencies.add("kspCommonMainMetadata", "dev.kilua:kilua-rpc-ksp-processor:${kiluaRpcVersion}")
+            // The metadata configuration is only there alongside the metadata task, so a single
+            // target project must not be given a dependency in it: adding one to a configuration KSP
+            // never created would fail the build for no reason.
+            if (project.configurations.findByName("kspCommonMainMetadata") != null) {
+                project.dependencies.add("kspCommonMainMetadata", "dev.kilua:kilua-rpc-ksp-processor:${kiluaRpcVersion}")
+            }
             kotlinMppExtension.targets
                 .matching { it.platformType in platformTypes }.configureEach {
                     project.dependencies.add(
@@ -175,16 +186,17 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
             kotlinMppExtension.sourceSets.configureEach {
                 if (it.name == "commonMain") it.kotlin.srcDir("build/generated/ksp/metadata/commonMain/kotlin")
             }
-            // Every per-target KSP task has to wait for the common half, because that is where the
-            // `expect` declarations are written. They are matched rather than named because KSP
-            // names them after the compilation - `kspKotlinJvm`, `kspAndroidMain`, `kspKotlinLinuxX64`
-            // - and those names differ per platform and per whether the target came from AGP.
-            // The metadata task is excluded because it is the producer, not a consumer.
-            project.tasks.matching {
+            // Every per-target KSP task is matched rather than named because KSP names them after
+            // the compilation - `kspKotlinJvm`, `kspAndroidMain`, `kspKotlinLinuxX64` - and those
+            // names differ per platform and per whether the target came from AGP. The metadata task
+            // is excluded because it is the producer, not a consumer.
+            val platformKspTasks = project.tasks.matching {
                 it.name.startsWith("ksp") && it.name != "kspCommonMainKotlinMetadata"
-            }.configureEach {
-                it.dependsOn(commonMetadataKspTask)
             }
+            // Each one has to wait for the common half, because that is where the `expect`
+            // declarations are written. With a single target the collection is empty, so this adds
+            // no dependency and the self-contained platform half stands on its own.
+            platformKspTasks.configureEach { it.dependsOn(commonMetadataKspTask) }
 
             // Registered afterEvaluate for the same reason the packaging block below is: reading the
             // extension any earlier happens while the kotlin("multiplatform") plugin is still being
@@ -196,6 +208,7 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
                         it.group = KILUA_RPC_TASK_GROUP
                         it.description = "Generating Kilua RPC sources"
                         it.dependsOn(commonMetadataKspTask)
+                        it.dependsOn(platformKspTasks)
                     }
                 }
             }
@@ -562,6 +575,14 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
 
         public const val KILUA_RPC_TASK_GROUP: String = "Kilua RPC"
         public const val PACKAGE_TASK_GROUP: String = "package"
+
+        /**
+         * The KSP argument that switches the processor to its single target mode.
+         *
+         * Spelled out here as well as in the processor: the plugin does not depend on the processor,
+         * and the two are versioned together, so the literal is the contract between them.
+         */
+        internal const val SINGLE_TARGET_KSP_OPTION: String = "kilua.rpc.singleTarget"
 
         private val SIGNATURE_FILE_EXCLUSIONS = arrayOf(
             "META-INF/*.SF",

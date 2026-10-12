@@ -52,6 +52,11 @@ public data class ExceptionNameDetails(val packageName: String, val className: S
 public class RpcProcessor(
     private val codeGenerator: CodeGenerator,
     private val logger: KSPLogger,
+    // Whether the project declares a single platform target. Such a project has no metadata KSP
+    // task, so there is no commonMain half to build against and the platform half has to be
+    // self-contained: managers, lookups and the exceptions registration all in the target's own
+    // source set, with no expect/actual pair.
+    private val singleTarget: Boolean = false,
 ) : SymbolProcessor {
 
     private var isInitialInvocation = true
@@ -85,8 +90,8 @@ public class RpcProcessor(
             }
             val dependencies = classDeclaration.containingFile?.let { Dependencies(true, it) } ?: Dependencies(true)
             services.add(NameDetails(packageName, className, interfaceName, managerName))
+            val info = interfaceInfo(classDeclaration, interfaceName, className, managerName)
             createNewFile(dependencies, packageName, className) { writer, sourceSet ->
-                val info = interfaceInfo(classDeclaration, interfaceName, className, managerName)
                 when (sourceSet) {
                     "commonMain" -> writer.write(RpcCodeRenderer.renderManager(info))
                     null -> writer.writeNothing(sourceSet, className)
@@ -107,6 +112,19 @@ public class RpcProcessor(
                     }
                 }
             }
+            // A single target project has no metadata half to carry the manager object, so it is
+            // written beside the client instead. A separate file rather than the same one because a
+            // source set cannot hold two files of the same name, and the client file already owns
+            // `className`.
+            if (singleTarget) {
+                createNewFile(dependencies, packageName, managerName) { writer, sourceSet ->
+                    when {
+                        sourceSet == "commonMain" -> Unit
+                        sourceSet == null -> writer.writeNothing(sourceSet, managerName)
+                        else -> writer.write(RpcCodeRenderer.renderManager(info))
+                    }
+                }
+            }
         }
         createNewFile(Dependencies(true, *deps), "dev.kilua.rpc", "GeneratedRpcServiceManager") { writer, sourceSet ->
             when (sourceSet) {
@@ -114,10 +132,17 @@ public class RpcProcessor(
                 null -> writer.writeNothing(sourceSet, "GeneratedRpcServiceManager")
                 else -> {
                     val flavour = ClientFlavour.of(sourceSet)
-                    if (flavour == null) {
-                        writer.writeNothing(sourceSet, "GeneratedRpcServiceManager")
-                    } else {
-                        writer.write(
+                    when {
+                        flavour == null -> writer.writeNothing(sourceSet, "GeneratedRpcServiceManager")
+                        singleTarget -> writer.write(
+                            RpcCodeRenderer.renderSingleTargetManagerFunctions(
+                                services,
+                                flavour.requestClass,
+                                flavour.managerFunctionsJvmName
+                            )
+                        )
+
+                        else -> writer.write(
                             RpcCodeRenderer.renderClientFunctions(
                                 services,
                                 flavour.requestClass,
@@ -146,10 +171,12 @@ public class RpcProcessor(
             )
         }
         createNewFile(Dependencies(true, *depsExceptions), "dev.kilua.rpc", "GeneratedRpcServiceExceptions") { writer, sourceSet ->
-            when (sourceSet) {
-                "commonMain" -> writer.write(RpcCodeRenderer.renderExceptions(exceptions))
-
-                else -> {} // Nothing to do: exceptions are only used in commonMain.
+            when {
+                sourceSet == "commonMain" -> writer.write(RpcCodeRenderer.renderExceptions(exceptions))
+                // With a single target the manager object - which calls the registration - lives in
+                // the target's own source set, so the registration has to be written there too.
+                singleTarget && sourceSet != null -> writer.write(RpcCodeRenderer.renderExceptions(exceptions))
+                else -> {} // Nothing to do: exceptions are only generated where a manager needs them.
             }
         }
         return emptyList()

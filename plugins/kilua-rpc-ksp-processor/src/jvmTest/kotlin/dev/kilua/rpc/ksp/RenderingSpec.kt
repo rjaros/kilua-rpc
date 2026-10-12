@@ -27,6 +27,7 @@ import dev.kilua.rpc.ksp.RpcCodeRenderer.renderClientFunctions
 import dev.kilua.rpc.ksp.RpcCodeRenderer.renderExceptions
 import dev.kilua.rpc.ksp.RpcCodeRenderer.renderManager
 import dev.kilua.rpc.ksp.RpcCodeRenderer.renderManagerFunctions
+import dev.kilua.rpc.ksp.RpcCodeRenderer.renderSingleTargetManagerFunctions
 import de.infix.testBalloon.framework.core.testSuite
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -142,6 +143,34 @@ val FlavourRenderingSpec by testSuite {
             )
         )
         assertTrue(platform.contains("@file:JvmName(\"GeneratedRpcServiceManagerFunctions\")"))
+    }
+
+    test("a single target factory is self-contained with no expect or actual") {
+        val rendered = renderSingleTargetManagerFunctions(
+            services(),
+            JVM_REQUEST,
+            "GeneratedRpcServiceManagerFunctions"
+        )
+        // The manager lookups that only the common half used to carry.
+        assertTrue(rendered.contains("inline fun <reified T : Any> getServiceManager()"), rendered)
+        assertTrue(rendered.contains("fun getAllServiceManagers()"), rendered)
+        assertTrue(rendered.contains("fun getServiceManagers(vararg kclass: KClass<*>)"), rendered)
+        // Both client factory overloads, with the no-arg one forwarding to the filter one.
+        assertTrue(
+            rendered.contains("noinline requestFilter: (suspend HttpRequestBuilder.() -> Unit)? = null"),
+            rendered
+        )
+        assertTrue(
+            rendered.contains(
+                "inline fun <reified T : Any> getService(baseUrl: String? = null, " +
+                    "serializersModules: List<SerializersModule>? = null): T = getService(baseUrl, serializersModules, null)"
+            ),
+            rendered
+        )
+        assertTrue(rendered.contains("@file:JvmName(\"GeneratedRpcServiceManagerFunctions\")"), rendered)
+        // There is no metadata half to pair with, so nothing may be expect or actual.
+        assertTrue(!rendered.contains("expect"), rendered)
+        assertTrue(!rendered.contains("actual"), rendered)
     }
 
     test("with no services the factory emits nothing beyond the header") {

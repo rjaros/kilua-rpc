@@ -23,6 +23,7 @@
 package dev.kilua.rpc.gradle
 
 import de.infix.testBalloon.framework.core.testSuite
+import com.google.devtools.ksp.gradle.KspExtension
 import org.gradle.api.Project
 import org.gradle.testfixtures.ProjectBuilder
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
@@ -117,14 +118,28 @@ val KiluaRpcPluginSpec by testSuite {
         assertNull(project.tasks.findByName("generateKiluaRpcSources"))
     }
 
-    test("a project with fewer than two platform targets fails naming how many it found") {
-        val failure = assertFailsWith<Exception> { kiluaProject(withJvm = true, withJs = false) }
+    test("a project with a single platform target configures in single target mode") {
+        val project = kiluaProject(withJvm = true, withJs = false)
+        // With one target there is no metadata KSP task, so the processor is told to emit a
+        // self-contained platform half instead, through a KSP argument.
+        assertNull(project.tasks.findByName("kspCommonMainKotlinMetadata"))
+        assertEquals(
+            "true",
+            project.extensions.getByType(KspExtension::class.java)
+                .arguments[KiluaRpcPlugin.SINGLE_TARGET_KSP_OPTION]
+        )
+        assertNotNull(project.tasks.findByName("generateKiluaRpcSources"))
+    }
+
+    test("a project with no platform targets fails naming the problem") {
+        val failure = assertFailsWith<Exception> {
+            kiluaProject(withJvm = false, withJs = false)
+        }
         val message = rootCause(failure).message.orEmpty()
         assertTrue(
-            message.contains("at least two Kotlin multiplatform targets"),
+            message.contains("at least one Kotlin multiplatform target"),
             "expected the guard's message, was: $message"
         )
-        assertTrue(message.contains("1"), "expected the target count to be reported, was: $message")
     }
 
     test("a project with two platform targets configures without complaint") {
@@ -246,15 +261,13 @@ val KiluaRpcPluginSpec by testSuite {
         assertNotNull(project.tasks.findByName("kspCommonMainKotlinMetadata"))
     }
 
-    test("a single native target alone fails naming how many it found") {
-        val failure = assertFailsWith<Exception> {
-            kiluaProject(withJvm = false, withJs = false, withLinux = true)
-        }
-        val message = rootCause(failure).message.orEmpty()
-        assertTrue(
-            message.contains("at least two Kotlin multiplatform targets"),
-            "expected the guard's message, was: $message"
+    test("a single native target alone configures in single target mode") {
+        val project = kiluaProject(withJvm = false, withJs = false, withLinux = true)
+        assertNull(project.tasks.findByName("kspCommonMainKotlinMetadata"))
+        assertEquals(
+            "true",
+            project.extensions.getByType(KspExtension::class.java)
+                .arguments[KiluaRpcPlugin.SINGLE_TARGET_KSP_OPTION]
         )
-        assertTrue(message.contains("linuxX64"), "expected the target name to be listed, was: $message")
     }
 }

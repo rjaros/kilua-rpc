@@ -217,31 +217,7 @@ internal object RpcCodeRenderer {
                 appendLine("import kotlin.reflect.KClass")
                 appendLine("import kotlinx.serialization.modules.SerializersModule")
                 appendLine()
-                appendLine("@Suppress(\"UNCHECKED_CAST\")")
-                appendLine("inline fun <reified T : Any> getServiceManager(): RpcServiceManager<T> = when (T::class) {")
-                services.forEach {
-                    appendLine("    ${it.packageName}.${it.interfaceName}::class -> ${it.packageName}.${it.managerName} as RpcServiceManager<T>")
-                }
-                appendLine("    else -> throw IllegalArgumentException(\"Unknown service \${T::class}\")")
-                appendLine("}")
-                appendLine()
-                appendLine("fun getAllServiceManagers(): List<RpcServiceManager<*>> = listOf(")
-                services.forEach {
-                    appendLine("    ${it.packageName}.${it.managerName},")
-                }
-                appendLine(")")
-                appendLine()
-                appendLine("fun getServiceManagers(vararg kclass: KClass<*>): List<RpcServiceManager<*>> {")
-                appendLine("    return kclass.map {")
-                appendLine("        when (it) {")
-                services.forEach {
-                    appendLine("            ${it.packageName}.${it.interfaceName}::class -> ${it.packageName}.${it.managerName}")
-                }
-                appendLine("            else -> throw IllegalArgumentException(\"Unknown service \${it.simpleName}\")")
-                appendLine("        }")
-                appendLine("    }")
-                appendLine("}")
-                appendLine()
+                appendManagerLookups(services)
                 appendLine("public expect inline fun <reified T : Any> getService(")
                 appendLine("    baseUrl: String? = null,")
                 appendLine("    serializersModules: List<SerializersModule>? = null")
@@ -267,17 +243,85 @@ internal object RpcCodeRenderer {
                 appendLine("import $requestClass")
                 appendLine("import kotlinx.serialization.modules.SerializersModule")
                 appendLine()
-                appendLine("inline fun <reified T : Any> getService(baseUrl: String? = null, serializersModules: List<SerializersModule>? = null, noinline requestFilter: (suspend $requestClassName.() -> Unit)? = null): T = when (T::class) {")
-                services.forEach {
-                    appendLine("    ${it.packageName}.${it.interfaceName}::class -> ${it.packageName}.${it.className}(baseUrl, serializersModules, requestFilter) as T")
-                }
-                appendLine("    else -> throw IllegalArgumentException(\"Unknown service \${T::class}\")")
-                appendLine("}")
+                appendClientFactory(services, requestClassName)
                 appendLine()
                 appendLine("actual inline fun <reified T : Any> getService(baseUrl: String?, serializersModules: List<SerializersModule>?): T = getService(baseUrl, serializersModules, null)")
             }
             appendLine()
         }.toString()
+    }
+
+    /**
+     * The whole client factory for a project with a single target, written into that target's own
+     * source set.
+     *
+     * It carries what [renderManagerFunctions] and [renderClientFunctions] together carry, because
+     * there is no metadata half to split against: nothing is `expect` or `actual`, and the no-arg
+     * `getService` overload is a plain function forwarding to the one taking a request filter,
+     * rather than an `actual`.
+     */
+    fun renderSingleTargetManagerFunctions(
+        services: List<NameDetails>,
+        requestClass: String,
+        fileJvmName: String?
+    ): String {
+        val requestClassName = requestClassNameOf(requestClass)
+        return StringBuilder().apply {
+            appendGeneratedHeader()
+            if (services.isNotEmpty()) {
+                fileJvmName?.let { appendLine("@file:JvmName(\"$it\")") }
+                appendLine("package dev.kilua.rpc")
+                appendLine()
+                appendLine("import $requestClass")
+                appendLine("import kotlin.reflect.KClass")
+                appendLine("import kotlinx.serialization.modules.SerializersModule")
+                appendLine()
+                appendManagerLookups(services)
+                appendClientFactory(services, requestClassName)
+                appendLine()
+                appendLine("inline fun <reified T : Any> getService(baseUrl: String? = null, serializersModules: List<SerializersModule>? = null): T = getService(baseUrl, serializersModules, null)")
+            }
+            appendLine()
+        }.toString()
+    }
+
+    /** The manager and exception lookups, shared by the split and single target factories. */
+    private fun StringBuilder.appendManagerLookups(services: List<NameDetails>) {
+        appendLine("@Suppress(\"UNCHECKED_CAST\")")
+        appendLine("inline fun <reified T : Any> getServiceManager(): RpcServiceManager<T> = when (T::class) {")
+        services.forEach {
+            appendLine("    ${it.packageName}.${it.interfaceName}::class -> ${it.packageName}.${it.managerName} as RpcServiceManager<T>")
+        }
+        appendLine("    else -> throw IllegalArgumentException(\"Unknown service \${T::class}\")")
+        appendLine("}")
+        appendLine()
+        appendLine("fun getAllServiceManagers(): List<RpcServiceManager<*>> = listOf(")
+        services.forEach {
+            appendLine("    ${it.packageName}.${it.managerName},")
+        }
+        appendLine(")")
+        appendLine()
+        appendLine("fun getServiceManagers(vararg kclass: KClass<*>): List<RpcServiceManager<*>> {")
+        appendLine("    return kclass.map {")
+        appendLine("        when (it) {")
+        services.forEach {
+            appendLine("            ${it.packageName}.${it.interfaceName}::class -> ${it.packageName}.${it.managerName}")
+        }
+        appendLine("            else -> throw IllegalArgumentException(\"Unknown service \${it.simpleName}\")")
+        appendLine("        }")
+        appendLine("    }")
+        appendLine("}")
+        appendLine()
+    }
+
+    /** The concrete `getService` that every service dispatch goes through. */
+    private fun StringBuilder.appendClientFactory(services: List<NameDetails>, requestClassName: String) {
+        appendLine("inline fun <reified T : Any> getService(baseUrl: String? = null, serializersModules: List<SerializersModule>? = null, noinline requestFilter: (suspend $requestClassName.() -> Unit)? = null): T = when (T::class) {")
+        services.forEach {
+            appendLine("    ${it.packageName}.${it.interfaceName}::class -> ${it.packageName}.${it.className}(baseUrl, serializersModules, requestFilter) as T")
+        }
+        appendLine("    else -> throw IllegalArgumentException(\"Unknown service \${T::class}\")")
+        appendLine("}")
     }
 
     /** Registers the whole set of service exceptions for polymorphic deserialization. */
