@@ -50,7 +50,7 @@ kotlin {
     sourceSets {
         getByName("commonMain") {
             dependencies {
-                implementation(libs.kilua.rpc.quarkus)
+                implementation(project(":modules:kilua-rpc-quarkus"))
                 implementation(libs.kotlinx.datetime)
             }
         }

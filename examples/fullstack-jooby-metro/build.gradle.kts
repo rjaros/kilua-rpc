@@ -51,7 +51,7 @@ kotlin {
     sourceSets {
         getByName("commonMain") {
             dependencies {
-                implementation(libs.kilua.rpc.jooby.metro)
+                implementation(project(":modules:kilua-rpc-jooby-metro"))
                 implementation(libs.kotlinx.datetime)
             }
         }

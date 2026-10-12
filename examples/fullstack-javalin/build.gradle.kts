@@ -49,7 +49,7 @@ kotlin {
     sourceSets {
         getByName("commonMain") {
             dependencies {
-                implementation(libs.kilua.rpc.javalin)
+                implementation(project(":modules:kilua-rpc-javalin"))
                 implementation(libs.kotlinx.datetime)
             }
         }

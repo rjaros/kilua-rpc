@@ -13,5 +13,5 @@ kotlin {
     kotlinJvmTargets()
 }
 
-setupDokka(tasks.dokkaGeneratePublicationHtml)
+setupDokka()
 setupPublishing()

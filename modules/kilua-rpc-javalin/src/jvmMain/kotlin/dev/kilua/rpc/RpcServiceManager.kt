@@ -234,10 +234,10 @@ public fun <T : Any> JavalinConfig.applyRoutes(
             HttpMethod.OPTIONS -> routes.options(path, handler, *roles.toTypedArray())
         }
     }
-    serviceManager.webSocketRequests.forEach { (path, handler) ->
+    serviceManager.webSocketRequests.forEach { [path, handler] ->
         routes.ws(path, handler, *roles.toTypedArray())
     }
-    serviceManager.sseRequests.forEach { (path, handler) ->
+    serviceManager.sseRequests.forEach { [path, handler] ->
         routes.sse(path, handler, *roles.toTypedArray())
     }
 }

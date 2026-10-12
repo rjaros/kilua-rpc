@@ -55,11 +55,11 @@ private class RouteMapRegistryImpl<T> : RouteMapRegistry<T> {
     override fun asSequence(method: HttpMethod): Sequence<RouteMapEntry<T>> {
         return (map[method] ?: return emptySequence())
             .asSequence()
-            .map { (path, handler) -> RouteMapEntry(method, path, handler) }
+            .map { [path, handler] -> RouteMapEntry(method, path, handler) }
     }
 
     override fun asSequence(): Sequence<RouteMapEntry<T>> =
-        map.asSequence().flatMap { (method, mappings) ->
+        map.asSequence().flatMap { [method, mappings] ->
             mappings.asSequence().map { RouteMapEntry(method, it.key, it.value) }
         }
 }

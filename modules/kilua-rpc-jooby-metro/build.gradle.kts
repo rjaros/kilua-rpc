@@ -1,5 +1,6 @@
 plugins {
     kotlin("multiplatform")
+    id("com.android.kotlin.multiplatform.library")
     alias(libs.plugins.kotlinx.serialization)
     alias(libs.plugins.nmcp)
     alias(libs.plugins.metro)
@@ -14,6 +15,15 @@ kotlin {
     kotlinJsTargets()
     kotlinWasmTargets()
     kotlinJvmTargets()
+    android {
+        namespace = "dev.kilua.rpc"
+        compileSdk = androidCompileSdk
+        minSdk = androidMinSdk
+        compilerOptions {
+            jvmTarget.set(androidJvmTarget)
+        }
+    }
+    kotlinNativeTargets()
     sourceSets {
         getByName("commonMain") {
             dependencies {
@@ -35,5 +45,5 @@ metro {
     automaticallyAddRuntimeDependencies = false
 }
 
-setupDokka(tasks.dokkaGeneratePublicationHtml)
+setupDokka()
 setupPublishing()

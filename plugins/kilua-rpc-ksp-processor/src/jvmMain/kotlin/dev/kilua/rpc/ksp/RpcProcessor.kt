@@ -19,19 +19,17 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 package dev.kilua.rpc.ksp
 
 import com.google.devtools.ksp.KspExperimental
 import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.getDeclaredFunctions
-import com.google.devtools.ksp.processing.CodeGenerator
-import com.google.devtools.ksp.processing.Dependencies
-import com.google.devtools.ksp.processing.Resolver
-import com.google.devtools.ksp.processing.SymbolProcessor
+import com.google.devtools.ksp.processing.*
 import com.google.devtools.ksp.symbol.*
 import com.google.devtools.ksp.validate
 import dev.kilua.rpc.annotations.*
-import java.io.File
+import java.io.Writer
 
 public data class NameDetails(
     val packageName: String,
@@ -42,9 +40,23 @@ public data class NameDetails(
 
 public data class ExceptionNameDetails(val packageName: String, val className: String)
 
+/**
+ * Reads annotated service interfaces and writes out the two halves of generated code for each.
+ *
+ * This is the half that knows about KSP, and it does nothing else: it resolves symbols, reduces them
+ * to [InterfaceInfo] values, and hands those to [RpcCodeRenderer], which is where the text is
+ * produced. Everything awkward about the generated code therefore lives in a place that can be
+ * tested without a resolver.
+ */
 @OptIn(KspExperimental::class)
 public class RpcProcessor(
     private val codeGenerator: CodeGenerator,
+    private val logger: KSPLogger,
+    // Whether the project declares a single platform target. Such a project has no metadata KSP
+    // task, so there is no commonMain half to build against and the platform half has to be
+    // self-contained: managers, lookups and the exceptions registration all in the target's own
+    // source set, with no expect/actual pair.
+    private val singleTarget: Boolean = false,
 ) : SymbolProcessor {
 
     private var isInitialInvocation = true
@@ -56,465 +68,246 @@ public class RpcProcessor(
         }
         isInitialInvocation = false
         val services = mutableListOf<NameDetails>()
-        val deps = resolver.getSymbolsWithAnnotation(RpcService::class.qualifiedName.orEmpty())
+        // Collected before anything is generated, and derived from the declarations rather than
+        // produced as a side effect of visiting them: reading the containing file to filter on is a
+        // separate concern from registering a service, and mixing the two meant a declaration with no
+        // containing file - one from a binary dependency, say - dropped out of the dependencies of a
+        // file that still lists it.
+        val serviceDeclarations = resolver.getSymbolsWithAnnotation(RpcService::class.qualifiedName.orEmpty())
             .filterIsInstance<KSClassDeclaration>().filter { it.validate(enableNewFeatures = true) }
             .filter { it.classKind == ClassKind.INTERFACE }
-            .mapNotNull { classDeclaration ->
-                val interfaceName = classDeclaration.simpleName.asString()
-                val packageName = classDeclaration.packageName.asString()
-                val className = "${interfaceName}Impl"
-                val managerName = "${interfaceName}Manager"
-                val isExported = classDeclaration.annotations.any {
-                    it.annotationType.resolve().declaration.qualifiedName?.asString() == "kotlin.js.JsExport"
-                }
-                val dependencies = classDeclaration.containingFile?.let { Dependencies(true, it) } ?: Dependencies(true)
-                codeGenerator.createNewFile(dependencies, packageName, className).writer().use {
-                    when (codeGenerator.generatedFile.first().toString().sourceSetBelowKsp()) {
-                        "commonMain" -> {
-                            it.write(
-                                generateCommonCode(
-                                    packageName,
-                                    interfaceName,
-                                    managerName,
-                                    classDeclaration
-                                )
-                            )
-                        }
-
-                        "jsMain" -> {
-                            it.write(
-                                generateFrontendCode(
-                                    packageName,
-                                    className,
-                                    interfaceName,
-                                    managerName,
-                                    "web.http.Request",
-                                    isExported,
-                                    classDeclaration
-                                )
-                            )
-                        }
-
-                        "wasmJsMain" -> {
-                            it.write(
-                                generateFrontendCode(
-                                    packageName,
-                                    className,
-                                    interfaceName,
-                                    managerName,
-                                    "web.http.Request",
-                                    isExported,
-                                    classDeclaration
-                                )
-                            )
-                        }
-
-                        "jvmMain" -> {
-                            it.write(
-                                generateFrontendCode(
-                                    packageName,
-                                    className,
-                                    interfaceName,
-                                    managerName,
-                                    "io.ktor.client.request.HttpRequestBuilder",
-                                    false,
-                                    classDeclaration,
-                                    "${className}Client"
+            .toList()
+        val deps = serviceDeclarations.mapNotNull { it.containingFile }.toTypedArray()
+        serviceDeclarations.forEach { classDeclaration ->
+            val interfaceName = classDeclaration.simpleName.asString()
+            val packageName = classDeclaration.packageName.asString()
+            val className = "${interfaceName}Impl"
+            val managerName = "${interfaceName}Manager"
+            // Whether the interface asks to be exported to JavaScript. Only the web flavours act on
+            // it: the annotation is a Kotlin/JS one, and emitting it anywhere else is a compile error.
+            val isExported = classDeclaration.annotations.any {
+                it.annotationType.resolve().declaration.qualifiedName?.asString() == "kotlin.js.JsExport"
+            }
+            val dependencies = classDeclaration.containingFile?.let { Dependencies(true, it) } ?: Dependencies(true)
+            services.add(NameDetails(packageName, className, interfaceName, managerName))
+            val info = interfaceInfo(classDeclaration, interfaceName, className, managerName)
+            createNewFile(dependencies, packageName, className) { writer, sourceSet ->
+                when (sourceSet) {
+                    "commonMain" -> writer.write(RpcCodeRenderer.renderManager(info))
+                    null -> writer.writeNothing(sourceSet, className)
+                    else -> {
+                        val flavour = ClientFlavour.of(sourceSet)
+                        if (flavour == null) {
+                            writer.writeNothing(sourceSet, className)
+                        } else {
+                            writer.write(
+                                RpcCodeRenderer.renderClient(
+                                    info,
+                                    flavour.requestClass,
+                                    flavour.fileJvmNameOf(className),
+                                    isExported && flavour.honoursJsExport
                                 )
                             )
                         }
                     }
                 }
-                services.add(NameDetails(packageName, className, interfaceName, managerName))
-                classDeclaration.containingFile
-            }.toList().toTypedArray()
-        codeGenerator.createNewFile(Dependencies(true, *deps), "dev.kilua.rpc", "GeneratedRpcServiceManager")
-            .writer().use {
-                when (codeGenerator.generatedFile.first().toString().sourceSetBelowKsp()) {
-                    "commonMain" -> {
-                        it.write(generateCommonCodeFunctions(services))
+            }
+            // A single target project has no metadata half to carry the manager object, so it is
+            // written beside the client instead. A separate file rather than the same one because a
+            // source set cannot hold two files of the same name, and the client file already owns
+            // `className`.
+            if (singleTarget) {
+                createNewFile(dependencies, packageName, managerName) { writer, sourceSet ->
+                    when {
+                        sourceSet == "commonMain" -> Unit
+                        sourceSet == null -> writer.writeNothing(sourceSet, managerName)
+                        else -> writer.write(RpcCodeRenderer.renderManager(info))
                     }
-
-                    "jsMain" -> {
-                        it.write(
-                            generateFrontendCodeFunctions(
+                }
+            }
+        }
+        createNewFile(Dependencies(true, *deps), "dev.kilua.rpc", "GeneratedRpcServiceManager") { writer, sourceSet ->
+            when (sourceSet) {
+                "commonMain" -> writer.write(RpcCodeRenderer.renderManagerFunctions(services))
+                null -> writer.writeNothing(sourceSet, "GeneratedRpcServiceManager")
+                else -> {
+                    val flavour = ClientFlavour.of(sourceSet)
+                    when {
+                        flavour == null -> writer.writeNothing(sourceSet, "GeneratedRpcServiceManager")
+                        singleTarget -> writer.write(
+                            RpcCodeRenderer.renderSingleTargetManagerFunctions(
                                 services,
-                                "web.http.Request"
+                                flavour.requestClass,
+                                flavour.managerFunctionsJvmName
                             )
                         )
-                    }
 
-                    "wasmJsMain" -> {
-                        it.write(
-                            generateFrontendCodeFunctions(
+                        else -> writer.write(
+                            RpcCodeRenderer.renderClientFunctions(
                                 services,
-                                "web.http.Request"
-                            )
-                        )
-                    }
-
-                    "jvmMain" -> {
-                        it.write(
-                            generateFrontendCodeFunctions(
-                                services,
-                                "io.ktor.client.request.HttpRequestBuilder",
-                                "GeneratedRpcServiceManagerFunctions"
+                                flavour.requestClass,
+                                flavour.managerFunctionsJvmName
                             )
                         )
                     }
                 }
             }
+        }
+        // Same shape as the services above: register every declaration, and derive the dependencies
+        // from them, instead of doing one as a side effect of filtering for the other.
         val exceptions = mutableListOf<ExceptionNameDetails>()
-        val depsExceptions = resolver.getSymbolsWithAnnotation(RpcServiceException::class.qualifiedName.orEmpty())
-            .filterIsInstance<KSClassDeclaration>().filter { it.validate(enableNewFeatures = true) }
-            .filter { it.classKind == ClassKind.CLASS }
-            .mapNotNull { classDeclaration ->
-                val className = classDeclaration.simpleName.asString()
-                val packageName = classDeclaration.packageName.asString()
-                exceptions.add(ExceptionNameDetails(packageName, className))
-                classDeclaration.containingFile
-            }.toList().toTypedArray()
-        codeGenerator.createNewFile(
-            Dependencies(true, *depsExceptions),
-            "dev.kilua.rpc",
-            "GeneratedRpcServiceExceptions"
-        ).writer().use {
-            when (codeGenerator.generatedFile.first().toString().sourceSetBelowKsp()) {
-                "commonMain" -> {
-                    it.write(generateCommonCodeExceptions(exceptions))
-                }
+        val exceptionDeclarations =
+            resolver.getSymbolsWithAnnotation(RpcServiceException::class.qualifiedName.orEmpty())
+                .filterIsInstance<KSClassDeclaration>().filter { it.validate(enableNewFeatures = true) }
+                .filter { it.classKind == ClassKind.CLASS }
+                .toList()
+        val depsExceptions = exceptionDeclarations.mapNotNull { it.containingFile }.toTypedArray()
+        exceptionDeclarations.forEach { classDeclaration ->
+            exceptions.add(
+                ExceptionNameDetails(
+                    classDeclaration.packageName.asString(),
+                    classDeclaration.simpleName.asString()
+                )
+            )
+        }
+        createNewFile(Dependencies(true, *depsExceptions), "dev.kilua.rpc", "GeneratedRpcServiceExceptions") { writer, sourceSet ->
+            when {
+                sourceSet == "commonMain" -> writer.write(RpcCodeRenderer.renderExceptions(exceptions))
+                // With a single target the manager object - which calls the registration - lives in
+                // the target's own source set, so the registration has to be written there too.
+                singleTarget && sourceSet != null -> writer.write(RpcCodeRenderer.renderExceptions(exceptions))
+                else -> {} // Nothing to do: exceptions are only generated where a manager needs them.
             }
         }
         return emptyList()
     }
 
-    private fun String.sourceSetBelowKsp(): String =
-        substringAfter("${File.separator}build${File.separator}generated${File.separator}ksp${File.separator}")
-            .substringAfter(File.separatorChar).substringBefore(File.separatorChar)
-
-    private fun generateCommonCode(
-        packageName: String,
-        interfaceName: String,
-        managerName: String,
-        ksClassDeclaration: KSClassDeclaration
-    ): String {
-        return StringBuilder().apply {
-            appendLine("//")
-            appendLine("// GENERATED by Kilua RPC")
-            appendLine("//")
-            appendLine("package $packageName")
-            appendLine()
-            appendLine("import dev.kilua.rpc.HttpMethod")
-            appendLine("import dev.kilua.rpc.RpcServiceManager")
-            appendLine("import dev.kilua.rpc.registerRpcServiceExceptions")
-            val types = getTypes(ksClassDeclaration.getDeclaredFunctions())
-            types.sorted().forEach {
-                appendLine("import $it")
-            }
-            if (types.contains("kotlinx.coroutines.channels.SendChannel")
-                && !types.contains("kotlinx.coroutines.channels.ReceiveChannel")
-            ) {
-                appendLine("import kotlinx.coroutines.channels.ReceiveChannel")
-            }
-            appendLine()
-            appendLine("object $managerName : RpcServiceManager<$interfaceName>($interfaceName::class) {")
-            appendLine("    init {")
-            appendLine("        registerRpcServiceExceptions()")
-            // workaround KSP2 issue with annotations default parameter values
-            val namedRoutes = try {
-                ksClassDeclaration.getAnnotationsByType(RpcService::class).firstOrNull()?.namedRoutes ?: false
-            } catch (_: Exception) {
-                false
-            }
-            val wsMethodsForMgr = mutableListOf<String>()
-            val sseMethodsForMgr = mutableListOf<String>()
-            ksClassDeclaration.getDeclaredFunctions().forEach {
-                val params = it.parameters
-                val wsMethod =
-                    if (params.size == 2)
-                        params.first().type.toString().startsWith("ReceiveChannel")
-                    else false
-                val sseMethod =
-                    if (params.size == 1)
-                        params.first().type.toString().startsWith("SendChannel")
-                    else false
-                val rpcBinding = it.getAnnotationsByType(RpcBinding::class).firstOrNull()
-                val rpcBindingMethod = it.getAnnotationsByType(RpcBindingMethod::class).firstOrNull()
-                val rpcBindingRoute = it.getAnnotationsByType(RpcBindingRoute::class).firstOrNull()
-                val (method, route) = if (rpcBinding != null) {
-                    val method = rpcBinding.method.name
-                    val route = rpcBinding.route
-                    "HttpMethod.$method" to "\"$route\""
-                } else if (rpcBindingMethod != null) {
-                    val method = rpcBindingMethod.method.name
-                    val autoRoute = if (namedRoutes) "\"$interfaceName.${it.simpleName.asString()}\"" else null
-                    "HttpMethod.$method" to autoRoute
-                } else if (rpcBindingRoute != null) {
-                    val route = rpcBindingRoute.route
-                    "HttpMethod.POST" to "\"$route\""
-                } else {
-                    val autoRoute = if (namedRoutes) "\"$interfaceName.${it.simpleName.asString()}\"" else null
-                    "HttpMethod.POST" to autoRoute
-                }
-                when {
-                    it.returnType.toString().startsWith("RemoteData") ->
-                        appendLine("        bindRemoteData($interfaceName::${it.simpleName.asString()}, $route)")
-
-                    wsMethod -> if (route == null) {
-                        appendLine("        bind($interfaceName::${it.simpleName.asString()}, null as String?)")
-                    } else {
-                        appendLine("        bind($interfaceName::${it.simpleName.asString()}, $route)")
-                    }
-
-                    sseMethod -> if (route == null) {
-                        appendLine("        bind($interfaceName::${it.simpleName.asString()}, null as String?)")
-                    } else {
-                        appendLine("        bind($interfaceName::${it.simpleName.asString()}, $route)")
-                    }
-
-                    else -> if (!wsMethodsForMgr.contains(it.simpleName.asString()) && !sseMethodsForMgr.contains(it.simpleName.asString()))
-                        appendLine("        bind($interfaceName::${it.simpleName.asString()}, $method, $route)")
-                }
-                if (wsMethod) wsMethodsForMgr.add(it.simpleName.asString())
-                if (sseMethod) sseMethodsForMgr.add(it.simpleName.asString())
-            }
-            appendLine("    }")
-            appendLine("}")
-        }.toString()
+    /**
+     * Leave a generated file empty and say so.
+     *
+     * KSP has already created the file by the time the flavour is known, so the only choice left
+     * between writing nothing and failing the build is which of the two. Warning is deliberate: an
+     * unrecognised source set is almost always a target this processor has not been taught about
+     * yet, and that is worth saying out loud rather than surfacing later as a missing symbol.
+     */
+    private fun Writer.writeNothing(sourceSet: String?, fileName: String) {
+        logger.warn(
+            "Kilua RPC: source set \"$sourceSet\" has no client flavour, so $fileName was generated empty."
+        )
     }
 
-    private fun generateFrontendCode(
+    /**
+     * Create [fileName] in [packageName] and hand both the writer and the source set the file landed
+     * in to [block].
+     *
+     * The source set has to come from a file KSP actually created, because that is the only thing
+     * which says where the output went. It is found by diffing what KSP reports before and after the
+     * call rather than by reading a position in that collection: the collection is a snapshot of
+     * everything created in this round, so with several services the just created file is not its
+     * first entry, and taking the first entry of an empty collection would throw. This costs a
+     * re-materialisation per file, which is immaterial at realistic service counts and deliberately
+     * cheaper than carrying a running set.
+     */
+    private fun createNewFile(
+        dependencies: Dependencies,
         packageName: String,
+        fileName: String,
+        block: (Writer, String?) -> Unit
+    ) {
+        val known = codeGenerator.generatedFile.toSet()
+        val writer = codeGenerator.createNewFile(dependencies, packageName, fileName).writer()
+        val created = codeGenerator.generatedFile.firstOrNull { it !in known }
+        writer.use { block(it, created?.path?.let(KspLayout::sourceSetOf)) }
+    }
+
+    /** Reduce an annotated interface to the plain data the renderer works from. */
+    private fun interfaceInfo(
+        classDeclaration: KSClassDeclaration,
+        interfaceName: String,
         className: String,
+        managerName: String
+    ): InterfaceInfo {
+        val namedRoutes = classDeclaration.namedRoutes()
+        val functions = classDeclaration.getDeclaredFunctions().map {
+            functionInfo(it, interfaceName, namedRoutes)
+        }.toList()
+        return InterfaceInfo(
+            packageName = classDeclaration.packageName.asString(),
+            interfaceName = interfaceName,
+            className = className,
+            managerName = managerName,
+            functions = functions,
+            types = getTypes(classDeclaration.getDeclaredFunctions())
+        )
+    }
+
+    private fun functionInfo(
+        function: KSFunctionDeclaration,
         interfaceName: String,
-        managerName: String,
-        requestClass: String,
-        isExported: Boolean,
-        ksClassDeclaration: KSClassDeclaration,
-        fileJvmName: String? = null
-    ): String {
-        val requestClassName = requestClass.substringAfterLast('.')
-        return StringBuilder().apply {
-            appendLine("//")
-            appendLine("// GENERATED by Kilua RPC")
-            appendLine("//")
-            fileJvmName?.let { appendLine("@file:JvmName(\"$it\")") }
-            appendLine("package $packageName")
-            appendLine()
-            appendLine("import $requestClass")
-            appendLine("import dev.kilua.rpc.RpcAgent")
-            if (isExported) {
-                appendLine("import kotlin.js.ExperimentalJsExport")
-                appendLine("import kotlin.js.JsExport")
-            }
-            appendLine("import kotlinx.serialization.modules.SerializersModule")
-            val types = getTypes(ksClassDeclaration.getDeclaredFunctions())
-            types.sorted().forEach {
-                appendLine("import $it")
-            }
-            if (types.contains("kotlinx.coroutines.channels.SendChannel")
-                && !types.contains("kotlinx.coroutines.channels.ReceiveChannel")
-            ) {
-                appendLine("import kotlinx.coroutines.channels.ReceiveChannel")
-            }
-            appendLine()
-            if (isExported) {
-                appendLine("@OptIn(ExperimentalJsExport::class)")
-                appendLine("@JsExport")
-            }
-            appendLine("class $className(baseUrl: String? = null, serializersModules: List<SerializersModule>? = null, requestFilter: (suspend $requestClassName.() -> Unit)? = null) : $interfaceName, RpcAgent<$interfaceName>(baseUrl, $managerName, serializersModules, requestFilter) {")
-            val wsMethods = mutableListOf<String>()
-            val sseMethods = mutableListOf<String>()
-            ksClassDeclaration.getDeclaredFunctions().forEach {
-                val name = it.simpleName.asString()
-                val params = it.parameters
-                val wsMethod =
-                    if (params.size == 2)
-                        params.first().type.toString().startsWith("ReceiveChannel")
-                    else false
-                val sseMethod =
-                    if (params.size == 1)
-                        params.first().type.toString().startsWith("SendChannel")
-                    else false
-                if (!wsMethod && !sseMethod) {
-                    if (!wsMethods.contains(name) && !sseMethods.contains(name)) {
-                        if (params.isNotEmpty()) {
-                            when {
-                                it.returnType.toString().startsWith("RemoteData") -> appendLine(
-                                    "    override suspend fun $name(${
-                                        getParameterList(
-                                            params
-                                        )
-                                    }) = ${getTypeString(it.returnType!!.resolve())}()"
-                                )
-
-                                else -> appendLine(
-                                    "    override suspend fun $name(${getParameterList(params)}) = call($interfaceName::$name, ${
-                                        getParameterNames(
-                                            params
-                                        )
-                                    })"
-                                )
-                            }
-                        } else {
-                            appendLine("    override suspend fun $name() = call($interfaceName::$name)")
-                        }
-                    }
-                } else if (wsMethod) {
-                    appendLine("    override suspend fun $name(${getParameterList(params)}) {}")
-                    val type1 = getTypeString(params[0].type.resolve()).replace("ReceiveChannel", "SendChannel")
-                    val type2 = getTypeString(params[1].type.resolve()).replace("SendChannel", "ReceiveChannel")
-                    appendLine("    override suspend fun $name(handler: suspend ($type1, $type2) -> Unit) = webSocket($interfaceName::$name, handler)")
-                } else {
-                    appendLine("    override suspend fun $name(${getParameterList(params)}) {}")
-                    val type = getTypeString(params[0].type.resolve()).replace("SendChannel", "ReceiveChannel")
-                    appendLine("    override suspend fun $name(handler: suspend ($type) -> Unit) = sseConnection($interfaceName::$name, handler)")
-                }
-                if (wsMethod) wsMethods.add(name)
-                if (sseMethod) sseMethods.add(name)
-            }
-            appendLine("}")
-        }.toString()
-    }
-
-    private fun generateCommonCodeFunctions(services: List<NameDetails>): String {
-        return StringBuilder().apply {
-            appendLine("//")
-            appendLine("// GENERATED by Kilua RPC")
-            appendLine("//")
-            if (services.isNotEmpty()) {
-                appendLine("package dev.kilua.rpc")
-                appendLine()
-                appendLine("import kotlin.reflect.KClass")
-                appendLine("import kotlinx.serialization.modules.SerializersModule")
-                appendLine()
-                appendLine("@Suppress(\"UNCHECKED_CAST\")")
-                appendLine("inline fun <reified T : Any> getServiceManager(): RpcServiceManager<T> = when (T::class) {")
-                services.forEach {
-                    appendLine("    ${it.packageName}.${it.interfaceName}::class -> ${it.packageName}.${it.managerName} as RpcServiceManager<T>")
-                }
-                appendLine("    else -> throw IllegalArgumentException(\"Unknown service \${T::class}\")")
-                appendLine("}")
-                appendLine()
-                appendLine("fun getAllServiceManagers(): List<RpcServiceManager<*>> = listOf(")
-                services.forEach {
-                    appendLine("    ${it.packageName}.${it.managerName},")
-                }
-                appendLine(")")
-                appendLine()
-                appendLine("fun getServiceManagers(vararg kclass: KClass<*>): List<RpcServiceManager<*>> {")
-                appendLine("    return kclass.map {")
-                appendLine("        when (it) {")
-                services.forEach {
-                    appendLine("            ${it.packageName}.${it.interfaceName}::class -> ${it.packageName}.${it.managerName}")
-                }
-                appendLine("            else -> throw IllegalArgumentException(\"Unknown service \${it.simpleName}\")")
-                appendLine("        }")
-                appendLine("    }")
-                appendLine("}")
-                appendLine()
-                appendLine("public expect inline fun <reified T : Any> getService(")
-                appendLine("    baseUrl: String? = null,")
-                appendLine("    serializersModules: List<SerializersModule>? = null")
-                appendLine("): T")
-            }
-            appendLine()
-        }.toString()
-    }
-
-    private fun generateFrontendCodeFunctions(
-        services: List<NameDetails>,
-        requestClass: String,
-        fileJvmName: String? = null
-    ): String {
-        val requestClassName = requestClass.substringAfterLast('.')
-        return StringBuilder().apply {
-            appendLine("//")
-            appendLine("// GENERATED by Kilua RPC")
-            appendLine("//")
-            if (services.isNotEmpty()) {
-                fileJvmName?.let { appendLine("@file:JvmName(\"$it\")") }
-                appendLine("package dev.kilua.rpc")
-                appendLine()
-                appendLine("import $requestClass")
-                appendLine("import kotlinx.serialization.modules.SerializersModule")
-                appendLine()
-                appendLine("inline fun <reified T : Any> getService(baseUrl: String? = null, serializersModules: List<SerializersModule>? = null, noinline requestFilter: (suspend $requestClassName.() -> Unit)? = null): T = when (T::class) {")
-                services.forEach {
-                    appendLine("    ${it.packageName}.${it.interfaceName}::class -> ${it.packageName}.${it.className}(baseUrl, serializersModules, requestFilter) as T")
-                }
-                appendLine("    else -> throw IllegalArgumentException(\"Unknown service \${T::class}\")")
-                appendLine("}")
-                appendLine()
-                appendLine("actual inline fun <reified T : Any> getService(baseUrl: String?, serializersModules: List<SerializersModule>?): T = getService(baseUrl, serializersModules, null)")
-            }
-            appendLine()
-        }.toString()
-    }
-
-    private fun generateCommonCodeExceptions(exceptions: List<ExceptionNameDetails>): String {
-        return StringBuilder().apply {
-            appendLine("//")
-            appendLine("// GENERATED by Kilua RPC")
-            appendLine("//")
-            appendLine("package dev.kilua.rpc")
-            appendLine()
-            if (exceptions.isNotEmpty()) {
-                appendLine("import kotlinx.serialization.json.Json")
-                appendLine("import kotlinx.serialization.modules.SerializersModule")
-                appendLine("import kotlinx.serialization.modules.polymorphic")
-                appendLine("import kotlinx.serialization.modules.subclass")
-                appendLine()
-                appendLine("private var registered = false")
-                appendLine()
-                appendLine("fun registerRpcServiceExceptions() {")
-                appendLine("    if (!registered) {")
-                appendLine("        RpcSerialization.exceptionsSerializersModule =  SerializersModule {")
-                appendLine("            polymorphic(AbstractServiceException::class) {")
-                exceptions.forEach {
-                    appendLine("                subclass(${it.packageName}.${it.className}::class)")
-                }
-                appendLine("            }")
-                appendLine("        }")
-                appendLine("        registered = true")
-                appendLine("    }")
-                appendLine("}")
-            } else {
-                appendLine("fun registerRpcServiceExceptions() {}")
-            }
-            appendLine()
-        }.toString()
-    }
-
-    private fun getTypeString(type: KSType?): String {
-        return if (type == null) {
-            "Unit"
-        } else {
-            val baseType = if (type.arguments.isEmpty()) {
-                type.declaration.simpleName.asString()
-            } else {
-                type.declaration.simpleName.asString() + type.arguments.joinToString(",", "<", ">") {
-                    it.type?.let { getTypeString(it.resolve()) } ?: it.toString()
-                }
-            }
-            if (type.isMarkedNullable) "$baseType?" else baseType
+        namedRoutes: Boolean
+    ): FunctionInfo {
+        val params = function.parameters
+        val kind = when {
+            function.returnType?.resolve()?.isTypeOf(REMOTE_DATA) == true -> RpcMethodKind.REMOTE_DATA
+            params.size == 2 && params[0].type.resolve().isTypeOf(RECEIVE_CHANNEL) -> RpcMethodKind.WEBSOCKET
+            params.size == 1 && params[0].type.resolve().isTypeOf(SEND_CHANNEL) -> RpcMethodKind.SSE
+            else -> RpcMethodKind.CALL
         }
-    }
+        val [method, route] = httpMethodAndRoute(function, interfaceName, namedRoutes)
+        return FunctionInfo(
+            name = function.simpleName.asString(),
+            kind = kind,
+            parameters = params.mapNotNull { parameter ->
+                parameter.name?.asString()?.let { RenderParameter(it, getTypeString(parameter.type.resolve())) }
+            },
+            returnType = getTypeString(function.returnType?.resolve()),
+            httpMethod = method,
+            route = route,
+            flippedParameters = when (kind) {
+                RpcMethodKind.WEBSOCKET ->
+                    listOf(
+                        flipChannelDirection(params[0].type.resolve()),
+                        flipChannelDirection(params[1].type.resolve())
+                    )
 
-    private fun getParameterList(params: List<KSValueParameter>): String {
-        return if (params.isEmpty()) {
-            ""
-        } else {
-            params.filter { it.name != null }.joinToString(", ") {
-                "${it.name!!.asString()}: ${getTypeString(it.type.resolve())}"
+                RpcMethodKind.SSE -> listOf(flipChannelDirection(params[0].type.resolve()))
+                RpcMethodKind.CALL, RpcMethodKind.REMOTE_DATA -> emptyList()
             }
-        }
+        )
     }
 
-    private fun getParameterNames(params: List<KSValueParameter>): String {
-        return params.filter { it.name != null }.joinToString(", ") {
-            it.name!!.asString()
-        }
+    /**
+     * The HTTP method and route a method is served by, taking explicit bindings into account and
+     * falling back to a generated route when [namedRoutes] is on.
+     */
+    private fun httpMethodAndRoute(
+        function: KSFunctionDeclaration,
+        interfaceName: String,
+        namedRoutes: Boolean
+    ): Pair<String, String?> {
+        val autoRoute = if (namedRoutes) "$interfaceName.${function.simpleName.asString()}" else null
+        val rpcBinding = function.getAnnotationsByType(RpcBinding::class).firstOrNull()
+        if (rpcBinding != null) return "HttpMethod.${rpcBinding.method.name}" to rpcBinding.route
+        val rpcBindingMethod = function.getAnnotationsByType(RpcBindingMethod::class).firstOrNull()
+        if (rpcBindingMethod != null) return "HttpMethod.${rpcBindingMethod.method.name}" to autoRoute
+        val rpcBindingRoute = function.getAnnotationsByType(RpcBindingRoute::class).firstOrNull()
+        if (rpcBindingRoute != null) return "HttpMethod.POST" to rpcBindingRoute.route
+        return "HttpMethod.POST" to autoRoute
+    }
+
+    /**
+     * The fully qualified names of every type the client needs imported, walked from the declared
+     * parameters only.
+     *
+     * Return types are deliberately not collected: the generated client never writes a return type
+     * (overrides infer it from the interface), so importing them would only produce unused imports.
+     */
+    private fun getTypes(methods: Sequence<KSFunctionDeclaration>): Set<String> {
+        return methods.flatMap { m ->
+            m.parameters.flatMap { p ->
+                getTypes(p.type.resolve())
+            }.toSet()
+        }.toSet()
     }
 
     private fun getTypes(type: KSType): Set<String> {
@@ -533,11 +326,64 @@ public class RpcProcessor(
         }
     }
 
-    private fun getTypes(methods: Sequence<KSFunctionDeclaration>): Set<String> {
-        return methods.flatMap { m ->
-            m.parameters.flatMap { p ->
-                getTypes(p.type.resolve())
-            }.toSet() + (m.returnType?.let { getTypes(it.resolve()) } ?: setOf())
-        }.toSet()
+    /** The `qualified name` reported for the declaration a type refers to, when it has one. */
+    private val KSType.qualifiedName: String?
+        get() = declaration.qualifiedName?.asString()
+
+    /** True when this type is exactly the library type [qualifiedName], ignoring type arguments. */
+    private fun KSType.isTypeOf(qualifiedName: String): Boolean = this.qualifiedName == qualifiedName
+
+    /**
+     * Render [type] with its channel direction flipped.
+     *
+     * The declaration is resolved rather than rewritten as text: the element type comes from the
+     * actual type arguments, so a user type whose name merely contains "SendChannel" cannot be
+     * mangled by a blind string replacement.
+     */
+    private fun flipChannelDirection(type: KSType): String {
+        val other = when (type.qualifiedName) {
+            SEND_CHANNEL -> RECEIVE_CHANNEL
+            RECEIVE_CHANNEL -> SEND_CHANNEL
+            else -> error("Cannot flip the channel direction of ${type.qualifiedName ?: type}")
+        }
+        val element = type.arguments.singleOrNull()?.type?.let { getTypeString(it.resolve()) }
+        val suffix = if (type.isMarkedNullable) "?" else ""
+        val simpleName = other.substringAfterLast('.')
+        return if (element == null) "$simpleName$suffix" else "$simpleName<$element>$suffix"
+    }
+
+    private fun getTypeString(type: KSType?): String {
+        return if (type == null) {
+            "Unit"
+        } else {
+            val baseType = if (type.arguments.isEmpty()) {
+                type.declaration.simpleName.asString()
+            } else {
+                type.declaration.simpleName.asString() + type.arguments.joinToString(",", "<", ">") {
+                    it.type?.let { getTypeString(it.resolve()) } ?: it.toString()
+                }
+            }
+            if (type.isMarkedNullable) "$baseType?" else baseType
+        }
+    }
+
+    /**
+     * Whether the service is bound with generated route names.
+     *
+     * Wrapped in a try because of a KSP2 issue reading default parameter values off an annotation;
+     * without it, a service that simply does not set `namedRoutes` would fail instead of getting
+     * false.
+     */
+    private fun KSClassDeclaration.namedRoutes(): Boolean = try {
+        getAnnotationsByType(RpcService::class).firstOrNull()?.namedRoutes ?: false
+    } catch (_: Exception) {
+        false
+    }
+
+    private companion object {
+        /** `RemoteData<T>` is recognised by its declaration, never by the name alone. */
+        const val REMOTE_DATA = "dev.kilua.rpc.RemoteData"
+        const val RECEIVE_CHANNEL = "kotlinx.coroutines.channels.ReceiveChannel"
+        const val SEND_CHANNEL = "kotlinx.coroutines.channels.SendChannel"
     }
 }

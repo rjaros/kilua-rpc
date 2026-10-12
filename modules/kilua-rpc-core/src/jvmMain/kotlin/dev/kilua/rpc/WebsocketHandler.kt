@@ -111,7 +111,7 @@ public suspend fun <T, RAW_IN, RAW_OUT, OBJECTS_IN, OBJECTS_OUT> handleWebsocket
     }
 }
 
-private suspend fun <T> Flow<T>.pipe(scope: CoroutineScope, channel: SendChannel<T>) {
+private fun <T> Flow<T>.pipe(scope: CoroutineScope, channel: SendChannel<T>) {
     scope.launch {
         onCompletion { channel.close(it) }.collect { channel.send(it) }
     }

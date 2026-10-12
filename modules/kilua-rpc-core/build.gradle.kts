@@ -2,6 +2,7 @@ plugins {
     kotlin("multiplatform")
     alias(libs.plugins.kotlinx.serialization)
     alias(libs.plugins.nmcp)
+    id("com.android.kotlin.multiplatform.library")
     id("org.jetbrains.dokka")
     id("maven-publish")
     id("signing")
@@ -14,7 +15,17 @@ kotlin {
     kotlinJsTargets()
     kotlinWasmTargets()
     kotlinJvmTargets()
-    applyDefaultHierarchyTemplate()
+    kotlinNativeTargets()
+    android {
+        namespace = "dev.kilua.rpc"
+        compileSdk = androidCompileSdk
+        minSdk = androidMinSdk
+        compilerOptions {
+            jvmTarget.set(androidJvmTarget)
+        }
+        withHostTestBuilder {}.configure {}
+    }
+    kiluaHierarchyTemplate()
     sourceSets {
         getByName("commonMain") {
             dependencies {
@@ -36,7 +47,7 @@ kotlin {
                 api(libs.wrappers.browser)
             }
         }
-        getByName("jvmMain") {
+        getByName("clientMain") {
             dependencies {
                 api(libs.ktor.client.core)
                 api(libs.ktor.client.content.negotiation)
@@ -44,11 +55,11 @@ kotlin {
                 api(libs.ktor.client.cio)
                 api(libs.ktor.serialization.kotlinx.json)
                 api(libs.kotlinx.coroutines)
-                // Logger leaks into the ABI through the @PublishedApi member of RpcAgent,
-                // so it has to stay on the compile classpath of consumers. The library ships no
-                // binding - consumers supply their own (all of the server modules and examples
-                // already pull in logback).
-                api(libs.slf4j.api)
+                // The logger used by the agent is part of the ABI through the @PublishedApi member
+                // of RpcAgent, so it has to stay on the compilation classpath of consumers. It also
+                // brings slf4j-api along, which is what the JVM default logger writes through - the
+                // library still ships no binding, consumers supply their own.
+                api(libs.ktor.client.logging)
                 implementation(libs.kotlinx.serialization.json)
             }
         }
@@ -62,8 +73,13 @@ kotlin {
                 implementation(libs.ktor.server.sse)
             }
         }
+        named("androidHostTest") {
+            dependencies {
+                implementation(libs.junit.junit4)
+            }
+        }
     }
 }
 
-setupDokka(tasks.dokkaGeneratePublicationHtml)
+setupDokka()
 setupPublishing()

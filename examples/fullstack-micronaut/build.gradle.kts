@@ -50,7 +50,7 @@ kotlin {
     sourceSets {
         getByName("commonMain") {
             dependencies {
-                implementation(libs.kilua.rpc.micronaut)
+                implementation(project(":modules:kilua-rpc-micronaut"))
                 implementation(libs.kotlinx.datetime)
             }
         }

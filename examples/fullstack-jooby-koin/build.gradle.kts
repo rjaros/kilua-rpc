@@ -50,7 +50,7 @@ kotlin {
     sourceSets {
         getByName("commonMain") {
             dependencies {
-                implementation(libs.kilua.rpc.jooby.koin)
+                implementation(project(":modules:kilua-rpc-jooby-koin"))
                 implementation(libs.kotlinx.datetime)
             }
         }

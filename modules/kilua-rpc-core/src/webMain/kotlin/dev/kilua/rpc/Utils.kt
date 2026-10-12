@@ -55,11 +55,7 @@ public fun getRpcUrlPrefix(): String {
  * Creates a websocket URL from current window.location and given path.
  */
 public fun getWebSocketUrl(url: String): String {
-    return if (url.startsWith("https://")) {
-        "wss" + url.drop(5)
-    } else if (url.startsWith("http://")) {
-        "ws" + url.drop(4)
-    } else {
+    return httpToWebSocketUrl(url) ?: run {
         val location = window.location
         val scheme = if (location.protocol == "https:") "wss" else "ws"
         val port = if (location.port == "8088") ":8080"
@@ -75,16 +71,3 @@ internal expect fun isDom(): Boolean
  */
 @PublishedApi
 internal val isDom: Boolean by lazy { isDom() }
-
-/**
- * Returns the result of a JSON-RPC response or throws, so that a streaming caller can surface a
- * server error instead of dereferencing a null `result`. Mirrors the HTTP path in CallAgent.
- */
-@PublishedApi
-internal fun JsonRpcResponse.requireResult(): String {
-    val error = this.error
-    if (error != null) {
-        throw Exception(error)
-    }
-    return this.result ?: throw Exception("Invalid response")
-}
