@@ -50,7 +50,7 @@ kotlin {
     sourceSets {
         getByName("commonMain") {
             dependencies {
-                implementation(libs.kilua.rpc.javalin.metro)
+                implementation(project(":modules:kilua-rpc-javalin-metro"))
                 implementation(libs.kotlinx.datetime)
             }
         }

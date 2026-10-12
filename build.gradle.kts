@@ -9,7 +9,7 @@ plugins {
     id("maven-publish")
 }
 
-val versionVal = libs.versions.kilua.rpc.asProvider().get()
+val versionVal = libs.versions.kilua.rpc.get()
 
 allprojects {
     group = "dev.kilua"
@@ -53,6 +53,45 @@ if (!buildExamples) {
     }
 }
 
+// The examples build the library from source. Their server backbone is a project dependency
+// (`project(":modules:kilua-rpc-...")`), not a released coordinate, because a project dependency
+// survives `Configuration.copy()` and the detached configuration a framework plugin builds from the
+// runtime classpath. A Quarkus application model copies the base runtime classpath, and that copy
+// does not carry a per-configuration dependency substitution - so a coordinate declared in an
+// example would resolve from a repository there, which both fails for an unpublished version and
+// silently pins the released artifact for a published one.
+//
+// The one coordinate still injected into the examples is the KSP processor, which the Gradle plugin
+// adds as a string (`dev.kilua:kilua-rpc-ksp-processor:<version>`) to the `ksp*` configurations.
+// Those are never copied, so a per-configuration substitution is enough. It is scoped to the
+// examples rather than global so the modules and the nmcp aggregation keep resolving the
+// coordinates they own. It is done from projectsEvaluated so the examples are already registered.
+gradle.projectsEvaluated {
+    val processor = rootProject.project(":plugins:kilua-rpc-ksp-processor")
+
+    rootProject.subprojects.filter { it.path.startsWith(":examples") }.forEach { example ->
+        example.configurations.configureEach {
+            resolutionStrategy.dependencySubstitution {
+                substitute(module("dev.kilua:kilua-rpc-ksp-processor")).using(project(processor.path))
+            }
+        }
+    }
+}
+
+// The Gradle plugin is an included build now, so the root's `build`/`check`/`clean`/
+// `publishToMavenLocal` no longer cover it: an included build's tasks are not matched by name.
+// Delegate from the root lifecycle tasks so the everyday commands keep doing what they did while
+// the plugin was a subproject.
+val pluginTasks = mapOf(
+    "build" to ":check",
+    "check" to ":check",
+    "clean" to ":clean",
+    "publishToMavenLocal" to ":publishToMavenLocal",
+)
+tasks.matching { it.name in pluginTasks }.configureEach {
+    dependsOn(gradle.includedBuild("kilua-rpc-gradle-plugin").task(pluginTasks.getValue(name)))
+}
+
 nmcpAggregation {
     centralPortal {
         username = findProperty("mavenCentralUsername")?.toString()
@@ -83,7 +122,10 @@ dependencies {
     nmcpAggregation(project(":modules:kilua-rpc-vertx"))
     nmcpAggregation(project(":modules:kilua-rpc-vertx-koin"))
     nmcpAggregation(project(":modules:kilua-rpc-vertx-metro"))
-    nmcpAggregation(project(":plugins:kilua-rpc-gradle-plugin"))
+    // The Gradle plugin now lives in an included build, so it is aggregated by coordinate rather
+    // than by project. The version must be the snapshot-aware one, because the composite build only
+    // substitutes a coordinate that matches the included build's own group:name:version.
+    nmcpAggregation("dev.kilua:kilua-rpc-gradle-plugin:${version}")
     nmcpAggregation(project(":plugins:kilua-rpc-ksp-processor"))
     dokka(project(":modules:kilua-rpc-annotations"))
     dokka(project(":modules:kilua-rpc-core"))

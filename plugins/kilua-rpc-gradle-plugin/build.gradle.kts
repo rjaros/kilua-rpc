@@ -9,6 +9,13 @@ plugins {
     alias(libs.plugins.test.balloon)
 }
 
+// This is an included build, so the root's `allprojects { group/version }` does not reach it and
+// both have to be set here. The version must match the root's so that the processor coordinate the
+// plugin injects resolves to the same version - it is redirected to the local project anyway, but
+// keeping them equal keeps a published plugin and a published library in step.
+group = "dev.kilua"
+version = libs.versions.kilua.rpc.get() + if (hasProperty("SNAPSHOT")) "-SNAPSHOT" else ""
+
 repositories {
     gradlePluginPortal()
     mavenCentral()
@@ -54,37 +61,30 @@ dependencies {
     testImplementation(libs.test.balloon)
 }
 
-tasks {
-    val versionsToml = rootProject.layout.projectDirectory.file("gradle/libs.versions.toml")
-    val version = project.version.toString()
+// The plugin reads its own version out of a bundled copy of the catalog (see KiluaRpcPlugin.apply).
+// It has to sit on the main runtime classpath, not only in the jar: when the plugin is applied from
+// this included build Gradle may put the project's classes and resources on the consumer's classpath
+// directly, and a version written into the jar alone would then be missing and fail the apply. A
+// published plugin packages processResources output into the jar anyway, so one location covers both.
+val versionsToml = rootProject.layout.projectDirectory.file("../../gradle/libs.versions.toml")
+val pluginVersion = project.version.toString()
 
-    getByName("jar", Jar::class) {
-        from(versionsToml) {
-            rename { "dev.kilua.rpc.versions.toml" }
-            filter { line -> line.replaceAfter("kilua-rpc = ", "\"${version}\"") }
+tasks.processResources {
+    // The version is threaded through a filter, which Gradle cannot see as an input on its own, so
+    // without this a change of version (e.g. adding -PSNAPSHOT) would leave the resource stale.
+    inputs.property("kiluaRpcPluginVersion", pluginVersion)
+    from(versionsToml) {
+        rename { "dev.kilua.rpc.versions.toml" }
+        // Only the `[versions]` entry `kilua-rpc = "..."` is rewritten; the `[plugins]` alias
+        // `kilua-rpc = { id = "dev.kilua.rpc", ... }` declares the same key and must be left alone.
+        filter { line ->
+            if (line.startsWith("kilua-rpc = \"")) {
+                line.replaceAfter("kilua-rpc = ", "\"${pluginVersion}\"")
+            } else {
+                line
+            }
         }
     }
-}
-
-// The plugin reads its version out of this resource, which the jar task above injects into the jar
-// alone. Tests run against the classes directory rather than the jar, so without this the read
-// returns null and applying the plugin fails outright.
-//
-// The copy is verbatim rather than version-substituted: that substitution exists so a published
-// plugin pins the processor coordinate to its own version, and tests never resolve that coordinate,
-// so rewriting the file here would only add a configuration-cache-hostile filter for no gain.
-//
-// A Copy rather than a Sync, deliberately: it writes into the directory processTestResources owns,
-// and a Sync would strip anything else already written there, so adding test resources later would
-// silently delete them depending on task ordering.
-val versionsResourceForTests = tasks.register<Copy>("versionsResourceForTests") {
-    from(rootProject.layout.projectDirectory.file("gradle/libs.versions.toml"))
-    rename { "dev.kilua.rpc.versions.toml" }
-    into(layout.buildDirectory.dir("resources/test"))
-}
-
-tasks.withType<Test>().configureEach {
-    dependsOn(versionsResourceForTests)
 }
 
 publishing {

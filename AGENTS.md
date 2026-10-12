@@ -1,14 +1,18 @@
 # AGENTS Notes
 
-- Use `./gradlew` (wrapper is Gradle 9.8.0).
+- Use `./gradlew` (wrapper is Gradle 9.8.1).
 - This repo is a Gradle multi-project: `modules/` (published runtime libs), `plugins/` (Gradle plugin + KSP processor), `examples/` (integration/demo apps).
 - Most modules/examples build with `jvmToolchain(25)`; plugin/KSP projects target JVM 21.
 
-## Critical dependency gotcha
+## Composite build (important)
 
-- Examples do **not** depend on local `project(...)` modules; they consume published Maven coords from `libs.versions.toml` (`versions.kilua-rpc-published`). Read the current value from the catalog rather than assuming one — it is bumped per release.
-- After changing library/plugin code, publish fresh local artifacts before validating examples: `./gradlew publishToMavenLocal -PSNAPSHOT=true` (or `./build-mvnlocal.sh`).
-- If example behavior looks stale, clear/rebuild local Maven artifacts first; `mavenLocal()` is enabled in settings.
+- The Gradle plugin (`plugins/kilua-rpc-gradle-plugin`) is a **separate included build**, wired by a **top-level** `includeBuild("plugins/kilua-rpc-gradle-plugin")` in the root `settings.gradle.kts`; it is no longer a subproject. It must be top-level, not under `pluginManagement`: a `pluginManagement` include only serves plugin resolution, and Gradle does not apply the included build's dependency substitutions for it ([gradle/gradle#30059](https://github.com/gradle/gradle/issues/30059)), which would make the `nmcpAggregation` coordinate resolve from a repository. A top-level include covers both the examples' `plugins {}` resolution and that substitution. The build has its own `settings.gradle.kts`, a **nested `buildSrc`** holding a copy of the few root helpers it needs (`kotlinJvmTargets`, `defaultPom`, `setupDokka`, the `kiluaRpc*` constants), and its own `group`/`version` (the root `allprojects {}` does not reach it). Its catalog is loaded from `../../gradle/libs.versions.toml`.
+- The KSP processor (`plugins/kilua-rpc-ksp-processor`) and the runtime `modules/` stay in the root build. Examples consume the runtime modules as **project dependencies** (`project(":modules:kilua-rpc-...")`) and only the KSP processor gets **dependency substitution**: in the root `build.gradle.kts`, inside `gradle.projectsEvaluated`, each example's configurations rewrite the plugin-injected `dev.kilua:kilua-rpc-ksp-processor` to `project(":plugins:kilua-rpc-ksp-processor")` (version-agnostic). Examples therefore build from source — **no `publishToMavenLocal` is needed first** for local development. Do not widen this substitution beyond `:examples:*`: it would rewrite the coordinate the root `nmcpAggregation` resolves.
+- The runtime modules must be **project dependencies**, not coordinates, because a framework plugin may resolve a `Configuration.copy()`/detached configuration that does not carry a per-configuration dependency substitution. Quarkus copies the base runtime classpath into `quarkusProdBaseRuntimeClasspathConfigurationCopy` for `quarkusGenerateAppModel`; a coordinate there resolves from a repository (fails for an unpublished version, silently pins the released artifact otherwise), while a project dependency survives the copy. `getServerType` still detects the server: a `ProjectDependency`'s group/name resolve to `dev.kilua:kilua-rpc-<suffix>`. The KSP processor is only ever added to `ksp*` configurations, which are never copied, so substitution suffices for it.
+- Only the plugin alias `libs.plugins.kilua.rpc` (and the `libs.versions.kilua.rpc` behind it and `versionVal`) remains; the per-module `libs.kilua.rpc.<module>` library aliases were removed when examples moved to project dependencies. The version is irrelevant to local builds (the included build ignores it); it is the version used for publishing and for the plugin build. There is no separate "published" version — examples build from source.
+- Plugin commands moved off the root task graph. Standalone: `./gradlew -p plugins/kilua-rpc-gradle-plugin test` (or `check`). The root `build`, `check`, `clean` and `publishToMavenLocal` delegate to the matching included-build task (an included build's tasks are not matched by name), so `./gradlew build` and `./gradlew check` keep running the plugin tests.
+- Publishing the plugin: `./gradlew -p plugins/kilua-rpc-gradle-plugin publishToMavenLocal -PSNAPSHOT=true`. `./gradlew publishToMavenLocal -PSNAPSHOT=true` still publishes the modules + processor. The root `nmcpAggregation` references the plugin **by coordinate** — `dev.kilua:kilua-rpc-gradle-plugin:<version>` — which the composite substitutes to the included build; the version must match the included build's (snapshot-aware) version or the aggregation resolves it from Maven Central instead.
+- The plugin reads its version from `dev.kilua.rpc.versions.toml` on its own **runtime classpath** (see `KiluaRpcPlugin.apply`). The plugin build's `processResources` injects a copy of `gradle/libs.versions.toml` with `kilua-rpc =` replaced by the plugin version. Keep it a resource, not a jar-only entry: an included build exposes the project's classes/resources directly, and a jar-only resource would be missing at apply time and fail.
 
 ## Codegen and wiring
 
@@ -72,6 +76,7 @@
 ## High-value commands
 
 - Fast library verification: `./gradlew :modules:kilua-rpc-core:jvmTest`.
+- Gradle plugin tests (included build): `./gradlew -p plugins/kilua-rpc-gradle-plugin test`.
 - All core targets at once: `./gradlew :modules:kilua-rpc-core:jvmTest :modules:kilua-rpc-core:testAndroidHostTest :modules:kilua-rpc-core:compileKotlinJs :modules:kilua-rpc-core:compileKotlinWasmJs :modules:kilua-rpc-core:compileAndroidMain` (expect 64 JVM + 4 Android tests, 0 failures).
 - Android client path end to end (server module publishes an `androidJvm` variant, KSP generates a compiling client): `./gradlew :modules:kilua-rpc-ktor:compileAndroidMain`. A consumer project must apply the Kilua plugin, `com.google.devtools.ksp` and `com.android.kotlin.multiplatform.library`, and depend on a **server** module in `commonMain`.
 - Browser target tests (Karma + ChromeHeadless required): `./gradlew :modules:kilua-rpc-core:jsBrowserTest :modules:kilua-rpc-core:wasmJsBrowserTest`.

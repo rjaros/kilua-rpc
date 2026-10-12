@@ -50,7 +50,7 @@ kotlin {
     sourceSets {
         getByName("commonMain") {
             dependencies {
-                implementation(libs.kilua.rpc.vertx)
+                implementation(project(":modules:kilua-rpc-vertx"))
                 implementation(libs.kotlinx.datetime)
             }
         }

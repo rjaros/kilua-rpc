@@ -29,7 +29,7 @@ kotlin {
                 // extends RpcServiceManager, which is declared in the server modules. A client
                 // therefore depends on one of them even though it has no server of its own; the
                 // native variant brings the shared Ktor client transport.
-                implementation(libs.kilua.rpc.ktor)
+                implementation(project(":modules:kilua-rpc-ktor"))
             }
         }
     }

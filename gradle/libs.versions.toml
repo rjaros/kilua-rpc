@@ -1,6 +1,5 @@
 [versions]
-kilua-rpc = "0.0.47"
-kilua-rpc-published = "0.0.46"
+kilua-rpc = "0.0.47-RC"
 kotlin = "2.5.0-Beta1"
 dokka = "2.3.0-Beta"
 nmcp = "1.6.2"
@@ -85,21 +84,6 @@ jackson-module-kotlin3 = { module = "tools.jackson.module:jackson-module-kotlin"
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 shadow-gradle-plugin = { module = "com.gradleup.shadow:shadow-gradle-plugin", version.ref = "shadow" }
 test-balloon = { module = "de.infix.testBalloon:testBalloon-framework-core", version.ref = "test-balloon" }
-kilua-rpc-javalin = { module = "dev.kilua:kilua-rpc-javalin", version.ref = "kilua-rpc-published" }
-kilua-rpc-javalin-koin = { module = "dev.kilua:kilua-rpc-javalin-koin", version.ref = "kilua-rpc-published" }
-kilua-rpc-javalin-metro = { module = "dev.kilua:kilua-rpc-javalin-metro", version.ref = "kilua-rpc-published" }
-kilua-rpc-jooby = { module = "dev.kilua:kilua-rpc-jooby", version.ref = "kilua-rpc-published" }
-kilua-rpc-jooby-koin = { module = "dev.kilua:kilua-rpc-jooby-koin", version.ref = "kilua-rpc-published" }
-kilua-rpc-jooby-metro = { module = "dev.kilua:kilua-rpc-jooby-metro", version.ref = "kilua-rpc-published" }
-kilua-rpc-ktor = { module = "dev.kilua:kilua-rpc-ktor", version.ref = "kilua-rpc-published" }
-kilua-rpc-ktor-koin = { module = "dev.kilua:kilua-rpc-ktor-koin", version.ref = "kilua-rpc-published" }
-kilua-rpc-ktor-metro = { module = "dev.kilua:kilua-rpc-ktor-metro", version.ref = "kilua-rpc-published" }
-kilua-rpc-spring-boot = { module = "dev.kilua:kilua-rpc-spring-boot", version.ref = "kilua-rpc-published" }
-kilua-rpc-micronaut = { module = "dev.kilua:kilua-rpc-micronaut", version.ref = "kilua-rpc-published" }
-kilua-rpc-quarkus = { module = "dev.kilua:kilua-rpc-quarkus", version.ref = "kilua-rpc-published" }
-kilua-rpc-vertx = { module = "dev.kilua:kilua-rpc-vertx", version.ref = "kilua-rpc-published" }
-kilua-rpc-vertx-koin = { module = "dev.kilua:kilua-rpc-vertx-koin", version.ref = "kilua-rpc-published" }
-kilua-rpc-vertx-metro = { module = "dev.kilua:kilua-rpc-vertx-metro", version.ref = "kilua-rpc-published" }
 junit-junit4 = { module = "junit:junit", version.ref = "junit-junit4" }
 
 [plugins]
@@ -112,5 +96,5 @@ metro = { id = "dev.zacsweers.metro", version.ref = "metro" }
 jooby = { id = "io.jooby.run", version.ref = "jooby" }
 micronaut-application = { id = "io.micronaut.application", version.ref = "micronaut-plugins" }
 micronaut-aot = { id = "io.micronaut.aot", version.ref = "micronaut-plugins" }
-kilua-rpc = { id = "dev.kilua.rpc", version.ref = "kilua-rpc-published" }
+kilua-rpc = { id = "dev.kilua.rpc", version.ref = "kilua-rpc" }
 test-balloon = { id = "de.infix.testBalloon", version.ref = "test-balloon" }

@@ -49,7 +49,7 @@ kotlin {
     sourceSets {
         getByName("commonMain") {
             dependencies {
-                implementation(libs.kilua.rpc.ktor.koin)
+                implementation(project(":modules:kilua-rpc-ktor-koin"))
                 implementation(libs.kotlinx.datetime)
             }
         }
