@@ -3,13 +3,11 @@ import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPom
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.publish.maven.tasks.AbstractPublishToMaven
-import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.plugins.signing.Sign
 import org.gradle.plugins.signing.SigningExtension
 import org.jetbrains.dokka.gradle.DokkaExtension
-import org.jetbrains.dokka.gradle.tasks.DokkaGeneratePublicationTask
 import com.android.build.api.withAndroid
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
@@ -225,9 +223,9 @@ fun Project.setupPublishing() {
     }
 }
 
-fun Project.setupDokka(provider: TaskProvider<DokkaGeneratePublicationTask>) {
+fun Project.setupDokka(path: String = "modules/") {
     tasks.register("javadocJar", Jar::class.java) {
-        it.from(provider.flatMap { it.outputDirectory })
+        // javadocJar is empty, but it is required for publishing to Maven Central. Dokka generates the actual documentation.
         it.archiveClassifier.set("javadoc")
     }
 
@@ -235,7 +233,7 @@ fun Project.setupDokka(provider: TaskProvider<DokkaGeneratePublicationTask>) {
         dokkaSourceSets.configureEach {
             it.sourceLink {
                 it.localDirectory.set(projectDir.resolve("src"))
-                it.remoteUrl.set(URI("https://github.com/rjaros/kilua-rpc/tree/main/modules/${project.name}/src"))
+                it.remoteUrl.set(URI("https://github.com/rjaros/kilua-rpc/tree/main/$path${project.name}/src"))
                 it.remoteLineSuffix.set("#L")
             }
         }

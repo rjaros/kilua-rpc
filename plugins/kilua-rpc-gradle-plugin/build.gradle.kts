@@ -106,4 +106,4 @@ extensions.getByType<SigningExtension>().run {
     sign(extensions.getByType<PublishingExtension>().publications)
 }
 
-setupDokka(tasks.dokkaGeneratePublicationHtml)
+setupDokka()

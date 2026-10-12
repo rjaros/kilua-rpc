@@ -45,5 +45,5 @@ metro {
     automaticallyAddRuntimeDependencies = false
 }
 
-setupDokka(tasks.dokkaGeneratePublicationHtml)
+setupDokka()
 setupPublishing()
