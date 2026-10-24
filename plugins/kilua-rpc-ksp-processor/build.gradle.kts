@@ -1,5 +1,6 @@
 plugins {
     kotlin("multiplatform")
+    alias(libs.plugins.kotlinx.serialization)
     alias(libs.plugins.test.balloon)
     alias(libs.plugins.nmcp)
     id("org.jetbrains.dokka")

@@ -135,6 +135,8 @@ public abstract class KiluaRpcPlugin : Plugin<Project> {
                         if (targetName == "metadata" || targetName == "js" || targetName == "wasmJs") {
                             optIn.add("kotlin.js.ExperimentalWasmJsInterop")
                         }
+                        if (!freeCompilerArgs.get().contains("-Xwarning-level=SERIALIZABLE_WITH_ON_TYPE_HAS_NO_EFFECT:disabled"))
+                            freeCompilerArgs.add("-Xwarning-level=SERIALIZABLE_WITH_ON_TYPE_HAS_NO_EFFECT:disabled")
                     }
                 }
             }

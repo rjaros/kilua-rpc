@@ -50,7 +50,7 @@ test("a decimal is a plain number on the wire") {
         // it either, exactly as the browser half does not.
         assertEquals("1.5", RpcSerialization.plain.encodeToString(1.5.toDecimal()))
         assertEquals("0.0", RpcSerialization.plain.encodeToString(0.0.toDecimal()))
-        assertEquals(1.5, RpcSerialization.plain.decodeFromString<Decimal>("1.5").toDouble())
+        assertEquals(1.5, RpcSerialization.plain.decodeFromString<Decimal>("1.5"))
     }
 
     test("the decimal serializer writes a double when it is the one used") {
@@ -60,11 +60,11 @@ test("a decimal is a plain number on the wire") {
         // type by default.
         assertEquals("1.5", RpcSerialization.plain.encodeToString(DecimalSerializer, 1.5.toDecimal()))
         assertEquals("0.0", RpcSerialization.plain.encodeToString(DecimalSerializer, 0.0.toDecimal()))
-        assertEquals(1.5, RpcSerialization.plain.decodeFromString(DecimalSerializer, "1.5").toDouble())
+        assertEquals(1.5, RpcSerialization.plain.decodeFromString(DecimalSerializer, "1.5"))
     }
 
     test("a decimal converts back to the primitive types it came from") {
-        assertEquals(1.5, 1.5.toDecimal().toDouble())
+        assertEquals(1.5, 1.5.toDecimal())
         assertEquals(3, 3.toDecimal().toInt())
     }
 

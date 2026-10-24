@@ -1,5 +1,6 @@
 plugins {
     kotlin("multiplatform")
+    alias(libs.plugins.kotlinx.serialization)
     id("com.google.devtools.ksp")
     alias(libs.plugins.kilua.rpc)
 }

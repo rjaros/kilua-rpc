@@ -26,6 +26,8 @@ fun KotlinMultiplatformExtension.compilerOptions(withWasmMetadata: Boolean = fal
                     if (targetName == "wasmJs" || targetName == "js" || (withWasmMetadata && targetName == "metadata")) {
                         optIn.add("kotlin.js.ExperimentalWasmJsInterop")
                     }
+                    if (!freeCompilerArgs.get().contains("-Xwarning-level=SERIALIZABLE_WITH_ON_TYPE_HAS_NO_EFFECT:disabled"))
+                        freeCompilerArgs.add("-Xwarning-level=SERIALIZABLE_WITH_ON_TYPE_HAS_NO_EFFECT:disabled")
                 }
             }
         }
