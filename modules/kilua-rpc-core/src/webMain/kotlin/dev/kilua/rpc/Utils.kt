@@ -25,7 +25,6 @@ import js.globals.globalThis
 import js.reflect.Reflect
 import js.undefined.undefinedOrNull
 import web.window.window
-import kotlin.js.JsAny
 
 /**
  * Function to set property on JS Object

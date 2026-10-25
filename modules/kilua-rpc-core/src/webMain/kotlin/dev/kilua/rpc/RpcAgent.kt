@@ -43,13 +43,13 @@ import web.sse.EventSource
  */
 @Suppress("LargeClass", "TooManyFunctions")
 public open class RpcAgent<T : Any>(
-    public val baseUrl: String? = null,
+    @Suppress("unused") baseUrl: String? = null, // unused in the web target
     public val serviceManager: RpcServiceMgr<T>,
     serializersModules: List<SerializersModule>? = null,
     public val requestFilter: (suspend Request.() -> Unit)? = null
 ) {
 
-    public val callAgent: CallAgent = CallAgent(baseUrl ?: getRpcUrlPrefix())
+    public val callAgent: CallAgent = CallAgent()
     public val json: Json = RpcSerialization.getJson(serializersModules)
 
     public inline fun <reified PAR> serialize(value: PAR): String {
@@ -308,7 +308,7 @@ public open class RpcAgent<T : Any>(
         noinline handler: suspend (SendChannel<PAR1>, ReceiveChannel<PAR2>) -> Unit
     ) {
         if (!isDom) return
-        val urlPrefix = baseUrl ?: getRpcUrlPrefix()
+        val urlPrefix = getRpcUrlPrefix()
         val [url, _] = serviceManager.requireCall(function)
         webSocketCall(
             urlPrefix, url, json,
@@ -325,7 +325,7 @@ public open class RpcAgent<T : Any>(
         noinline handler: suspend (SendChannel<PAR1>, ReceiveChannel<List<PAR2>>) -> Unit
     ) {
         if (!isDom) return
-        val urlPrefix = baseUrl ?: getRpcUrlPrefix()
+        val urlPrefix = getRpcUrlPrefix()
         val [url, _] = serviceManager.requireCall(function)
         webSocketCall(
             urlPrefix, url, json,
@@ -417,7 +417,7 @@ public open class RpcAgent<T : Any>(
         noinline handler: suspend (ReceiveChannel<PAR>) -> Unit
     ) {
         if (!isDom) return
-        val urlPrefix = baseUrl ?: getRpcUrlPrefix()
+        val urlPrefix = getRpcUrlPrefix()
         val [url, _] = serviceManager.requireCall(function)
         sseConnectionCall(urlPrefix, url, json, json.serializersModule.serializer<PAR>(), handler)
     }
@@ -430,7 +430,7 @@ public open class RpcAgent<T : Any>(
         noinline handler: suspend (ReceiveChannel<List<PAR>>) -> Unit
     ) {
         if (!isDom) return
-        val urlPrefix = baseUrl ?: getRpcUrlPrefix()
+        val urlPrefix = getRpcUrlPrefix()
         val [url, _] = serviceManager.requireCall(function)
         sseConnectionCall(
             urlPrefix, url, json,
