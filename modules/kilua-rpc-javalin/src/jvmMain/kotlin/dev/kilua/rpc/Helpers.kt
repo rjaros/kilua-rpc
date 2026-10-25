@@ -404,8 +404,8 @@ public class DummyHttpServletRequest : HttpServletRequest {
         throw IllegalStateException("Empty implementation")
     }
 
-    override fun getSession(create: Boolean): HttpSession? {
-        throw IllegalStateException("Empty implementation")
+    override fun getSession(create: Boolean): HttpSession {
+        return DummyHttpSession()
     }
 
     override fun getSession(): HttpSession {

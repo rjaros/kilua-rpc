@@ -10,7 +10,6 @@ plugins {
 
 extra["mainClassName"] = "example.MainKt"
 
-@OptIn(ExperimentalWasmDsl::class)
 kotlin {
     jvmToolchain(25)
     jvm {
@@ -45,7 +44,7 @@ kotlin {
     sourceSets {
         getByName("commonMain") {
             dependencies {
-                implementation(libs.kilua.rpc.spring.boot)
+                implementation(project(":modules:kilua-rpc-spring-boot"))
                 implementation(libs.kotlinx.datetime)
             }
         }

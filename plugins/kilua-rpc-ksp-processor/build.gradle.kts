@@ -1,5 +1,7 @@
 plugins {
     kotlin("multiplatform")
+    alias(libs.plugins.kotlinx.serialization)
+    alias(libs.plugins.test.balloon)
     alias(libs.plugins.nmcp)
     id("org.jetbrains.dokka")
     id("maven-publish")
@@ -21,8 +23,16 @@ kotlin {
                 implementation(libs.ksp.symbol.processing.api)
             }
         }
+        getByName("jvmTest") {
+            dependencies {
+                implementation(kotlin("test"))
+                implementation(kotlin("test-common"))
+                implementation(kotlin("test-annotations-common"))
+                implementation(libs.test.balloon)
+            }
+        }
     }
 }
 
-setupDokka(tasks.dokkaGeneratePublicationHtml)
+setupDokka("plugins/")
 setupPublishing()

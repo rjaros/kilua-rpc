@@ -225,7 +225,7 @@ public fun <T : Any> Vertx.applyRoutes(
             router.route(it, path).handler(handler)
         }
     }
-    serviceManager.sseRequests.asSequence().forEach { (path, handler) ->
+    serviceManager.sseRequests.asSequence().forEach { [path, handler] ->
         router.route(path).handler(handler)
     }
 }

@@ -91,17 +91,17 @@ public class RpcServerWebSocket {
         message: String,
         session: WebSocketSession
     ) {
-        sessions[session.id + "###" + path]?.let { (_, requestChannel) ->
+        sessions[session.id + "###" + path]?.let { [_, requestChannel] ->
             requestChannel.send(message)
         }
     }
 
     @OnClose
-    public suspend fun onClose(
+    public fun onClose(
         path: String,
         session: WebSocketSession
     ) {
-        sessions[session.id + "###" + path]?.let { (responseChannel, requestChannel) ->
+        sessions[session.id + "###" + path]?.let { [responseChannel, requestChannel] ->
             responseChannel.close()
             requestChannel.close()
             sessions.remove(session.id + "###" + path)

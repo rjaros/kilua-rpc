@@ -28,6 +28,20 @@ import com.google.devtools.ksp.processing.SymbolProcessorProvider
 
 public class RpcProcessorProvider : SymbolProcessorProvider {
     override fun create(environment: SymbolProcessorEnvironment): SymbolProcessor {
-        return RpcProcessor(environment.codeGenerator)
+        return RpcProcessor(
+            environment.codeGenerator,
+            environment.logger,
+            singleTarget = environment.options[SINGLE_TARGET_KSP_OPTION] == "true"
+        )
+    }
+
+    internal companion object {
+        /**
+         * The KSP argument that switches the processor to its single target mode.
+         *
+         * Spelled out here as well as in the Gradle plugin: the plugin does not depend on the
+         * processor, and the two are versioned together, so the literal is the contract between them.
+         */
+        const val SINGLE_TARGET_KSP_OPTION: String = "kilua.rpc.singleTarget"
     }
 }

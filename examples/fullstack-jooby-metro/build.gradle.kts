@@ -1,5 +1,4 @@
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
     kotlin("multiplatform")
@@ -12,7 +11,6 @@ plugins {
 
 val mainClassNameVal = "example.MainKt"
 
-@OptIn(ExperimentalWasmDsl::class)
 kotlin {
     jvmToolchain(25)
     jvm {
@@ -51,7 +49,7 @@ kotlin {
     sourceSets {
         getByName("commonMain") {
             dependencies {
-                implementation(libs.kilua.rpc.jooby.metro)
+                implementation(project(":modules:kilua-rpc-jooby-metro"))
                 implementation(libs.kotlinx.datetime)
             }
         }
