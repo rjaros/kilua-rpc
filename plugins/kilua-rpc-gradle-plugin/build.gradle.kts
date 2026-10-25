@@ -61,15 +61,15 @@ dependencies {
     testImplementation(libs.test.balloon)
 }
 
-// The plugin reads its own version out of a bundled copy of the catalog (see KiluaRpcPlugin.apply).
-// It has to sit on the main runtime classpath, not only in the jar: when the plugin is applied from
-// this included build Gradle may put the project's classes and resources on the consumer's classpath
-// directly, and a version written into the jar alone would then be missing and fail the apply. A
-// published plugin packages processResources output into the jar anyway, so one location covers both.
-val versionsToml = rootProject.layout.projectDirectory.file("../../gradle/libs.versions.toml")
-val pluginVersion = project.version.toString()
-
 tasks.processResources {
+    // The plugin reads its own version out of a bundled copy of the catalog (see KiluaRpcPlugin.apply).
+    // It has to sit on the main runtime classpath, not only in the jar: when the plugin is applied from
+    // this included build Gradle may put the project's classes and resources on the consumer's classpath
+    // directly, and a version written into the jar alone would then be missing and fail the apply. A
+    // published plugin packages processResources output into the jar anyway, so one location covers both.
+    val versionsToml = rootProject.layout.projectDirectory.file("../../gradle/libs.versions.toml")
+    val pluginVersion = project.version.toString()
+
     // The version is threaded through a filter, which Gradle cannot see as an input on its own, so
     // without this a change of version (e.g. adding -PSNAPSHOT) would leave the resource stale.
     inputs.property("kiluaRpcPluginVersion", pluginVersion)

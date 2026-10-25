@@ -1,5 +1,4 @@
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
     kotlin("multiplatform")
@@ -11,7 +10,6 @@ plugins {
 
 val mainClassName = "io.ktor.server.netty.EngineMain"
 
-@OptIn(ExperimentalWasmDsl::class)
 kotlin {
     jvmToolchain(25)
     jvm {

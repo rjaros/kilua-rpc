@@ -10,7 +10,6 @@ plugins {
 
 extra["mainClassName"] = "example.MainKt"
 
-@OptIn(ExperimentalWasmDsl::class)
 kotlin {
     jvmToolchain(25)
     jvm {
