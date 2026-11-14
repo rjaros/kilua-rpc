@@ -1,3 +1,5 @@
+import com.android.build.api.withAndroid
+import de.infix.testBalloon.gradlePlugin.internal.layer.kotlin2420.withTestBalloon
 import org.gradle.api.Project
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPom
@@ -8,9 +10,8 @@ import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.plugins.signing.Sign
 import org.gradle.plugins.signing.SigningExtension
 import org.jetbrains.dokka.gradle.DokkaExtension
-import com.android.build.api.withAndroid
+import org.jetbrains.kotlin.gradle.ExperimentalJsTestDsl
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import java.net.URI
@@ -26,7 +27,9 @@ fun KotlinMultiplatformExtension.compilerOptions(withWasmMetadata: Boolean = fal
                     if (targetName == "wasmJs" || targetName == "js" || (withWasmMetadata && targetName == "metadata")) {
                         optIn.add("kotlin.js.ExperimentalWasmJsInterop")
                     }
-                    if (!freeCompilerArgs.get().contains("-Xwarning-level=SERIALIZABLE_WITH_ON_TYPE_HAS_NO_EFFECT:disabled"))
+                    if (!freeCompilerArgs.get()
+                            .contains("-Xwarning-level=SERIALIZABLE_WITH_ON_TYPE_HAS_NO_EFFECT:disabled")
+                    )
                         freeCompilerArgs.add("-Xwarning-level=SERIALIZABLE_WITH_ON_TYPE_HAS_NO_EFFECT:disabled")
                 }
             }
@@ -38,10 +41,11 @@ fun KotlinMultiplatformExtension.kotlinJsTargets(withNode: Boolean = true) {
     js {
         useEsModules()
         browser {
-            testTask {
-                it.useKarma {
-                    useChromeHeadless()
-                }
+            @OptIn(ExperimentalJsTestDsl::class)
+            test {
+                it.headless.set(true)
+                it.chromium()
+                it.withTestBalloon(this@js)
             }
         }
         if (withNode) {
@@ -54,15 +58,15 @@ fun KotlinMultiplatformExtension.kotlinJsTargets(withNode: Boolean = true) {
     }
 }
 
-@OptIn(ExperimentalWasmDsl::class)
 fun KotlinMultiplatformExtension.kotlinWasmTargets(withNode: Boolean = true) {
     wasmJs {
         useEsModules()
         browser {
-            testTask {
-                it.useKarma {
-                    useChromeHeadless()
-                }
+            @OptIn(ExperimentalJsTestDsl::class)
+            test {
+                it.headless.set(true)
+                it.chromium()
+                it.withTestBalloon(this@wasmJs)
             }
         }
         if (withNode) {

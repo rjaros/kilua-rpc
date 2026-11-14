@@ -5,6 +5,7 @@ plugins {
     id("org.jetbrains.dokka")
     id("maven-publish")
     id("signing")
+    id("de.infix.testBalloon")
 }
 
 kotlin {

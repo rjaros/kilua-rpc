@@ -39,6 +39,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 // The test service mirrors the shape of a generated interface: the client resolves a route from
@@ -167,10 +168,12 @@ private suspend fun withStreamingServer(block: suspend (RpcAgent<IStreamService>
         // giving up on a slow stop is harmless.
         val done = CountDownLatch(1)
         Thread {
-            runCatching { server.stop(0, 2_000) }
+            val _ = runCatching { server.stop(0, 2_000) }
             done.countDown()
         }.apply { isDaemon = true }.start()
-        done.await(5, TimeUnit.SECONDS)
+        withContext(Dispatchers.IO) {
+            done.await(5, TimeUnit.SECONDS)
+        }
     }
 }
 
@@ -198,7 +201,7 @@ val RpcAgentLifecycleSpec by testSuite {
                 service.eventsService { input ->
                     for (e in input) {
                         received.add(e)
-                        delay(3)
+                        delay(3.milliseconds)
                     }
                 }
                 assertEquals(
@@ -236,7 +239,7 @@ val RpcAgentLifecycleSpec by testSuite {
                 service.listEventsService { input ->
                     for (e in input) {
                         received.add(e)
-                        delay(3)
+                        delay(3.milliseconds)
                     }
                 }
                 assertEquals(

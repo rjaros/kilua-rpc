@@ -22,7 +22,9 @@
 
 package dev.kilua.rpc.ksp
 
+import com.google.devtools.ksp.ApiFeatures
 import com.google.devtools.ksp.KspExperimental
+import com.google.devtools.ksp.buildApiFeatures
 import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.getDeclaredFunctions
 import com.google.devtools.ksp.processing.*
@@ -61,6 +63,12 @@ public class RpcProcessor(
 
     private var isInitialInvocation = true
 
+    override val apiFeatures: ApiFeatures
+        get() = buildApiFeatures {
+            enableBackingFields = true
+            enableContextParameters = true
+        }
+
     override fun process(resolver: Resolver): List<KSAnnotated> {
         if (!isInitialInvocation) {
             // A subsequent invocation is for processing generated files. We do not need to process these.
@@ -74,7 +82,7 @@ public class RpcProcessor(
         // containing file - one from a binary dependency, say - dropped out of the dependencies of a
         // file that still lists it.
         val serviceDeclarations = resolver.getSymbolsWithAnnotation(RpcService::class.qualifiedName.orEmpty())
-            .filterIsInstance<KSClassDeclaration>().filter { it.validate(enableNewFeatures = true) }
+            .filterIsInstance<KSClassDeclaration>().filter { it.validate(apiFeatures = apiFeatures) }
             .filter { it.classKind == ClassKind.INTERFACE }
             .toList()
         val deps = serviceDeclarations.mapNotNull { it.containingFile }.toTypedArray()
@@ -158,7 +166,7 @@ public class RpcProcessor(
         val exceptions = mutableListOf<ExceptionNameDetails>()
         val exceptionDeclarations =
             resolver.getSymbolsWithAnnotation(RpcServiceException::class.qualifiedName.orEmpty())
-                .filterIsInstance<KSClassDeclaration>().filter { it.validate(enableNewFeatures = true) }
+                .filterIsInstance<KSClassDeclaration>().filter { it.validate(apiFeatures = apiFeatures) }
                 .filter { it.classKind == ClassKind.CLASS }
                 .toList()
         val depsExceptions = exceptionDeclarations.mapNotNull { it.containingFile }.toTypedArray()

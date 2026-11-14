@@ -26,6 +26,7 @@ import de.infix.testBalloon.framework.core.testSuite
 import com.google.devtools.ksp.gradle.KspExtension
 import org.gradle.api.Project
 import org.gradle.testfixtures.ProjectBuilder
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -70,6 +71,7 @@ private fun kiluaProject(
     val kotlin = kotlin(project)
     if (withJvm) {
         kotlin.jvm {
+            @OptIn(ExperimentalKotlinGradlePluginApi::class)
             if (withMainClass) mainRun { mainClass.set("dev.kilua.rpc.gradle.Noop") }
         }
     }

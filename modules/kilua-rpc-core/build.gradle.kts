@@ -1,3 +1,5 @@
+import de.infix.testBalloon.gradlePlugin.internal.layer.kotlin2420.withTestBalloon
+
 plugins {
     kotlin("multiplatform")
     alias(libs.plugins.kotlinx.serialization)
@@ -6,7 +8,7 @@ plugins {
     id("org.jetbrains.dokka")
     id("maven-publish")
     id("signing")
-    alias(libs.plugins.test.balloon)
+    id("de.infix.testBalloon")
 }
 
 kotlin {
