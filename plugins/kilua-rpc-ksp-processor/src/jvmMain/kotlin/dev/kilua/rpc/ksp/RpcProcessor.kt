@@ -377,15 +377,9 @@ public class RpcProcessor(
 
     /**
      * Whether the service is bound with generated route names.
-     *
-     * Wrapped in a try because of a KSP2 issue reading default parameter values off an annotation;
-     * without it, a service that simply does not set `namedRoutes` would fail instead of getting
-     * false.
      */
-    private fun KSClassDeclaration.namedRoutes(): Boolean = try {
-        getAnnotationsByType(RpcService::class).firstOrNull()?.namedRoutes ?: false
-    } catch (_: Exception) {
-        false
+    private fun KSClassDeclaration.namedRoutes(): Boolean {
+        return getAnnotationsByType(RpcService::class).firstOrNull()?.namedRoutes ?: false
     }
 
     private companion object {
