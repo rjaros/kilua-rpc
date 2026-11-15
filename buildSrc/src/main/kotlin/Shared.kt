@@ -219,6 +219,13 @@ fun Project.setupPublishing() {
     }
     extensions.getByType(SigningExtension::class.java).run {
         if (!isSnapshot) {
+            // CI supplies the armored key and its passphrase as project properties. Without them the
+            // extension keeps Gradle's default signatory, so a local keyring still works unchanged.
+            val signingKey = this@setupPublishing.findProperty("signingKey")?.toString()
+            val signingPassword = this@setupPublishing.findProperty("signingPassword")?.toString()
+            if (signingKey != null && signingPassword != null) {
+                useInMemoryPgpKeys(signingKey, signingPassword)
+            }
             sign(extensions.getByType(PublishingExtension::class.java).publications)
         }
     }

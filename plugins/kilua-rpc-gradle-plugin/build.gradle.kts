@@ -103,6 +103,13 @@ tasks.getByName("dokkaGeneratePublicationHtml").run {
 
 extensions.getByType<SigningExtension>().run {
     isRequired = !project.hasProperty("SNAPSHOT")
+    // CI supplies the armored key and its passphrase as project properties. Without them the
+    // extension keeps Gradle's default signatory, so a local keyring still works unchanged.
+    val signingKey = project.findProperty("signingKey")?.toString()
+    val signingPassword = project.findProperty("signingPassword")?.toString()
+    if (signingKey != null && signingPassword != null) {
+        useInMemoryPgpKeys(signingKey, signingPassword)
+    }
     sign(extensions.getByType<PublishingExtension>().publications)
 }
 
