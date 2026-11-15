@@ -35,6 +35,7 @@ jobs:
     # of the Central bundle. Pinned for the same reason as in ci.yml - the `macos-*` label has
     # changed meaning before and the Apple silicon image is the one the targets need.
     runs-on: macos-26
+    environment: maven-central
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
