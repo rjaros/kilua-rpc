@@ -24,12 +24,8 @@ package dev.kilua.rpc
 import js.numbers.JsInt
 import js.numbers.JsNumbers.toKotlinInt
 import js.reflect.unsafeCast
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import web.console.console
 import web.errors.ErrorEvent
 import web.events.Event
@@ -38,8 +34,8 @@ import web.messaging.MessageEvent
 import web.sockets.CloseEvent
 import web.sockets.WebSocket
 import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
-import kotlin.js.toJsString
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 //
 // Code taken from: https://discuss.kotlinlang.org/t/js-coroutines-experiements/8245/2
@@ -67,9 +63,9 @@ public class Socket {
     /**
      * Connect to a websocket.
      */
-    public suspend fun connect(url: String, retryDelay: Long = 1000) {
+    public suspend fun connect(url: String, retryDelay: Duration = 1.seconds) {
         while (true) {
-            val connected = suspendCoroutine { cont ->
+            val connected = suspendCancellableCoroutine { cont ->
                 while (eventQueue.tryReceive().isSuccess) {/*drain*/
                 }
                 ws = WebSocket(url)

@@ -28,4 +28,4 @@ import kotlin.reflect.KClass
  */
 public actual open class RpcServiceManager<out T : Any> actual constructor(
     serviceClass: KClass<T>
-) : RpcServiceManagerJs<T>(), RpcServiceMgr<T>
+) : RpcServiceManagerBase<T>(), RpcServiceMgr<T>

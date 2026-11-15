@@ -1,0 +1,114 @@
+name: Publish to Maven Central
+
+# `published` fires for both stable releases and pre-releases, including a pre-release published
+# from a draft. `created` is silent for drafts, and `released`/`prereleased` together still miss a
+# pre-release published from a draft, so `published` is the only activity type that covers both.
+#
+# GitHub reads the workflow from the release tag's commit, so this file has to be on `main` before
+# the tag is created. For a tag that predates it, use the manual trigger below.
+on:
+  release:
+    types: [ published ]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Git tag to publish (must match the version in gradle/libs.versions.toml)
+        required: true
+      dry_run:
+        description: Build the aggregation bundle without uploading it
+        type: boolean
+        default: false
+
+# Never cancel an upload halfway through. A repeated release simply queues behind the current run.
+concurrency:
+  group: publish-maven-central
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish to Maven Central
+    # macOS, not Linux: the Apple targets are registered only where Xcode is available
+    # (kotlinNativeTargets), so publishing from Linux would leave the ios*/macosArm64 variants out
+    # of the Central bundle. Pinned for the same reason as in ci.yml - the `macos-*` label has
+    # changed meaning before and the Apple silicon image is the one the targets need.
+    runs-on: macos-26
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+
+      # The modules compile against jvmToolchain(25).
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Cache the Kotlin/Native toolchain
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: konan-${{ runner.os }}-
+
+      # The aggregation includes the Android AARs, and assembling them needs the platform matching
+      # androidCompileSdk, which the runner images do not ship.
+      - name: Install the Android platform
+        uses: ./.github/actions/android-sdk
+
+      # The version comes from the catalog, not from the tag, so a release cut without bumping the
+      # catalog would otherwise publish whatever stale version is checked in.
+      - name: Verify the tag matches the catalog version
+        shell: bash
+        run: |
+          tag="${{ github.event.release.tag_name || inputs.tag }}"
+          version="$(sed -n 's/^kilua-rpc = "\(.*\)"$/\1/p' gradle/libs.versions.toml)"
+          if [ -z "$version" ]; then
+            echo "::error::Could not read the kilua-rpc version from gradle/libs.versions.toml"
+            exit 1
+          fi
+          if [ "$tag" != "$version" ]; then
+            echo "::error::Release tag '$tag' does not match kilua-rpc = '$version' in gradle/libs.versions.toml"
+            exit 1
+          fi
+          echo "Publishing version $version from tag $tag"
+
+      # User-managed publishing: this uploads and validates the deployment, then stops. Release it
+      # manually at https://central.sonatype.com/. Secrets are scoped to this step rather than the
+      # job so the checkout and toolchain setup never see them.
+      - name: Publish the aggregation to the Central Portal
+        if: github.event_name == 'release' || inputs.dry_run == false
+        shell: bash
+        run: ./gradlew publishAggregationToCentralPortal --console=plain
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_SIGNING_PASSWORD }}
+
+      # A dry run exercises compilation, signing and the bundle assembly without creating a
+      # deployment in the portal. Useful for retrying after a failure without deleting a release.
+      - name: Build the aggregation bundle only
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run == true
+        shell: bash
+        run: ./gradlew nmcpZipAggregation --console=plain
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_SIGNING_PASSWORD }}
+
+      - name: Upload the dry-run bundle
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run == true
+        uses: actions/upload-artifact@v4
+        with:
+          name: maven-central-aggregation
+          path: build/nmcp/zip/aggregation.zip
+          retention-days: 7

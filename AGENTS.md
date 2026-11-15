@@ -1,14 +1,18 @@
 # AGENTS Notes
 
-- Use `./gradlew` (wrapper is Gradle 9.7.1).
+- Use `./gradlew` (wrapper is Gradle 9.8.1).
 - This repo is a Gradle multi-project: `modules/` (published runtime libs), `plugins/` (Gradle plugin + KSP processor), `examples/` (integration/demo apps).
 - Most modules/examples build with `jvmToolchain(25)`; plugin/KSP projects target JVM 21.
 
-## Critical dependency gotcha
+## Composite build (important)
 
-- Examples do **not** depend on local `project(...)` modules; they consume published Maven coords from `libs.versions.toml` (`versions.kilua-rpc-published`). Read the current value from the catalog rather than assuming one — it is bumped per release.
-- After changing library/plugin code, publish fresh local artifacts before validating examples: `./gradlew publishToMavenLocal -PSNAPSHOT=true` (or `./build-mvnlocal.sh`).
-- If example behavior looks stale, clear/rebuild local Maven artifacts first; `mavenLocal()` is enabled in settings.
+- The Gradle plugin (`plugins/kilua-rpc-gradle-plugin`) is a **separate included build**, wired by a **top-level** `includeBuild("plugins/kilua-rpc-gradle-plugin")` in the root `settings.gradle.kts`; it is no longer a subproject. It must be top-level, not under `pluginManagement`: a `pluginManagement` include only serves plugin resolution, and Gradle does not apply the included build's dependency substitutions for it ([gradle/gradle#30059](https://github.com/gradle/gradle/issues/30059)), which would make the `nmcpAggregation` coordinate resolve from a repository. A top-level include covers both the examples' `plugins {}` resolution and that substitution. The build has its own `settings.gradle.kts`, a **nested `buildSrc`** holding a copy of the few root helpers it needs (`kotlinJvmTargets`, `defaultPom`, `setupDokka`, the `kiluaRpc*` constants), and its own `group`/`version` (the root `allprojects {}` does not reach it). Its catalog is loaded from `../../gradle/libs.versions.toml`.
+- The KSP processor (`plugins/kilua-rpc-ksp-processor`) and the runtime `modules/` stay in the root build. Examples consume the runtime modules as **project dependencies** (`project(":modules:kilua-rpc-...")`) and only the KSP processor gets **dependency substitution**: in the root `build.gradle.kts`, inside `gradle.projectsEvaluated`, each example's configurations rewrite the plugin-injected `dev.kilua:kilua-rpc-ksp-processor` to `project(":plugins:kilua-rpc-ksp-processor")` (version-agnostic). Examples therefore build from source — **no `publishToMavenLocal` is needed first** for local development. Do not widen this substitution beyond `:examples:*`: it would rewrite the coordinate the root `nmcpAggregation` resolves.
+- The runtime modules must be **project dependencies**, not coordinates, because a framework plugin may resolve a `Configuration.copy()`/detached configuration that does not carry a per-configuration dependency substitution. Quarkus copies the base runtime classpath into `quarkusProdBaseRuntimeClasspathConfigurationCopy` for `quarkusGenerateAppModel`; a coordinate there resolves from a repository (fails for an unpublished version, silently pins the released artifact otherwise), while a project dependency survives the copy. `getServerType` still detects the server: a `ProjectDependency`'s group/name resolve to `dev.kilua:kilua-rpc-<suffix>`. The KSP processor is only ever added to `ksp*` configurations, which are never copied, so substitution suffices for it.
+- Only the plugin alias `libs.plugins.kilua.rpc` (and the `libs.versions.kilua.rpc` behind it and `versionVal`) remains; the per-module `libs.kilua.rpc.<module>` library aliases were removed when examples moved to project dependencies. The version is irrelevant to local builds (the included build ignores it); it is the version used for publishing and for the plugin build. There is no separate "published" version — examples build from source.
+- Plugin commands moved off the root task graph. Standalone: `./gradlew -p plugins/kilua-rpc-gradle-plugin test` (or `check`). The root `build`, `check`, `clean` and `publishToMavenLocal` delegate to the matching included-build task (an included build's tasks are not matched by name), so `./gradlew build` and `./gradlew check` keep running the plugin tests.
+- Publishing the plugin: `./gradlew -p plugins/kilua-rpc-gradle-plugin publishToMavenLocal -PSNAPSHOT=true`. `./gradlew publishToMavenLocal -PSNAPSHOT=true` still publishes the modules + processor. The root `nmcpAggregation` references the plugin **by coordinate** — `dev.kilua:kilua-rpc-gradle-plugin:<version>` — which the composite substitutes to the included build; the version must match the included build's (snapshot-aware) version or the aggregation resolves it from Maven Central instead.
+- The plugin reads its version from `dev.kilua.rpc.versions.toml` on its own **runtime classpath** (see `KiluaRpcPlugin.apply`). The plugin build's `processResources` injects a copy of `gradle/libs.versions.toml` with `kilua-rpc =` replaced by the plugin version. Keep it a resource, not a jar-only entry: an included build exposes the project's classes/resources directly, and a jar-only resource would be missing at apply time and fail.
 
 ## Codegen and wiring
 
@@ -16,23 +20,67 @@
 - Placeholder APIs intentionally throw until generated (`modules/kilua-rpc-core/src/commonMain/kotlin/dev/kilua/rpc/RpcService.kt`, `modules/kilua-rpc-ktor/src/commonMain/kotlin/dev/kilua/rpc/RpcFunctions.kt`); failures there usually mean KSP/plugin wiring is broken.
 - Kilua plugin adds generated source dirs and packaging tasks; configurable properties are `dev.kilua.rpc.plugin.enableGradleTasks` and `dev.kilua.rpc.plugin.jarArchiveFileName`.
 
+## Android / KMP targets
+
+- `modules/kilua-rpc-core` and `modules/kilua-rpc-types` publish an Android target through `com.android.kotlin.multiplatform.library`. AGP 9 rejects the old `com.android.library` alongside `kotlin("multiplatform")` — the KMP-specific plugin is mandatory.
+- AGP lives on the buildSrc classpath (`com.android.tools.build:gradle` in `buildSrc/build.gradle.kts`) and is applied **versionless** in module build scripts, so the root build declares no plugin alias. `google()` is required in both `pluginManagement` and `dependencyResolutionManagement` in `settings.gradle.kts`.
+- The hierarchy comes from `kiluaHierarchyTemplate()` in `buildSrc/src/main/kotlin/Shared.kt`: `jvmMain` and `androidMain` both depend on `jvmAndAndroidMain`, which depends on `commonMain`. KMP's `withAndroidTarget()` does **not** match AGP's target — the helper uses `com.android.build.api.withAndroid()`.
+- JVM-only server sources (`RpcServiceBinder`, `SseHandler`, `WebsocketHandler`, `RouteMapRegistry`, …) stay in `jvmMain`. Android gets the client only, over Ktor CIO.
+- The Android target has a single variant: the compile task is `compileAndroidMain`. There is no `compileDebugKotlinAndroid` and no `testDebugUnitTest`.
+- Android SDK: `ANDROID_HOME` / `ANDROID_SDK_ROOT` point at `/home/rjaros/Programs/Android/Sdk`, with `platform-tools`, `platforms;android-37.0` and `build-tools;37.0.0` installed. Compile/min SDK and the JVM target are `androidCompileSdk = 37`, `androidMinSdk = 21`, `androidJvmTarget = JVM_11`.
+
+## Android KSP and codegen (measured, not inferred)
+
+- An Android **client** needs more than `kilua-rpc-core`. `RpcProcessor` emits `object <Iface>Manager : RpcServiceManager<Iface>` and a `getServiceManager(): RpcServiceManager<T>`, and `RpcServiceManager` is declared `expect` in the **server** modules' `commonMain` (`kilua-rpc-ktor`, `javalin`, `jooby`, `micronaut`, `quarkus`, `spring-boot`, `vertx`). So a client must depend on one of those modules. The Android actual is the *web* shape — a null-object route registry extending core's `RpcServiceManagerBase` — never the JVM one, which pulls in the Ktor server stack.
+- The Android target is contributed by AGP, so it is not a KGP `KotlinAndroidTarget`, but it still reports `KotlinPlatformType.androidJvm` and `targetName == "android"`. That is why `KiluaRpcPlugin`'s existing `"ksp" + targetName.titlecase()` yields the correct `kspAndroid` configuration with no change beyond adding `androidJvm` to the platform-type set.
+- KSP task and configuration naming differs between KGP targets and the AGP target, so never guess it:
+  - KGP targets: config `kspJvm`/`kspJs`, task `kspKotlinJvm`/`kspKotlinJs`.
+  - AGP android: config `kspAndroid`, task **`kspAndroidMain`** (compilation-based, not `kspKotlinAndroid`).
+  - KSP output is `build/generated/ksp/<targetName>/<sourceSetName>/kotlin`; `RpcProcessor.sourceSetBelowKsp()` returns the **second** segment, so an Android file dispatches on `androidMain`.
+- The generated code comes in two separate halves, from two separate tasks:
+  - `kspCommonMainKotlinMetadata` writes the common half — the `expect` declarations and the per-service managers — to `build/generated/ksp/metadata/commonMain`.
+  - `kspAndroidMain` writes the android half to `build/generated/ksp/android/androidMain`. It does **not** emit the common half.
+  - Consequence: `compileAndroidMain` fails with *"has no corresponding 'expect' declaration"* and *"Unresolved reference '<Iface>Manager'"* unless the common half has run. The plugin points `commonMain` at the metadata output directory; the platform source directories (`jsMain`, `wasmJsMain`, `jvmMain`, `androidMain`) are **not** registered by the plugin, because KSP already wires its own output into those compilations. Verified by removing all four platform `srcDir`s and recompiling js, jvm and wasmJs targets.
+- `kspCommonMainKotlinMetadata` is created only when the project has **at least two KMP targets**. `KiluaRpcPlugin` wires the ordering by task name (`AGP` is not on the plugin classpath, so there is no typed accessor): `platformKspTasks.configureEach { it.dependsOn(commonMetadataKspTask) }`, where both are `tasks.matching { … }` collections (the metadata one filters out `kspCommonMainKotlinMetadata`, the platform one matches every remaining `ksp*`). Depending on a collection rather than a name is deliberate: with a single target the metadata collection is empty and contributes no dependency, so the missing task name never fails the build. `generateKiluaRpcSources` depends on both collections.
+- A project with exactly **one** platform target is supported through an explicit mode rather than the two-half split. The processor cannot count targets (`SymbolProcessorEnvironment` exposes `options`, `platforms`, `codeGenerator`, `logger` and `kotlinVersion`, nothing else), so `KiluaRpcPlugin` signals the mode by passing `kilua.rpc.singleTarget=true` through `KspExtension.arg(SINGLE_TARGET_KSP_OPTION, "true")` — `KspExtension` is available because the plugin already depends on `libs.ksp.gradle.plugin` — and `RpcProcessorProvider` reads `environment.options[SINGLE_TARGET_KSP_OPTION]`. The option string is declared in both the plugin and the processor because the two modules do not depend on each other.
+- In single-target mode `RpcProcessor` writes a self-contained **platform** half into the target's own source set (`linuxX64Main`, `jvmMain`, …): the per-service manager, the client, `getServiceManager`/`getAllServiceManagers`/`getServiceManagers`, both `getService` overloads and the `registerRpcServiceExceptions` registration — no `expect` and no `actual`. The manager object and the client are emitted as two files in the same source set (`XManager.kt`, `XImpl.kt`) because one source set cannot hold two files of the same facade name.
+- Limitation, accepted: the generated entry points are visible only from the platform source set, so `getService<T>()`/`getAllServiceManagers()` must be called from e.g. `linuxX64Main`, **not** `commonMain`. A call from `commonMain` resolves to the library placeholder and throws at runtime. See `examples/single-target-linux` (a single `linuxX64()` target with the interface in `commonMain` and the call site in `linuxX64Main`).
+- With **zero** platform targets the plugin fails configuration naming the count it found, rather than letting the compiler report `ACTUAL_WITHOUT_EXPECT` or `Unresolved reference`. Verified: a `linuxX64()`-only project configures, runs `kspKotlinLinuxX64`, generates the self-contained half and links (`:examples:single-target-linux:linkDebugExecutableLinuxX64`).
+- Android-only projects: under the old two-half split `kspAndroidMain` never emitted the shared `expect` declarations and `compileAndroidMain` failed with `ACTUAL_WITHOUT_EXPECT`. In single-target mode that split does not exist, so an android-only project is the same case as any other single platform target; it has not been re-verified end to end.
+- A streaming method is declared **twice** by convention — once as the raw channel function and once as the handler receiving the channels the other way round (`IPingService.wservice`). The generator emits only the stub for the raw declaration and the `webSocket`/`sseConnection` override for it too, so the handler's own declaration must not turn into a second `call` override. That suppression is order-independent: `RpcProcessor` collects every method into `FunctionInfo` first and emits afterwards.
+- `KiluaRpcPlugin`'s server-distribution block (`jvmProcessResources`, `jvmRun`, boot/shadow jars) is skipped when the project has no JVM target, and `getServerType` uses `findByName` rather than `getByName`. Without both, a pure Android client fails at configuration time.
+- Adding an Android target to a module is enough to publish an `androidJvm` variant; no extra publishing wiring. Verified via `publishToMavenLocal -PSNAPSHOT=true` and a consumer resolving `dev.kilua:kilua-rpc-ktor:<version>`.
+- `getCallName` used to be duplicated verbatim in `jvmMain/RpcServiceBinder.kt` and `webMain/RpcServiceManagerJs.kt`. It now lives once in `commonMain/RpcServiceManagerBase.kt`; adding it back to a platform source set is a redeclaration.
+
+## Source-set gotchas
+
+- A file name that exists in both `commonMain` and a JVM-consumed shared or leaf source set collides, because both generate the same `<Name>Kt` facade — `Duplicate JVM class name 'dev/kilua/rpc/LoggerKt'`. Platform actuals need a suffix: `Decimal.jvmAndAndroid.kt`, `RpcService.jvmAndAndroid.kt`, `Logger.jvm.kt`, `Logger.android.kt`. This is why the pre-existing `Decimal.jvm.kt` was already suffixed.
+- The shared source set is lowercase-`j` `jvmAndAndroidMain`.
+- Shared platform URL helpers live in `jvmAndAndroidMain/.../PlatformUtils.kt` (not `Utils.kt`) precisely so they do not clash with the multiplatform `commonMain/.../Utils.kt`.
+
 ## Runtime conventions that affect debugging
 
 - Default route prefixes are fixed in binder code: HTTP `/rpc/`, WebSocket `/rpcws/`, SSE `/rpcsse/`.
 - Ktor default static SPA resources are mounted from `/assets`; plugin packaging uses `/public` for Micronaut/Spring Boot and `/webroot` for Vert.x.
-- The JVM client logs through SLF4J only (`api(libs.slf4j.api)` in `kilua-rpc-core`); no binding ships with the library, so consumers must add one (e.g. Logback). The core `jvmTest` source set adds `runtimeOnly(libs.logback.classic)`.
+- The client logs through Ktor's `io.ktor.client.plugins.logging.Logger` (`api(libs.ktor.client.logging)` in the `jvmAndAndroidMain` source set of `kilua-rpc-core`). The per-platform actual lives in `Logger.jvm.kt` (`Logger.DEFAULT`, SLF4J-backed) and `Logger.android.kt` (`Logger.ANDROID`, `android.util.Log`). SLF4J only arrives transitively and no binding ships, so JVM consumers still have to add one (e.g. Logback); the core `jvmTest` source set adds `runtimeOnly(libs.logback.classic)`.
+- `Logger` takes only `log(String)` — no throwable overload. Agent failures therefore go through the internal `Logger.logError` helper, which appends the stack trace to the message. Note also that `Logger.DEFAULT`/`Logger.ANDROID` are *extension properties on the companion*, so they need explicit imports.
 
 ## testBalloon gotchas (JVM tests)
 
-- `./gradlew :modules:kilua-rpc-core:jvmTest --tests "dev.kilua.rpc.SomeSpec"` does **not** match testBalloon suites; the filter is ignored. Run the whole task and read `build/test-results/jvmTest/*.xml`.
+- `./gradlew :modules:kilua-rpc-core:jvmTest --tests "dev.kilua.rpc.SomeSpec"` does **not** match testBalloon suites; the filter is ignored. Run the whole task and read `build/test-results/jvmTest/*.xml`. The same applies to `testAndroidHostTest` / `build/test-results/testAndroidHostTest/*.xml`.
+- `testAndroidHostTest` runs only the `commonTest` suites (currently `ResultSerializerSpec`, 4 tests). The source tree is `androidHostTest → jvmAndAndroidTest → commonTest`, so the JVM-only suites in `src/jvmTest` are never picked up — that is by design, since they bind real Ktor server sockets.
+- On Android, results are reported under classname `de.infix.testBalloon.framework.shared.internal.entryPoint.TestBalloonJUnit4` regardless of which suite actually ran. Do not read that classname as "these are testBalloon's own self-tests" — check the individual test names instead.
 - testBalloon runs each test in a `kotlinx.coroutines.test.TestScope`, so `delay` and `withTimeout` use *virtual* time and fire instantly for code that waits on a real socket. Socket-based tests must escape to a real clock, e.g. `runBlocking { withTimeout(60.seconds) { withContext(Dispatchers.Default) { ... } } }`.
 - Never let a test hang on teardown: a client that keeps its connection pool alive can block `embeddedServer.stop(...)` indefinitely. Run `stop` on a daemon thread and bound the wait.
 
 ## High-value commands
 
 - Fast library verification: `./gradlew :modules:kilua-rpc-core:jvmTest`.
+- Gradle plugin tests (included build): `./gradlew -p plugins/kilua-rpc-gradle-plugin test`.
+- All core targets at once: `./gradlew :modules:kilua-rpc-core:jvmTest :modules:kilua-rpc-core:testAndroidHostTest :modules:kilua-rpc-core:compileKotlinJs :modules:kilua-rpc-core:compileKotlinWasmJs :modules:kilua-rpc-core:compileAndroidMain` (expect 64 JVM + 4 Android tests, 0 failures).
+- Android client path end to end (server module publishes an `androidJvm` variant, KSP generates a compiling client): `./gradlew :modules:kilua-rpc-ktor:compileAndroidMain`. A consumer project must apply the Kilua plugin, `com.google.devtools.ksp` and `com.android.kotlin.multiplatform.library`, and depend on a **server** module in `commonMain`.
 - Browser target tests (Karma + ChromeHeadless required): `./gradlew :modules:kilua-rpc-core:jsBrowserTest :modules:kilua-rpc-core:wasmJsBrowserTest`.
-- Only `modules/kilua-rpc-core` currently contains test sources (`src/commonTest`, `src/jvmTest`, `src/webTest`).
+- Only `modules/kilua-rpc-core` currently contains test sources (`src/commonTest`, `src/jvmTest`, `src/webTest`); there are no `jvmAndAndroidTest`/`androidHostTest` source dirs, so the Android suite set is whatever sits in `commonTest`. The web suite covering the client route registry is `RpcServiceManagerBaseSpec` (it was `RpcServiceManagerJsSpec` before that class moved to `commonMain`).
 - Fullstack example packaging tasks come from the Kilua plugin: `:examples:<name>:jarWithJs`, `:examples:<name>:jarWithWasmJs`.
 - TypeScript example flow (`examples/typescript-ktor`):
   1) `./gradlew :examples:typescript-ktor:ktor-server:jsBrowserDevelopmentLibraryDistribution`
@@ -43,3 +91,4 @@
 ## What not to assume
 
 - No repo lint setup like ktlint/detekt/spotless is configured; do not invent lint commands in validation steps.
+- Web deliberately keeps its **own** `RpcAgent`/`CallAgent` implementation in `webMain`, separate from the `jvmAndAndroidMain` one. Consolidating them is intentional future work, not an oversight — do not "fix" the duplication unasked, and expect the error-mapping behavior (`ServiceException` reconstruction, status mapping, response-id checks) to be maintained in both copies by hand.

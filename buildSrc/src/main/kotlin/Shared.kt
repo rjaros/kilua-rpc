@@ -1,16 +1,17 @@
+import com.android.build.api.withAndroid
+import de.infix.testBalloon.gradlePlugin.internal.layer.kotlin2420.withTestBalloon
 import org.gradle.api.Project
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPom
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.publish.maven.tasks.AbstractPublishToMaven
-import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.plugins.signing.Sign
 import org.gradle.plugins.signing.SigningExtension
 import org.jetbrains.dokka.gradle.DokkaExtension
-import org.jetbrains.dokka.gradle.tasks.DokkaGeneratePublicationTask
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.ExperimentalJsTestDsl
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import java.net.URI
@@ -26,6 +27,10 @@ fun KotlinMultiplatformExtension.compilerOptions(withWasmMetadata: Boolean = fal
                     if (targetName == "wasmJs" || targetName == "js" || (withWasmMetadata && targetName == "metadata")) {
                         optIn.add("kotlin.js.ExperimentalWasmJsInterop")
                     }
+                    if (!freeCompilerArgs.get()
+                            .contains("-Xwarning-level=SERIALIZABLE_WITH_ON_TYPE_HAS_NO_EFFECT:disabled")
+                    )
+                        freeCompilerArgs.add("-Xwarning-level=SERIALIZABLE_WITH_ON_TYPE_HAS_NO_EFFECT:disabled")
                 }
             }
         }
@@ -36,10 +41,11 @@ fun KotlinMultiplatformExtension.kotlinJsTargets(withNode: Boolean = true) {
     js {
         useEsModules()
         browser {
-            testTask {
-                it.useKarma {
-                    useChromeHeadless()
-                }
+            @OptIn(ExperimentalJsTestDsl::class)
+            test {
+                it.headless.set(true)
+                it.chromium()
+                it.withTestBalloon(this@js)
             }
         }
         if (withNode) {
@@ -52,15 +58,15 @@ fun KotlinMultiplatformExtension.kotlinJsTargets(withNode: Boolean = true) {
     }
 }
 
-@OptIn(ExperimentalWasmDsl::class)
 fun KotlinMultiplatformExtension.kotlinWasmTargets(withNode: Boolean = true) {
     wasmJs {
         useEsModules()
         browser {
-            testTask {
-                it.useKarma {
-                    useChromeHeadless()
-                }
+            @OptIn(ExperimentalJsTestDsl::class)
+            test {
+                it.headless.set(true)
+                it.chromium()
+                it.withTestBalloon(this@wasmJs)
             }
         }
         if (withNode) {
@@ -92,6 +98,82 @@ fun KotlinJvmProjectExtension.kotlinJvmTargets(target: String = "25") {
     jvmToolchain {
         it.languageVersion.set(JavaLanguageVersion.of(target))
     }
+}
+
+/**
+ * API level the android artefacts are compiled against.
+ *
+ * AGP 9 refuses to combine `com.android.library` with `org.jetbrains.kotlin.multiplatform`, so the
+ * android target of a multiplatform module comes from `com.android.kotlin.multiplatform.library`
+ * and is configured through an `android {}` block of the kotlin extension rather than a top level
+ * `android` block. That block is contributed by the Android Gradle plugin as a target preset, so
+ * it is only visible in the build script of a module that applies the plugin - which is why the
+ * android target is configured there and not from this file.
+ */
+const val androidCompileSdk = 37
+
+/**
+ * Lowest android api level the client supports.
+ */
+const val androidMinSdk = 21
+
+/**
+ * Bytecode level of the android compilations. Deliberately lower than the JVM toolchain, so that
+ * the tooling the plugin drives stays able to read the output.
+ */
+val androidJvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
+
+/**
+ * The default hierarchy template extended with a `client` group holding every Ktor-backed target.
+ *
+ * The default template keeps the Android target out of the `jvm` group, so without this the
+ * android target would not see a single line of the JVM client implementation. Sharing the client
+ * half is what keeps the android and native flavours from becoming further copies of it - the
+ * server half stays in `jvmMain` and is therefore not published for either.
+ *
+ * Inside the group `jvmAndAndroid` narrows further to the two JVM-flavoured targets, because they
+ * are the only ones with `java.math.BigDecimal` and system properties available to them.
+ */
+@OptIn(ExperimentalKotlinGradlePluginApi::class)
+fun KotlinMultiplatformExtension.kiluaHierarchyTemplate() {
+    applyDefaultHierarchyTemplate {
+        common {
+            group("client") {
+                group("jvmAndAndroid") {
+                    withJvm()
+                    // Not the built-in withAndroidTarget(): the android target of a multiplatform
+                    // module is created by AGP and is not a KGP KotlinAndroidTarget.
+                    @Suppress("UnstableApiUsage")
+                    withAndroid()
+                }
+                group("native") {
+                    withLinux()
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The Kotlin/Native targets a module publishes, as far as the host running the build supports.
+ *
+ * Declaring an apple target on a host that cannot build it fails the build outright, so the apple
+ * targets are only registered where Xcode is available. Linux and mingw cross-compile klibs from
+ * any host, which is what lets the common case of a linux-only client be developed anywhere.
+ */
+@OptIn(ExperimentalKotlinGradlePluginApi::class)
+fun KotlinMultiplatformExtension.kotlinNativeTargets() {
+    val host = System.getProperty("os.name").orEmpty()
+    val onAppleHost = host.contains("Mac") || host.contains("Darwin")
+    if (onAppleHost) {
+        iosArm64()
+        iosX64()
+        iosSimulatorArm64()
+        macosArm64()
+    }
+    linuxX64()
+    linuxArm64()
+    mingwX64()
 }
 
 const val kiluaRpcProjectName = "Kilua RPC"
@@ -137,6 +219,13 @@ fun Project.setupPublishing() {
     }
     extensions.getByType(SigningExtension::class.java).run {
         if (!isSnapshot) {
+            // CI supplies the armored key and its passphrase as project properties. Without them the
+            // extension keeps Gradle's default signatory, so a local keyring still works unchanged.
+            val signingKey = this@setupPublishing.findProperty("signingKey")?.toString()
+            val signingPassword = this@setupPublishing.findProperty("signingPassword")?.toString()
+            if (signingKey != null && signingPassword != null) {
+                useInMemoryPgpKeys(signingKey, signingPassword)
+            }
             sign(extensions.getByType(PublishingExtension::class.java).publications)
         }
     }
@@ -147,9 +236,9 @@ fun Project.setupPublishing() {
     }
 }
 
-fun Project.setupDokka(provider: TaskProvider<DokkaGeneratePublicationTask>) {
+fun Project.setupDokka(path: String = "modules/") {
     tasks.register("javadocJar", Jar::class.java) {
-        it.from(provider.flatMap { it.outputDirectory })
+        // javadocJar is empty, but it is required for publishing to Maven Central. Dokka generates the actual documentation.
         it.archiveClassifier.set("javadoc")
     }
 
@@ -157,7 +246,7 @@ fun Project.setupDokka(provider: TaskProvider<DokkaGeneratePublicationTask>) {
         dokkaSourceSets.configureEach {
             it.sourceLink {
                 it.localDirectory.set(projectDir.resolve("src"))
-                it.remoteUrl.set(URI("https://github.com/rjaros/kilua-rpc/tree/main/modules/${project.name}/src"))
+                it.remoteUrl.set(URI("https://github.com/rjaros/kilua-rpc/tree/main/$path${project.name}/src"))
                 it.remoteLineSuffix.set("#L")
             }
         }

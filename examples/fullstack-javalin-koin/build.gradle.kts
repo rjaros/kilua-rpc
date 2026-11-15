@@ -1,5 +1,4 @@
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
     kotlin("multiplatform")
@@ -10,7 +9,6 @@ plugins {
 
 val mainClassName = "example.MainKt"
 
-@OptIn(ExperimentalWasmDsl::class)
 kotlin {
     jvmToolchain(25)
     jvm {
@@ -49,7 +47,7 @@ kotlin {
     sourceSets {
         getByName("commonMain") {
             dependencies {
-                implementation(libs.kilua.rpc.javalin.koin)
+                implementation(project(":modules:kilua-rpc-javalin-koin"))
                 implementation(libs.kotlinx.datetime)
             }
         }

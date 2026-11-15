@@ -1,5 +1,4 @@
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
     kotlin("multiplatform")
@@ -11,7 +10,6 @@ plugins {
 
 extra["mainClassName"] = "example.MainVerticle"
 
-@OptIn(ExperimentalWasmDsl::class)
 kotlin {
     jvmToolchain(25)
     jvm {
@@ -51,7 +49,7 @@ kotlin {
     sourceSets {
         getByName("commonMain") {
             dependencies {
-                implementation(libs.kilua.rpc.vertx.metro)
+                implementation(project(":modules:kilua-rpc-vertx-metro"))
                 implementation(libs.kotlinx.datetime)
             }
         }

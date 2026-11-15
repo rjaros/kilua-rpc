@@ -216,10 +216,10 @@ public fun <T : Any> CoroutineRouter.applyRoutes(
             HttpMethod.OPTIONS -> options(path, handler)
         }
     }
-    serviceManager.webSocketRequests.forEach { (path, handler) ->
+    serviceManager.webSocketRequests.forEach { [path, handler] ->
         this.router.ws(path, handler)
     }
-    serviceManager.sseRequests.forEach { (path, handler) ->
+    serviceManager.sseRequests.forEach { [path, handler] ->
         val emiterHandler = ServerSentEmitter.Handler { sse ->
             handler(ServerSentHandler(sse.context, sse))
         }

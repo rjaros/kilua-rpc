@@ -26,12 +26,6 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.serializer
-import kotlin.reflect.KFunction
-
-@PublishedApi
-internal fun getCallName(function: Function<*>): String =
-    if (function is KFunction<*>) function.name
-    else function.toString().replace("\\s".toRegex(), "")
 
 /**
  * Binds HTTP calls to kotlin functions

@@ -2,9 +2,11 @@ plugins {
     kotlin("multiplatform")
     alias(libs.plugins.kotlinx.serialization)
     alias(libs.plugins.nmcp)
+    id("com.android.kotlin.multiplatform.library")
     id("org.jetbrains.dokka")
     id("maven-publish")
     id("signing")
+    id("de.infix.testBalloon")
 }
 
 kotlin {
@@ -13,6 +15,20 @@ kotlin {
     kotlinJsTargets()
     kotlinWasmTargets()
     kotlinJvmTargets()
+    kotlinNativeTargets()
+    // The android flavour of this module is client only: androidMain holds a null-object route
+    // registry and nothing else, so none of the Javalin server dependencies in jvmMain are published
+    // for it. Everything the client needs comes from commonMain via kilua-rpc-core.
+    android {
+        namespace = "dev.kilua.rpc"
+        compileSdk = androidCompileSdk
+        minSdk = androidMinSdk
+        compilerOptions {
+            jvmTarget.set(androidJvmTarget)
+        }
+        withHostTestBuilder {}.configure {}
+    }
+    kiluaHierarchyTemplate()
     sourceSets {
         getByName("commonMain") {
             dependencies {
@@ -34,5 +50,5 @@ kotlin {
     }
 }
 
-setupDokka(tasks.dokkaGeneratePublicationHtml)
+setupDokka()
 setupPublishing()

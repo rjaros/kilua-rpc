@@ -147,11 +147,9 @@ val RpcServiceBinderSpec by testSuite {
             // execution
             serviceBinder.bind(handler, null)
             val entry = serviceBinder.webSocketRequests.entries.single()
-            entry.value(HANDLER_THIS, receiveChannel, responseChannel)
-            val response = runBlocking {
-                receiveChannel.send(clientServerMessage)
-                responseChannel.receive()
-            }
+            val _ = entry.value(HANDLER_THIS, receiveChannel, responseChannel)
+            receiveChannel.send(clientServerMessage)
+            val response = responseChannel.receive()
 
             // evaluation
             assertEquals(response, clientServerMessage)

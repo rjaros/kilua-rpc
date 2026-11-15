@@ -53,7 +53,7 @@ public enum class ResponseBodyType {
 /**
  * An agent responsible for remote calls.
  */
-public open class CallAgent(private val urlPrefix: String = getRpcUrlPrefix()) {
+public open class CallAgent {
 
     private var counter = 1
 
@@ -72,6 +72,7 @@ public open class CallAgent(private val urlPrefix: String = getRpcUrlPrefix()) {
         method: HttpMethod = HttpMethod.POST,
         requestFilter: (suspend Request.() -> Unit)? = null
     ): String {
+        val urlPrefix = getRpcUrlPrefix()
         val jsonRpcRequest = JsonRpcRequest(counter++, url, data)
         val body =
             if (method == HttpMethod.GET) null else BodyInit(RpcSerialization.plain.encodeToString(jsonRpcRequest))
