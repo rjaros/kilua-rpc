@@ -7,8 +7,8 @@ Fullstack RPC library for Kotlin/Wasm and Kotlin/JS.
 
 Kilua RPC is a powerful Remote Procedure Call (RPC) library designed for fullstack applications 
 created with the Kotlin programming language. It can be used with frontend apps developed for 
-[Kotlin/Wasm](https://kotlinlang.org/docs/wasm-overview.html) and [Kotlin/JS](https://kotlinlang.org/docs/js-overview.html) targets. On the backend side different popular Kotlin/JVM web frameworks 
-are fully supported:
+[Kotlin/Wasm](https://kotlinlang.org/docs/wasm-overview.html) and [Kotlin/JS](https://kotlinlang.org/docs/js-overview.html) targets with additional support for JVM, Android, Apple, Windows and Linux clients. 
+On the backend side different popular Kotlin/JVM web frameworks are fully supported:
 
 - [Ktor](https://ktor.io/)
 - [Jooby](https://jooby.io)
@@ -18,8 +18,7 @@ are fully supported:
 - [Micronaut](https://micronaut.io)
 - [Quarkus](https://quarkus.io)
 
-Kilua RPC is a new project, but it is mostly based on stable and production ready 
-fullstack interfaces implemented in the [KVision](https://kvision.io) framework. 
+Kilua RPC is mostly based on stable and production ready fullstack interfaces implemented in the older versions of [KVision](https://kvision.io) framework. 
 
 Kilua RPC can be used with all Kotlin/JS and Kotlin/Wasm web frameworks to easily build fullstack 
 applications with shared code for data model and business logic.
@@ -129,7 +128,7 @@ is the backend app dependencies list and the main initialization code.
 
 ## Gradle tasks
 
-Kilua RPC gradle plugin defines custom tasks to run and package fullstack applications. 
+Kilua RPC Gradle plugin defines custom tasks to run and package fullstack applications. 
 No matter which server is used these tasks are always available:
 
 - `jsBrowserDevelopmentRun` - run the frontend JS application in the development mode
